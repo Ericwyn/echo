@@ -11,8 +11,10 @@ import 'app.dart';
 
 void main() {
   runZonedGuarded(
-    () {
+    () async {
       WidgetsFlutterBinding.ensureInitialized();
+      await Logger.initializePlaybackLogs();
+      WidgetsBinding.instance.addObserver(_PlaybackLifecycleObserver());
       final isDesktopMediaKitPlatform =
           !kIsWeb &&
           (defaultTargetPlatform == TargetPlatform.linux ||
@@ -42,4 +44,15 @@ void main() {
       Logger.errorWithTag('APP', 'Uncaught zone error', error, stackTrace);
     },
   );
+}
+
+class _PlaybackLifecycleObserver extends WidgetsBindingObserver {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    Logger.infoWithTag('PLAYBACK', 'app lifecycle=${state.name}');
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      unawaited(Logger.flushPlaybackLogs());
+    }
+  }
 }

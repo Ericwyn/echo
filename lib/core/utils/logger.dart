@@ -1,4 +1,5 @@
 import 'dart:collection';
+import 'playback_log_store.dart';
 import 'package:flutter/foundation.dart';
 
 enum _LogLevel { debug, info, warn, error }
@@ -11,6 +12,33 @@ class Logger {
 
   /// Ring buffer storing the most recent log lines.
   static final _buffer = ListQueue<String>(_maxBufferSize);
+
+  static PlaybackLogStore? _playbackStore;
+  static const _persistentTags = {
+    'PLAYBACK',
+    'PLAYBACK_RECOVERY',
+    'AUDIO_SERVICE',
+    'PRECACHE',
+  };
+
+  static Future<void> initializePlaybackLogs() async {
+    try {
+      _playbackStore = await PlaybackLogStore.open();
+      infoWithTag('PLAYBACK', 'app session started');
+    } catch (_) {
+      // In-memory export remains available if storage is inaccessible.
+    }
+  }
+
+  static Future<void> flushPlaybackLogs() async {
+    await _playbackStore?.flush();
+  }
+
+  static Future<String> exportLogsWithHistory() async {
+    final history = await _playbackStore?.read() ?? '';
+    return '${history.isEmpty ? '' : '--- Persistent playback history ---\n$history\n'}'
+        '--- Current session ---\n${exportLogs()}';
+  }
 
   // ---------------------------------------------------------------------------
   // Public API
@@ -105,6 +133,7 @@ class Logger {
 
     final mainLine = '[$now][$levelText]$tagText $message';
     _addToBuffer(mainLine);
+    if (_persistentTags.contains(tag)) _playbackStore?.append(mainLine);
 
     final includeErrorDetails = !kReleaseMode;
     final errorText = includeErrorDetails

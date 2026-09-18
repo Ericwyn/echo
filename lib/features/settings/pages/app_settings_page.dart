@@ -45,7 +45,7 @@ class _AppSettingsPageState extends ConsumerState<AppSettingsPage> {
     setState(() => _isExportingLogs = true);
 
     try {
-      final logContent = Logger.exportLogs();
+      final logContent = await Logger.exportLogsWithHistory();
       if (logContent.isEmpty) {
         _showMessage('暂无日志可导出');
         return;
