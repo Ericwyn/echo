@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:just_audio/just_audio.dart';
 import '../utils/logger.dart';
@@ -13,8 +15,14 @@ class EchoAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   AudioPlayer get audioPlayer => _audioPlayer;
 
   // 用于通知外部的回调
-  Function()? onSkipToNext;
-  Function()? onSkipToPrevious;
+  Future<void> Function()? onSkipToNext;
+  Future<void> Function()? onSkipToPrevious;
+  Future<void> Function()? onPlay;
+  Future<void> Function()? onPause;
+  Future<void> Function()? onStop;
+  final List<StreamSubscription<dynamic>> _subscriptions = [];
+  int? _sourceTransition;
+  bool _transitionPlaying = false;
   Future<void> Function(Duration position)? onSeek;
   Duration _positionOffset = Duration.zero;
 
@@ -25,23 +33,29 @@ class EchoAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   /// 初始化监听器
   void _init() {
     // 监听播放状态变化，同步到通知栏
-    _audioPlayer.playingStream.listen((playing) {
-      _broadcastState();
-    });
+    _subscriptions.add(
+      _audioPlayer.playingStream.listen((playing) {
+        _broadcastState();
+      }),
+    );
 
     // 监听播放位置
-    _audioPlayer.positionStream.listen((position) {
-      playbackState.add(
-        playbackState.value.copyWith(
-          updatePosition: _logicalPosition(position),
-        ),
-      );
-    });
+    _subscriptions.add(
+      _audioPlayer.positionStream.listen((position) {
+        playbackState.add(
+          playbackState.value.copyWith(
+            updatePosition: _logicalPosition(position),
+          ),
+        );
+      }),
+    );
 
     // 监听播放完成
-    _audioPlayer.processingStateStream.listen((processingState) {
-      _broadcastState();
-    });
+    _subscriptions.add(
+      _audioPlayer.processingStateStream.listen((processingState) {
+        _broadcastState();
+      }),
+    );
   }
 
   /// 广播当前状态到通知栏
@@ -54,7 +68,9 @@ class EchoAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         // not render the notification progress control as disabled.
         systemActions: echoPlaybackSystemActions,
         processingState: _getProcessingState(),
-        playing: _audioPlayer.playing,
+        playing: _sourceTransition != null
+            ? _transitionPlaying
+            : _audioPlayer.playing,
         updatePosition: _logicalPosition(_audioPlayer.position),
         bufferedPosition: _logicalPosition(_audioPlayer.bufferedPosition),
         speed: _audioPlayer.speed,
@@ -66,13 +82,17 @@ class EchoAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   List<MediaControl> _getControls() {
     return [
       MediaControl.skipToPrevious,
-      if (_audioPlayer.playing) MediaControl.pause else MediaControl.play,
+      if (_sourceTransition != null ? _transitionPlaying : _audioPlayer.playing)
+        MediaControl.pause
+      else
+        MediaControl.play,
       MediaControl.skipToNext,
     ];
   }
 
   /// 获取处理状态
   AudioProcessingState _getProcessingState() {
+    if (_sourceTransition != null) return AudioProcessingState.loading;
     switch (_audioPlayer.processingState) {
       case ProcessingState.idle:
         return AudioProcessingState.idle;
@@ -92,19 +112,33 @@ class EchoAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   Future<void> updateMediaItem(MediaItem item) async {
     mediaItem.add(item);
 
-    // 立即设置为播放状态，激活 MediaSession
-    playbackState.add(
-      playbackState.value.copyWith(
-        controls: _getControls(),
-        androidCompactActionIndices: const [0, 1, 2],
-        systemActions: echoPlaybackSystemActions,
-        processingState: AudioProcessingState.ready,
-        playing: true, // 关键：标记为正在播放
-        updatePosition: Duration.zero,
-        bufferedPosition: Duration.zero,
-        speed: 1.0,
-      ),
+    // Metadata updates must not change the user's transport intent.
+    _broadcastState();
+  }
+
+  void beginSourceTransition(int generation, {required bool playing}) {
+    _sourceTransition = generation;
+    _transitionPlaying = playing;
+    Logger.infoWithTag(
+      'AUDIO_SERVICE',
+      'source transition begin generation=$generation playing=$playing',
     );
+    _broadcastState();
+  }
+
+  void endSourceTransition(int generation) {
+    if (_sourceTransition != generation) return;
+    _sourceTransition = null;
+    Logger.infoWithTag(
+      'AUDIO_SERVICE',
+      'source transition end generation=$generation state=${_audioPlayer.processingState.name}',
+    );
+    _broadcastState();
+  }
+
+  void updateTransportIntent(bool playing) {
+    _transitionPlaying = playing;
+    _broadcastState();
   }
 
   // ===== 播放控制 =====
@@ -112,19 +146,27 @@ class EchoAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   @override
   Future<void> play() async {
     Logger.info('AudioHandler: play');
-    await _audioPlayer.play();
+    if (onPlay != null) return onPlay!();
+    await _audioPlayer.setVolume(1);
+    unawaited(_audioPlayer.play());
   }
 
   @override
   Future<void> pause() async {
     Logger.info('AudioHandler: pause');
+    if (onPause != null) return onPause!();
     await _audioPlayer.pause();
   }
 
   @override
   Future<void> stop() async {
     Logger.info('AudioHandler: stop');
-    await _audioPlayer.stop();
+    _sourceTransition = null;
+    if (onStop != null) {
+      await onStop!();
+    } else {
+      await _audioPlayer.stop();
+    }
     await super.stop();
   }
 
@@ -157,13 +199,13 @@ class EchoAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   @override
   Future<void> skipToNext() async {
     Logger.info('AudioHandler: skipToNext');
-    onSkipToNext?.call();
+    await onSkipToNext?.call();
   }
 
   @override
   Future<void> skipToPrevious() async {
     Logger.info('AudioHandler: skipToPrevious');
-    onSkipToPrevious?.call();
+    await onSkipToPrevious?.call();
   }
 
   @override
@@ -173,6 +215,9 @@ class EchoAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   /// 清理资源
   Future<void> dispose() async {
+    for (final subscription in _subscriptions) {
+      await subscription.cancel();
+    }
     await _audioPlayer.dispose();
   }
 }

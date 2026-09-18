@@ -111,6 +111,8 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   Duration? _pendingSeekPosition;
   String? _pendingSeekSongId;
   bool _usingLockCachingSource = false;
+  bool _playbackRequested = false;
+  int? _replacingSourceGeneration;
   String? _currentStreamUrl;
   String? _currentStreamSongId;
   String? _currentStreamFormat;
@@ -161,11 +163,14 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   MusicRepository get _musicRepository =>
       _ref.read(musicRepositoryProvider) ?? MusicRepository(_apiClient);
 
-  PlayerNotifier(this._ref) : super(PlayerState()) {
+  late final Future<void> initialized;
+
+  PlayerNotifier(this._ref, {AudioPlayer? player, bool restoreSession = true})
+    : super(PlayerState()) {
     _favoriteHandler = FavoriteScrobbleHandler(_ref);
     _cacheHandler = CacheManagerHandler(_ref);
     _initConnectivityRetryHandling();
-    _init();
+    initialized = _init(injectedPlayer: player, restoreSession: restoreSession);
   }
 
   @override
@@ -175,41 +180,50 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   }
 
   /// 初始化播放器
-  void _init() async {
+  Future<void> _init({
+    AudioPlayer? injectedPlayer,
+    required bool restoreSession,
+  }) async {
     AudioPlayer player;
 
-    // 初始化 AudioService（仅在移动平台，桌面端不支持且可能干扰播放）
-    try {
-      if (_isDesktopPlatform) throw UnsupportedError('Desktop platform');
-      _audioHandler = await initAudioService();
-      player = _audioHandler!.audioPlayer;
-      Logger.info('AudioService initialized');
+    if (injectedPlayer != null) {
+      player = injectedPlayer;
+    } else {
+      // 初始化 AudioService（仅在移动平台，桌面端不支持且可能干扰播放）
+      try {
+        if (_isDesktopPlatform) throw UnsupportedError('Desktop platform');
+        _audioHandler = await initAudioService();
+        player = _audioHandler!.audioPlayer;
+        Logger.info('AudioService initialized');
 
-      // 设置通知栏按钮回调
-      _audioHandler?.onSkipToNext = () {
-        next();
-      };
-      _audioHandler?.onSkipToPrevious = () {
-        previous();
-      };
-      _audioHandler?.onSeek = seek;
-    } catch (e) {
-      Logger.warn('AudioService not available: $e');
-      player = AudioPlayer(
-        audioLoadConfiguration: const AudioLoadConfiguration(
-          androidLoadControl: AndroidLoadControl(
-            minBufferDuration: Duration(minutes: 10),
-            maxBufferDuration: Duration(minutes: 15),
-            bufferForPlaybackDuration: Duration(seconds: 5),
-            bufferForPlaybackAfterRebufferDuration: Duration(seconds: 10),
+        // 设置通知栏按钮回调
+        _audioHandler?.onSkipToNext = next;
+        _audioHandler?.onSkipToPrevious = previous;
+        _audioHandler?.onPlay = play;
+        _audioHandler?.onPause = pause;
+        _audioHandler?.onStop = stop;
+        _audioHandler?.onSeek = seek;
+      } catch (e) {
+        Logger.warn('AudioService not available: $e');
+        player = AudioPlayer(
+          audioLoadConfiguration: const AudioLoadConfiguration(
+            androidLoadControl: AndroidLoadControl(
+              minBufferDuration: Duration(minutes: 10),
+              maxBufferDuration: Duration(minutes: 15),
+              bufferForPlaybackDuration: Duration(seconds: 5),
+              bufferForPlaybackAfterRebufferDuration: Duration(seconds: 10),
+            ),
+            darwinLoadControl: DarwinLoadControl(
+              preferredForwardBufferDuration: Duration(minutes: 10),
+            ),
           ),
-          darwinLoadControl: DarwinLoadControl(
-            preferredForwardBufferDuration: Duration(minutes: 10),
-          ),
-        ),
-      );
+        );
+      }
     }
-
+    if (!mounted) {
+      await player.dispose();
+      return;
+    }
     _audioPlayer = player;
 
     // 监听播放状态
@@ -367,7 +381,13 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
         _completionHandlingSongId = null;
       }
 
-      if (mounted && playerState.processingState == ProcessingState.completed) {
+      if (mounted &&
+          playerState.processingState == ProcessingState.completed &&
+          _replacingSourceGeneration == null &&
+          _loadedSourceSongId == state.currentSong?.id &&
+          _loadedSourceSongId != null &&
+          _playbackRequested &&
+          !_shouldPreserveSeekPosition()) {
         final completedSongId = state.currentSong?.id;
         final shouldHandle =
             completedSongId != null &&
@@ -387,11 +407,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       }
     });
 
-    // 监听循环模式
-    player.loopModeStream.listen((loopMode) {
-      if (mounted) state = state.copyWith(loopMode: loopMode);
-    });
-
+    // Looping is managed here: a timeOffset source may contain only a tail.
     // 监听随机模式
     player.shuffleModeEnabledStream.listen((enabled) {
       if (!enabled) {
@@ -405,8 +421,10 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       }
     });
 
-    await _restorePlaybackMode();
-    await _restorePlaybackSession();
+    if (restoreSession) {
+      await _restorePlaybackMode();
+      await _restorePlaybackSession();
+    }
   }
 
   void _initConnectivityRetryHandling() {
@@ -542,6 +560,8 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     bool clearShuffleForwardHistory = false,
     bool autoPlay = true,
   }) async {
+    _playbackRequested = autoPlay;
+    _audioHandler?.updateTransportIntent(autoPlay);
     final playQueue = queue ?? [song];
     final playIndex = index ?? 0;
     _syncShuffleHistoryBeforeSongChange(
@@ -563,6 +583,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     }
 
     final debugSession = ++_playDebugSession;
+    _invalidateLoadedSource(reason: 'song_transition');
     _transportRequestGeneration += 1;
     bool isCurrentSession() =>
         _isPlaybackContextCurrent(session: debugSession, songId: song.id);
@@ -588,7 +609,6 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       if (!autoPlay) {
         _cancelFade();
         await _audioPlayer?.pause();
-        await _audioHandler?.pause();
         if (_playDebugSession != debugSession) return;
       }
 
@@ -1615,7 +1635,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   /// just_audio 的 play() Future 会在暂停/结束时才完成，不能在切歌流程里 await。
   void _startPlayback({bool fadeIn = true}) {
     final player = _audioPlayer;
-    if (player == null) return;
+    if (player == null || !_playbackRequested) return;
     unawaited(
       player.play().catchError((error) {
         Logger.warn('Failed to start playback', error);
@@ -1627,14 +1647,13 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   }
 
   Future<void> _syncPlaybackAfterSourceReady({required bool autoPlay}) async {
-    if (autoPlay) {
+    if (_playbackRequested) {
       _startPlayback();
       return;
     }
 
     _cancelFade();
     await _audioPlayer?.pause();
-    await _audioHandler?.pause();
     if (mounted && state.isPlaying) {
       state = state.copyWith(isPlaying: false);
     }
@@ -1663,7 +1682,10 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     final durationMs = _ref.read(crossfadeDurationMsProvider);
     if (durationMs <= 0) return;
     final player = _audioPlayer;
-    if (player == null || !player.playing) return;
+    if (player == null ||
+        !player.playing ||
+        player.processingState == ProcessingState.completed)
+      return;
 
     // 淡出只使用一半时长，另一半留给淡入
     final fadeMs = durationMs ~/ 2;
@@ -1761,6 +1783,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     bool autoPlay = true,
   }) async {
     final debugSession = ++_playDebugSession;
+    _invalidateLoadedSource(reason: 'song_transition');
     _transportRequestGeneration += 1;
     bool isCurrentSession() =>
         _isPlaybackContextCurrent(session: debugSession, songId: song.id);
@@ -1795,7 +1818,6 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     if (!autoPlay) {
       _cancelFade();
       await _audioPlayer?.pause();
-      await _audioHandler?.pause();
       if (_playDebugSession != debugSession) return;
     }
 
@@ -1948,6 +1970,8 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
 
   /// 暂停（带淡出）
   Future<void> pause() async {
+    _playbackRequested = false;
+    _audioHandler?.updateTransportIntent(false);
     final playbackSession = _playDebugSession;
     final transportRequest = ++_transportRequestGeneration;
     final durationMs = _ref.read(crossfadeDurationMsProvider);
@@ -1963,15 +1987,27 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
         _transportRequestGeneration != transportRequest) {
       return;
     }
-    await _audioHandler?.pause();
   }
 
   /// 播放（从暂停恢复，不使用淡入——淡入淡出仅用于切歌）
   Future<void> play() {
+    _playbackRequested = true;
+    _audioHandler?.updateTransportIntent(true);
     _transportRequestGeneration += 1;
     _cancelFade(); // 取消任何进行中的淡入淡出，恢复音量到 1.0
     _startPlayback(fadeIn: false);
     return Future<void>.value();
+  }
+
+  Future<void> stop() async {
+    _playbackRequested = false;
+    _playDebugSession += 1;
+    _transportRequestGeneration += 1;
+    _clearCurrentPlaybackRetry(reason: 'stop');
+    _invalidateLoadedSource(reason: 'stop');
+    _invalidateSeekRequests();
+    _cancelFade();
+    await _audioPlayer?.stop();
   }
 
   /// 暂停前的淡出：音量降到 0 后返回，由 pause() 执行实际暂停。
@@ -1980,7 +2016,10 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     final durationMs = _ref.read(crossfadeDurationMsProvider);
     if (durationMs <= 0) return;
     final player = _audioPlayer;
-    if (player == null || !player.playing) return;
+    if (player == null ||
+        !player.playing ||
+        player.processingState == ProcessingState.completed)
+      return;
 
     final fadeMs = durationMs ~/ 2;
     const stepMs = 20;
@@ -2192,7 +2231,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
 
   /// 设置循环模式
   Future<void> setLoopMode(LoopMode mode) async {
-    await _audioPlayer?.setLoopMode(mode);
+    await _audioPlayer?.setLoopMode(LoopMode.off);
     if (mounted) {
       state = state.copyWith(loopMode: mode);
     }
@@ -2287,7 +2326,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
         break;
       case PlaybackMode.repeatOne:
         await _audioPlayer?.setShuffleModeEnabled(false);
-        await _audioPlayer?.setLoopMode(LoopMode.one);
+        await _audioPlayer?.setLoopMode(LoopMode.off);
         _resetShuffleHistory(updateState: false);
         if (mounted) {
           state = state.copyWith(
@@ -2868,10 +2907,11 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     if (state.loopMode == LoopMode.one) {
       // 单曲循环
       _seekDbg('completed -> repeat one song=$completedSongId');
-      await seek(Duration.zero);
-      if (state.currentSong?.id == completedSongId) {
-        _startPlayback(fadeIn: false);
-      }
+      await playSong(
+        state.currentSong!,
+        queue: state.queue,
+        index: state.currentIndex,
+      );
     } else if (state.hasNext) {
       // 播放下一首
       _seekDbg('completed -> sequential next song=$completedSongId');
@@ -3413,7 +3453,9 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     required int session,
     required String songId,
   }) {
-    return _playDebugSession == session && state.currentSong?.id == songId;
+    return mounted &&
+        _playDebugSession == session &&
+        state.currentSong?.id == songId;
   }
 
   void _invalidateLoadedSource({required String reason}) {
@@ -3436,6 +3478,11 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
 
     final generation = ++_sourceGeneration;
     _loadedSourceSongId = null;
+    _replacingSourceGeneration = generation;
+    _audioHandler?.beginSourceTransition(
+      generation,
+      playing: _playbackRequested,
+    );
     _playDbg('source=$label load begin song=$songId generation=$generation');
 
     try {
@@ -3445,6 +3492,11 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
         _loadedSourceSongId = null;
       }
       rethrow;
+    } finally {
+      if (_replacingSourceGeneration == generation) {
+        _replacingSourceGeneration = null;
+      }
+      _audioHandler?.endSourceTransition(generation);
     }
 
     if (_sourceGeneration != generation ||
