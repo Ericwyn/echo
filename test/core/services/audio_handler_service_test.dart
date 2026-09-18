@@ -77,6 +77,25 @@ void main() {
     },
   );
 
+  test('failed prepare keeps service buffering until explicit pause', () async {
+    await handler.updateMediaItem(const MediaItem(id: 'song', title: 'Song'));
+    handler.beginSourceTransition(1, playing: true);
+    when(() => player.processingState).thenReturn(ProcessingState.idle);
+    when(() => player.playing).thenReturn(false);
+    handler.endSourceTransition(1);
+    expect(
+      handler.playbackState.value.processingState,
+      AudioProcessingState.buffering,
+    );
+    expect(handler.playbackState.value.playing, isTrue);
+    handler.updateTransportIntent(false);
+    expect(
+      handler.playbackState.value.processingState,
+      AudioProcessingState.idle,
+    );
+    expect(handler.playbackState.value.playing, isFalse);
+  });
+
   test('metadata updates do not turn paused playback into playing', () async {
     when(() => player.playing).thenReturn(false);
     await handler.updateMediaItem(const MediaItem(id: 'song', title: 'Song'));

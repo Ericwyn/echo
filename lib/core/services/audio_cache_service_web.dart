@@ -30,6 +30,7 @@ class AudioCacheService {
     required String filePath,
     required int fileSize,
     required AudioQualityLevel quality,
+    Set<String> activeSongIds = const {},
   }) async {}
 
   Future<String> getCacheFilePath({

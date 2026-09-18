@@ -68,9 +68,7 @@ class EchoAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         // not render the notification progress control as disabled.
         systemActions: echoPlaybackSystemActions,
         processingState: _getProcessingState(),
-        playing: _sourceTransition != null
-            ? _transitionPlaying
-            : _audioPlayer.playing,
+        playing: _reportedPlaying,
         updatePosition: _logicalPosition(_audioPlayer.position),
         bufferedPosition: _logicalPosition(_audioPlayer.bufferedPosition),
         speed: _audioPlayer.speed,
@@ -78,14 +76,17 @@ class EchoAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     );
   }
 
+  bool get _reportedPlaying =>
+      _sourceTransition != null ||
+          _audioPlayer.processingState == ProcessingState.idle
+      ? _transitionPlaying
+      : _audioPlayer.playing;
+
   /// 获取控制按钮
   List<MediaControl> _getControls() {
     return [
       MediaControl.skipToPrevious,
-      if (_sourceTransition != null ? _transitionPlaying : _audioPlayer.playing)
-        MediaControl.pause
-      else
-        MediaControl.play,
+      if (_reportedPlaying) MediaControl.pause else MediaControl.play,
       MediaControl.skipToNext,
     ];
   }
@@ -95,7 +96,11 @@ class EchoAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     if (_sourceTransition != null) return AudioProcessingState.loading;
     switch (_audioPlayer.processingState) {
       case ProcessingState.idle:
-        return AudioProcessingState.idle;
+        // A failed prepare may leave the decoder idle while bounded recovery
+        // is pending. Only an explicit pause/stop should tear down the service.
+        return _transitionPlaying && mediaItem.value != null
+            ? AudioProcessingState.buffering
+            : AudioProcessingState.idle;
       case ProcessingState.loading:
         return AudioProcessingState.loading;
       case ProcessingState.buffering:
@@ -162,6 +167,7 @@ class EchoAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   Future<void> stop() async {
     Logger.info('AudioHandler: stop');
     _sourceTransition = null;
+    _transitionPlaying = false;
     if (onStop != null) {
       await onStop!();
     } else {
@@ -215,6 +221,13 @@ class EchoAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   /// 清理资源
   Future<void> dispose() async {
+    onPlay = null;
+    onPause = null;
+    onStop = null;
+    onSeek = null;
+    onSkipToNext = null;
+    onSkipToPrevious = null;
+    await stop();
     for (final subscription in _subscriptions) {
       await subscription.cancel();
     }

@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:just_audio/just_audio.dart' hide PlayerState;
+import '../../core/services/audio_prefetch_service.dart';
 import '../../core/platform/platform_file_bridge.dart';
 import '../../data/models/audio_quality.dart';
 import '../../data/sources/subsonic_api_client.dart';
@@ -19,6 +19,13 @@ class CacheManagerHandler {
   final Ref _ref;
 
   CacheManagerHandler(this._ref);
+  final AudioPrefetchService _prefetch = AudioPrefetchService();
+  int _generation = 0;
+
+  Future<void> cancelPrecache() {
+    _generation++;
+    return _prefetch.cancel();
+  }
 
   SubsonicApiClient get _apiClient => _ref.read(subsonicApiClientProvider);
 
@@ -27,9 +34,18 @@ class CacheManagerHandler {
     String cacheFilePath,
     String songId,
     String libraryId,
-    AudioQualityLevel quality,
-  ) async {
+    AudioQualityLevel quality, {
+    Set<String> activeSongIds = const {},
+  }) async {
     try {
+      // just_audio can publish 100% before renaming its .part file.
+      for (
+        var attempt = 0;
+        attempt < 10 && !await fileExists(cacheFilePath);
+        attempt++
+      ) {
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      }
       if (!await fileExists(cacheFilePath)) return;
       final fileSize = await fileLength(cacheFilePath);
       if (fileSize <= 0) return;
@@ -41,6 +57,7 @@ class CacheManagerHandler {
         filePath: cacheFilePath,
         fileSize: fileSize,
         quality: quality,
+        activeSongIds: activeSongIds,
       );
       Logger.info(
         'Cache registered (download complete): $songId '
@@ -59,15 +76,14 @@ class CacheManagerHandler {
     required String? Function(String? suffix) needsTranscoding,
     required void Function(String message) seekDbg,
   }) async {
-    if (!state.hasNext) return;
+    final generation = ++_generation;
+    await _prefetch.cancel();
+    if (generation != _generation || !state.hasNext) return;
     if (kIsWeb) return;
     if (state.shuffleEnabled) return;
-    if (state.currentIndex < 0 ||
-        state.currentIndex >= state.queue.length - 1) {
-      return;
-    }
-
-    final nextSong = state.queue[state.currentIndex + 1];
+    if (state.queue.length < 2 || state.currentIndex < 0) return;
+    final nextSong = state.queue[(state.currentIndex + 1) % state.queue.length];
+    if (nextSong.isPreview || (nextSong.duration ?? 0) > 1200) return;
     final authState = _ref.read(authStateProvider);
     final libraryId = authState.currentLibrary?.id ?? '';
     if (libraryId.isEmpty) return;
@@ -76,11 +92,6 @@ class CacheManagerHandler {
     final cacheService = _ref.read(audioCacheServiceProvider);
     final effectiveQuality = _ref.read(effectiveQualityProvider);
     final maxBitRate = effectiveQuality.maxBitRate;
-    if (maxBitRate != null) {
-      seekDbg('pre_cache_skip song=${nextSong.id} reason=bitrate-limited');
-      return;
-    }
-
     // 已下载则不需要预缓存
     final downloaded = await downloadService.isDownloaded(
       nextSong.id,
@@ -96,7 +107,7 @@ class CacheManagerHandler {
     );
     if (cached != null) return;
 
-    // 预缓存：构建 LockCachingAudioSource 并监听下载进度
+    if (generation != _generation) return;
     try {
       final streamUrl = _apiClient.getStreamUrl(
         nextSong.id,
@@ -108,27 +119,33 @@ class CacheManagerHandler {
         libraryId: libraryId,
         quality: effectiveQuality,
       );
-      // ignore: experimental_member_use
-      final source = LockCachingAudioSource(
-        Uri.parse(streamUrl),
-        cacheFile: fileForPath(cacheFilePath),
+      if (generation != _generation || streamUrl.isEmpty) return;
+      Logger.infoWithTag(
+        'PRECACHE',
+        'start song=${nextSong.id} quality=${effectiveQuality.name}',
       );
-      Logger.info('Pre-caching next song: ${nextSong.title}');
-
-      // 监听 downloadProgressStream，下载完成时注册缓存
-      // ignore: experimental_member_use
-      source.downloadProgressStream.listen((progress) {
-        if (progress >= 1.0) {
-          registerCacheFromFile(
-            cacheFilePath,
-            nextSong.id,
-            libraryId,
-            effectiveQuality,
-          );
-        }
-      });
+      final completedPath = await _prefetch.download(streamUrl, cacheFilePath);
+      if (generation != _generation) return;
+      if (completedPath == null) {
+        Logger.infoWithTag(
+          'PRECACHE',
+          'cancelled_or_failed song=${nextSong.id}',
+        );
+        return;
+      }
+      await registerCacheFromFile(
+        completedPath,
+        nextSong.id,
+        libraryId,
+        effectiveQuality,
+        activeSongIds: {if (state.currentSong != null) state.currentSong!.id},
+      );
+      Logger.infoWithTag('PRECACHE', 'complete song=${nextSong.id}');
     } catch (e) {
-      Logger.warn('Pre-cache failed for next song', e);
+      Logger.warnWithTag(
+        'PRECACHE',
+        'failed song=${nextSong.id} type=${e.runtimeType}',
+      );
     }
   }
 }

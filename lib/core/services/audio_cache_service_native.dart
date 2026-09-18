@@ -75,6 +75,7 @@ class AudioCacheService {
     required String filePath,
     required int fileSize,
     required AudioQualityLevel quality,
+    Set<String> activeSongIds = const {},
   }) async {
     final entry = AudioCacheEntry(
       id: const Uuid().v4(),
@@ -90,7 +91,7 @@ class AudioCacheService {
     );
 
     await _repository.registerCache(entry);
-    await evictIfNeeded(activeSongIds: {songId});
+    await evictIfNeeded(activeSongIds: {songId, ...activeSongIds});
   }
 
   Future<String> getCacheFilePath({
