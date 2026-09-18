@@ -12,6 +12,9 @@ class MainActivity : AudioServiceFragmentActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        if (!flutterEngine.plugins.has(PlaybackWakeGuardPlugin::class.java)) {
+            flutterEngine.plugins.add(PlaybackWakeGuardPlugin())
+        }
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             APP_LIFECYCLE_CHANNEL

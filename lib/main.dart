@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'app.dart';
+import 'core/services/background_playback_advisor.dart';
 
 void main() {
   runZonedGuarded(
@@ -50,6 +51,18 @@ class _PlaybackLifecycleObserver extends WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     Logger.infoWithTag('PLAYBACK', 'app lifecycle=${state.name}');
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      // Wait for the foreground frame so the hint is visible after unlocking.
+      if (state == AppLifecycleState.resumed) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          BackgroundPlaybackAdvisor.instance.onLifecycle(
+            WidgetsBinding.instance.lifecycleState ?? state,
+          );
+        });
+      } else {
+        BackgroundPlaybackAdvisor.instance.onLifecycle(state);
+      }
+    }
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
       unawaited(Logger.flushPlaybackLogs());

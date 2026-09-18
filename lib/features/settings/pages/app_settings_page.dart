@@ -1,6 +1,7 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart'
+    show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -23,6 +24,7 @@ import '../../../providers/playlist_provider.dart';
 import '../../../providers/theme_provider.dart';
 import '../widgets/echo_settings_components.dart';
 import 'audio_quality_page.dart';
+import 'background_playback_page.dart';
 import 'cache_management_page.dart';
 import 'cover_providers_page.dart';
 import 'lyrics_providers_page.dart';
@@ -307,6 +309,15 @@ class _AppSettingsPageState extends ConsumerState<AppSettingsPage> {
                       await LocalStorage.setAutoFallback(value);
                     },
                   ),
+                  if (!kIsWeb &&
+                      defaultTargetPlatform == TargetPlatform.android)
+                    EchoSettingRow(
+                      icon: AppIcons.timer,
+                      title: '后台播放',
+                      description: '检查电池优化、省电模式与熄屏播放限制',
+                      onPressed: () =>
+                          _pushPage(const BackgroundPlaybackPage()),
+                    ),
                   EchoSettingRow(
                     icon: AppIcons.palette,
                     title: '主题设置',
