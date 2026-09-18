@@ -1,6 +1,6 @@
 # 播放可靠性验证
 
-本次修复覆盖后台服务换源、运行时断流恢复、预缓存、拖动回滚和播放日志持久化。
+本次修复覆盖后台服务换源、运行时断流恢复、预缓存、拖动回滚、单曲循环复用、CPU 保活、后台设置引导和播放日志持久化。
 
 ## 自动回归
 
@@ -8,7 +8,10 @@
 flutter test test/core/services/audio_handler_service_test.dart \
   test/providers/player_recovery_test.dart \
   test/core/services/audio_prefetch_service_test.dart \
-  test/core/utils/playback_log_store_test.dart
+  test/core/utils/playback_log_store_test.dart \
+  test/core/services/playback_wake_guard_test.dart \
+  test/core/services/background_playback_service_test.dart \
+  test/features/settings/background_playback_page_test.dart
 ```
 
 测试使用真实 PlayerNotifier 配合可控播放器事件，以及本地 HTTP 服务器验证预下载。
@@ -46,5 +49,18 @@ flutter test test/core/services/audio_handler_service_test.dart \
 
 ## 本次本地验证记录
 
-2026-09-18 使用本机 Flutter 3.41.7 / Dart 3.11.5 执行全项目静态分析，无问题；全量 364 个测试通过。
-仓库 CI 使用 Flutter 3.38.9，本次没有更改依赖锁文件。上述 Android 真机用例尚未执行。
+2026-09-18 使用本机 Flutter 3.41.7 / Dart 3.11.5 执行全项目静态分析，无问题；本轮全量 374 个测试通过，并另补停播与重新播放竞争的定向回归。
+仓库 CI 使用 Flutter 3.38.9，本次没有更改依赖锁文件。Android 新增 Kotlin 插件尚未在本机编译，需由 Actions 编译验证；上述 Android 真机用例尚未执行。
+
+## 熄屏与重复播放补充验证
+
+- 完整音源开启单曲循环，连续听两轮：应出现 `repeat_native`，不再每轮出现 `load begin`。原生循环不可用时走 `repeat_reuse`；远程流的 seek 仍可能产生网络缓冲。
+- 对服务器 timeOffset 转码流拖到中间：本轮结束出现一次 `repeat_reload_tail`，下一轮必须从 0 开始，之后使用原生循环。
+- 单首队列增加第二首：应退出原生单曲循环，正常自动下一首；删除第二首后恢复单首循环。
+- 打开“设置 → 后台播放”，对照手机的电池优化与省电模式；修改后返回应用应自动刷新。检测失败显示未知，不应显示已放开。
+- 三星手机检查“从不休眠的应用”入口；不支持时退回应用信息页。休眠名单不能自动检测，需要手动核对。参考 [三星官方说明](https://developer.samsung.com/mobile/app-management.html)。
+- 熄屏至少 15 分钟，跨越两次曲尾，分别验证本地缓存、网络流和单曲循环；尽量不要在曲尾前唤醒屏幕。若仍停顿，记录实际静音和亮屏时间并导出日志。
+- 对照 `cpu_guard` 的 `held / foreground / interactive / idle / batteryExempt / powerSave / gapMs / sleptMs`；暂停/停止应出现释放记录且不再续期。`sleptMs` 是设备睡眠时间差，不等于断流时长。
+- `event_loop_gap` 表示 Dart 回调间隔异常，`native_completed eventAgeMs` 帮助区分事件投递延迟；这些信号不能单独证明是厂商杀后台或网络故障。检测到后台延迟后，回到前台只提示一次设置检查。
+
+Android 新增的 CPU 锁仅在请求播放时续期，暂停、停止、恢复耗尽或销毁时释放；单次租约最多 120 秒，不保持屏幕常亮。它用于保护切歌和重播期间的执行，不能绕过所有厂商限制。系统电池优化状态和设置跳转使用 [Android 官方接口](https://developer.android.com/reference/android/os/PowerManager#isIgnoringBatteryOptimizations(java.lang.String))，不自动修改用户设置。

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:echoes/core/services/playback_wake_guard.dart';
 
 import 'package:dio/dio.dart';
 import 'package:echoes/core/network/address_pool.dart';
@@ -25,6 +26,16 @@ import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class MockPlayer extends Mock implements audio.AudioPlayer {}
+
+class RecordingWakeGuard extends PlaybackWakeGuard {
+  RecordingWakeGuard() : super(enabled: false);
+  final calls = <bool>[];
+
+  @override
+  Future<void> setActive(bool active, {required String reason}) async {
+    calls.add(active);
+  }
+}
 
 class MockConnectivity extends Mock implements ConnectivityMonitor {}
 
@@ -75,7 +86,10 @@ void main() {
     );
   });
 
-  void createFixture({DateTime Function()? clock}) {
+  void createFixture({
+    DateTime Function()? clock,
+    PlaybackWakeGuard? wakeGuard,
+  }) {
     SharedPreferences.setMockInitialValues({});
     engine = MockPlayer();
     final network = MockConnectivity();
@@ -94,6 +108,9 @@ void main() {
     plays = 0;
     pendingLoad = null;
     when(() => engine.playbackEventStream).thenAnswer((_) => errors.stream);
+    when(
+      () => engine.positionDiscontinuityStream,
+    ).thenAnswer((_) => const Stream.empty());
     when(() => engine.playerStateStream).thenAnswer((_) => states.stream);
     when(() => engine.playingStream).thenAnswer((_) => playingEvents.stream);
     when(() => engine.positionStream).thenAnswer((_) => const Stream.empty());
@@ -110,18 +127,22 @@ void main() {
     when(() => engine.bufferedPosition).thenReturn(const Duration(seconds: 30));
     when(() => engine.duration).thenReturn(const Duration(seconds: 120));
     when(() => engine.audioSource).thenAnswer((_) => source);
-    when(() => engine.setUrl(any(), headers: any(named: 'headers'))).thenAnswer(
-      (call) async {
-        loads++;
-        source = audio.AudioSource.uri(
-          Uri.parse(call.positionalArguments.first as String),
-        );
-        position = Duration.zero;
-        return pendingLoad == null
-            ? const Duration(seconds: 120)
-            : pendingLoad!.future;
-      },
-    );
+    when(
+      () => engine.setUrl(
+        any(),
+        headers: any(named: 'headers'),
+        initialPosition: any(named: 'initialPosition'),
+      ),
+    ).thenAnswer((call) async {
+      loads++;
+      source = audio.AudioSource.uri(
+        Uri.parse(call.positionalArguments.first as String),
+      );
+      position = Duration.zero;
+      return pendingLoad == null
+          ? const Duration(seconds: 120)
+          : pendingLoad!.future;
+    });
     when(() => engine.play()).thenAnswer((_) async {
       playing = true;
       plays++;
@@ -196,6 +217,7 @@ void main() {
             player: engine,
             restoreSession: false,
             clock: clock,
+            wakeGuard: wakeGuard ?? PlaybackWakeGuard(enabled: false),
           ),
         ),
       ],
@@ -399,20 +421,96 @@ void main() {
     },
   );
 
+  playbackTest('a late stop completion does not release a new playback lease', (
+    tester,
+  ) async {
+    final guard = RecordingWakeGuard();
+    createFixture(wakeGuard: guard);
+    await notifier.initialized;
+    final initial = notifier.playSong(song);
+    await tester.pump();
+    await initial;
+    final pendingStop = Completer<void>();
+    when(() => engine.stop()).thenAnswer((_) => pendingStop.future);
+    final stop = notifier.stop();
+    expect(guard.calls.last, isFalse);
+    final nextPlay = notifier.playSong(song);
+    await tester.pump();
+    await nextPlay;
+    expect(guard.calls.last, isTrue);
+    pendingStop.complete();
+    await stop;
+    expect(guard.calls.last, isTrue);
+  });
+
+  playbackTest('repeat one reuses a full source without a network reload', (
+    tester,
+  ) async {
+    createFixture();
+    await notifier.initialized;
+    final initial = notifier.playSong(song);
+    await tester.pump();
+    await initial;
+    await notifier.setPlaybackMode(PlaybackMode.repeatOne, persist: false);
+    states.add(audio.PlayerState(true, audio.ProcessingState.completed));
+    await tester.pump();
+    expect(loads, 1);
+    verify(() => engine.setLoopMode(audio.LoopMode.one)).called(1);
+    verify(() => engine.seek(Duration.zero)).called(1);
+    expect(container.read(playerProvider).currentSong?.id, song.id);
+  });
+
+  playbackTest('adding to a single-item queue disables native repeat', (
+    tester,
+  ) async {
+    createFixture();
+    await notifier.initialized;
+    final initial = notifier.playSong(song);
+    await tester.pump();
+    await initial;
+    clearInteractions(engine);
+    notifier.addToQueue(song.copyWith(id: 'next'));
+    await tester.pump();
+    verify(() => engine.setLoopMode(audio.LoopMode.off)).called(1);
+    notifier.removeFromQueue(1);
+    await tester.pump();
+    verify(() => engine.setLoopMode(audio.LoopMode.one)).called(1);
+    expect(loads, 1);
+  });
+
   playbackTest(
-    'repeat one reloads the full source instead of looping a decoder tail',
+    'repeat after timeOffset seek reloads the full song once then uses native looping',
     (tester) async {
       createFixture();
       await notifier.initialized;
-      final initial = notifier.playSong(song);
+      final regular = Song(
+        id: 'normal',
+        title: 'Normal',
+        suffix: 'mp3',
+        bitRate: 320,
+        duration: 120,
+      );
+      final initial = notifier.playSong(regular);
       await tester.pump();
       await initial;
       await notifier.setPlaybackMode(PlaybackMode.repeatOne, persist: false);
+      final seek = notifier.seek(const Duration(seconds: 60));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await seek;
+      expect(
+        (source as audio.UriAudioSource).uri.queryParameters['timeOffset'],
+        '60',
+      );
+      clearInteractions(engine);
       states.add(audio.PlayerState(true, audio.ProcessingState.completed));
       await tester.pump();
-      expect(loads, 2);
-      verifyNever(() => engine.setLoopMode(audio.LoopMode.one));
-      expect(container.read(playerProvider).currentSong?.id, song.id);
+      expect(loads, 3);
+      expect(
+        (source as audio.UriAudioSource).uri.queryParameters['timeOffset'],
+        '0',
+      );
+      verify(() => engine.setLoopMode(audio.LoopMode.one)).called(1);
     },
   );
 

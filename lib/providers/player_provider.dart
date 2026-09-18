@@ -4,6 +4,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/foundation.dart'
     show TargetPlatform, defaultTargetPlatform, kIsWeb, visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/widgets.dart';
 import 'package:just_audio/just_audio.dart' hide PlayerState;
 import '../data/models/song.dart';
 import '../data/models/audio_quality.dart';
@@ -17,6 +18,8 @@ import '../core/platform/platform_file_bridge.dart';
 import '../core/utils/logger.dart';
 import '../core/utils/network_error_notifier.dart';
 import '../core/services/audio_handler_service.dart';
+import '../core/services/playback_wake_guard.dart';
+import '../core/services/background_playback_advisor.dart';
 
 import 'music_provider.dart';
 import 'api_provider.dart';
@@ -105,6 +108,11 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   final DateTime Function() _clock;
   AudioPlayer? _audioPlayer;
   EchoAudioHandler? _audioHandler;
+  final PlaybackWakeGuard _wakeGuard;
+  LoopMode _nativeLoopMode = LoopMode.off;
+  DateTime? _lastPollAt;
+  bool _lastPollWasBackground = false;
+  bool _lastPollRequestedPlayback = false;
   StreamSubscription? _downloadProgressSubscription;
   StreamSubscription<NetworkType>? _networkTypeSubscription;
   final Random _random = Random();
@@ -145,7 +153,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   bool _loggedDurationUnavailableForSong = false;
   Timer? _fadeTimer;
   Completer<void>? _fadeCompleter;
-  static const Duration _playbackSessionPersistInterval = Duration(seconds: 2);
+  static const Duration _playbackSessionPersistInterval = Duration(seconds: 15);
   Timer? _playbackSessionPersistTimer;
   bool _isPersistingPlaybackSession = false;
   bool _isRestoringPlaybackSession = false;
@@ -181,7 +189,9 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     AudioPlayer? player,
     bool restoreSession = true,
     DateTime Function()? clock,
-  }) : _clock = clock ?? DateTime.now,
+    PlaybackWakeGuard? wakeGuard,
+  }) : _wakeGuard = wakeGuard ?? PlaybackWakeGuard(),
+       _clock = clock ?? DateTime.now,
        super(PlayerState()) {
     _favoriteHandler = FavoriteScrobbleHandler(_ref);
     _cacheHandler = CacheManagerHandler(_ref);
@@ -191,8 +201,19 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
 
   @override
   set state(PlayerState value) {
+    final previous = super.state;
     super.state = value;
-    _schedulePersistPlaybackSession();
+    if (previous.queue.length != value.queue.length &&
+        previous.currentSong?.id == value.currentSong?.id &&
+        _replacingSourceGeneration == null) {
+      unawaited(_syncNativeLoopMode());
+    }
+    _schedulePersistPlaybackSession(
+      immediate:
+          !identical(previous.queue, value.queue) ||
+          previous.currentIndex != value.currentIndex ||
+          previous.isPlaying != value.isPlaying,
+    );
   }
 
   /// 初始化播放器
@@ -248,7 +269,16 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
 
     _playerSubscriptions.add(
       player.playbackEventStream.listen(
-        (_) {},
+        (event) {
+          if (event.processingState == ProcessingState.completed) {
+            Logger.infoWithTag(
+              'PLAYBACK',
+              'native_completed song=${state.currentSong?.id} '
+                  'eventAgeMs=${DateTime.now().difference(event.updateTime).inMilliseconds} '
+                  'sourcePositionMs=${event.updatePosition.inMilliseconds}',
+            );
+          }
+        },
         onError: (Object error, StackTrace stack) {
           if (_replacingSourceGeneration != null) {
             return; // handled by load catch
@@ -277,6 +307,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
           if (!isPlaying && _playbackRequested) {
             _playbackRequested = false;
             _clearCurrentPlaybackRetry(reason: 'pause');
+            unawaited(_wakeGuard.setActive(false, reason: 'external_pause'));
             _audioHandler?.updateTransportIntent(false);
             Logger.infoWithTag(
               'PLAYBACK',
@@ -284,6 +315,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
             );
           } else if (isPlaying) {
             _playbackRequested = true;
+            unawaited(_wakeGuard.setActive(true, reason: 'external_resume'));
           }
         }
         state = state.copyWith(isPlaying: isPlaying);
@@ -474,7 +506,28 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       }),
     );
 
-    // Looping is managed here: a timeOffset source may contain only a tail.
+    _playerSubscriptions.add(
+      player.positionDiscontinuityStream.listen((event) {
+        if (event.reason != PositionDiscontinuityReason.autoAdvance ||
+            _nativeLoopMode != LoopMode.one ||
+            _replacingSourceGeneration != null ||
+            _sourcePositionOffset != Duration.zero ||
+            !_playbackRequested) {
+          return;
+        }
+        final song = state.currentSong;
+        if (song == null || _loadedSourceSongId != song.id) return;
+        Logger.infoWithTag(
+          'PLAYBACK',
+          'repeat_native song=${song.id} source=${state.playbackSource?.name}',
+        );
+        if (!song.isPreview) {
+          unawaited(_scrobble(song.id, submission: true));
+          unawaited(_scrobble(song.id, submission: false));
+        }
+      }),
+    );
+    // Native looping is allowed only for full-song timelines.
     // 监听随机模式
     _playerSubscriptions.add(
       player.shuffleModeEnabledStream.listen((enabled) {
@@ -576,6 +629,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     _retryPosition = position ?? _retryPosition ?? state.position;
     if (_recoveryAttempts >= 4) {
       _playbackRequested = false;
+      unawaited(_wakeGuard.setActive(false, reason: 'recovery_exhausted'));
       _audioHandler?.updateTransportIntent(false);
       _cancelFade();
       unawaited(_audioPlayer?.pause());
@@ -750,6 +804,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     unawaited(_cacheHandler.cancelPrecache());
     if (!mounted) return;
     _playbackRequested = autoPlay;
+    unawaited(_wakeGuard.setActive(autoPlay, reason: 'song_request'));
     Logger.infoWithTag(
       'PLAYBACK',
       'request song=${song.id} autoPlay=$autoPlay resumeMs=${resumePosition.inMilliseconds}',
@@ -1840,6 +1895,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     final player = _audioPlayer;
     if (player == null || !_playbackRequested) return;
     final session = _playDebugSession;
+    unawaited(_wakeGuard.setActive(true, reason: 'play'));
     unawaited(
       player.play().catchError((Object error) {
         if (mounted && session == _playDebugSession) {
@@ -1855,6 +1911,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   Future<void> _syncPlaybackAfterSourceReady({required bool autoPlay}) async {
     final session = _playDebugSession;
     await _applyPendingSeekIfNeeded();
+    await _syncNativeLoopMode();
     if (!mounted ||
         session != _playDebugSession ||
         _retryCurrentPlaybackOnReconnect ||
@@ -2014,6 +2071,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     } catch (e) {
       Logger.error('Failed to resolve preview song', e);
       if (_playDebugSession == debugSession) {
+        await pause();
         NetworkErrorNotifier.show('试听链接解析失败');
       }
       return;
@@ -2211,6 +2269,10 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       }
     }
     await _audioPlayer?.pause();
+    if (_playDebugSession == playbackSession &&
+        _transportRequestGeneration == transportRequest) {
+      await _wakeGuard.setActive(false, reason: 'pause');
+    }
     if (_playDebugSession != playbackSession ||
         _transportRequestGeneration != transportRequest) {
       return;
@@ -2250,6 +2312,9 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     _invalidateLoadedSource(reason: 'stop');
     _invalidateSeekRequests();
     _cancelFade();
+    // Release for this stop request before awaiting native work: a later play
+    // must not have its newly acquired lease released by a stale stop.
+    unawaited(_wakeGuard.setActive(false, reason: 'stop'));
     await _audioPlayer?.stop();
   }
 
@@ -2489,12 +2554,40 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     await playSong(song, queue: state.queue, index: index);
   }
 
+  Future<void> _syncNativeLoopMode() async {
+    final player = _audioPlayer;
+    if (player == null) return;
+    final repeat =
+        !state.shuffleEnabled &&
+        (state.loopMode == LoopMode.one || state.queue.length == 1) &&
+        _sourcePositionOffset == Duration.zero &&
+        _loadedSourceSongId != null &&
+        _loadedSourceSongId == state.currentSong?.id;
+    final mode = repeat ? LoopMode.one : LoopMode.off;
+    if (_nativeLoopMode == mode) return;
+    _nativeLoopMode = mode;
+    try {
+      await player.setLoopMode(mode);
+      Logger.infoWithTag(
+        'PLAYBACK',
+        'native_loop=${mode.name} song=${state.currentSong?.id} offsetMs=${_sourcePositionOffset.inMilliseconds}',
+      );
+    } catch (error) {
+      _nativeLoopMode = LoopMode.off;
+      Logger.warnWithTag(
+        'PLAYBACK',
+        'native_loop failed type=${error.runtimeType}',
+      );
+      // Completion handling can still repeat via seek when native looping fails.
+    }
+  }
+
   /// 设置循环模式
   Future<void> setLoopMode(LoopMode mode) async {
-    await _audioPlayer?.setLoopMode(LoopMode.off);
     if (mounted) {
       state = state.copyWith(loopMode: mode);
     }
+    await _syncNativeLoopMode();
     final modeToPersist = state.shuffleEnabled
         ? PlaybackMode.shuffle
         : (mode == LoopMode.one
@@ -2525,6 +2618,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
         : (state.loopMode == LoopMode.one
               ? PlaybackMode.repeatOne
               : PlaybackMode.repeatAll);
+    await _syncNativeLoopMode();
     await _persistPlaybackMode(modeToPersist);
   }
 
@@ -2559,7 +2653,6 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       case PlaybackMode.shuffle:
         // 队列是手动切歌而非播放器内建列表。
         // 在随机模式使用 LoopMode.off，避免底层播放器自动重放当前单曲。
-        await _audioPlayer?.setLoopMode(LoopMode.off);
         await _audioPlayer?.setShuffleModeEnabled(true);
         _resetShuffleHistory(updateState: false);
         if (mounted) {
@@ -2574,7 +2667,6 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
         // 队列切歌由外层状态机驱动，Repeat All 用 LoopMode.off
         // 避免底层播放器在单音源下自动回放当前曲目。
         await _audioPlayer?.setShuffleModeEnabled(false);
-        await _audioPlayer?.setLoopMode(LoopMode.off);
         _resetShuffleHistory(updateState: false);
         if (mounted) {
           state = state.copyWith(
@@ -2586,7 +2678,6 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
         break;
       case PlaybackMode.repeatOne:
         await _audioPlayer?.setShuffleModeEnabled(false);
-        await _audioPlayer?.setLoopMode(LoopMode.off);
         _resetShuffleHistory(updateState: false);
         if (mounted) {
           state = state.copyWith(
@@ -2598,6 +2689,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
         break;
     }
 
+    await _syncNativeLoopMode();
     if (persist) {
       await _persistPlaybackMode(mode);
     }
@@ -2697,6 +2789,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     }
 
     _isPersistingPlaybackSession = true;
+    final watch = Stopwatch()..start();
     try {
       final payload = _buildPlaybackSessionPayload();
       if (payload == null) {
@@ -2704,6 +2797,12 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
         return;
       }
       await LocalStorage.savePlaybackSession(payload);
+      if (watch.elapsedMilliseconds > 200) {
+        Logger.infoWithTag(
+          'PLAYBACK',
+          'session_save_slow elapsedMs=${watch.elapsedMilliseconds} queue=${state.queue.length}',
+        );
+      }
     } catch (e) {
       Logger.warnWithTag(
         _playerLogTag,
@@ -3168,14 +3267,50 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     }
 
     // 根据循环模式决定下一步
-    if (state.loopMode == LoopMode.one) {
+    if (state.loopMode == LoopMode.one || state.queue.length == 1) {
       // 单曲循环
       _seekDbg('completed -> repeat one song=$completedSongId');
-      await playSong(
-        state.currentSong!,
-        queue: state.queue,
-        index: state.currentIndex,
-      );
+      if (_sourcePositionOffset == Duration.zero &&
+          _loadedSourceSongId == completedSongId) {
+        final session = _playDebugSession;
+        final transport = _transportRequestGeneration;
+        Logger.infoWithTag('PLAYBACK', 'repeat_reuse song=$completedSongId');
+        try {
+          // Deliberately bypass timeOffset seek: this source starts at zero.
+          await _audioPlayer!
+              .seek(Duration.zero)
+              .timeout(const Duration(seconds: 5));
+          if (!mounted ||
+              session != _playDebugSession ||
+              transport != _transportRequestGeneration ||
+              !_playbackRequested) {
+            return;
+          }
+          _isHandlingCompletion = false;
+          _completionHandlingSongId = null;
+          state = state.copyWith(position: Duration.zero);
+          _startPlayback(fadeIn: false);
+          if (!state.currentSong!.isPreview) {
+            unawaited(_scrobble(completedSongId, submission: false));
+          }
+        } catch (error) {
+          if (mounted &&
+              session == _playDebugSession &&
+              transport == _transportRequestGeneration) {
+            _handlePlaybackFailure('repeat_seek_failed', error);
+          }
+        }
+      } else {
+        Logger.infoWithTag(
+          'PLAYBACK',
+          'repeat_reload_tail song=$completedSongId offsetMs=${_sourcePositionOffset.inMilliseconds}',
+        );
+        await playSong(
+          state.currentSong!,
+          queue: state.queue,
+          index: state.currentIndex,
+        );
+      }
     } else if (state.hasNext) {
       // 播放下一首
       _seekDbg('completed -> sequential next song=$completedSongId');
@@ -3418,6 +3553,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
           seekByReloadStream: true,
           sourcePositionOffset: seekTarget.serverOffset,
         );
+        await _syncNativeLoopMode();
         if (!isCurrentSeek()) {
           _schedulePendingSeekIfReady();
           return;
@@ -3768,6 +3904,8 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       // Keep playWhenReady off until the new source's logical seek is applied.
       // The service remains playing/loading through the transition above.
       await player.pause();
+      await player.setLoopMode(LoopMode.off);
+      _nativeLoopMode = LoopMode.off;
       if (_sourceGeneration != generation || !ownsSource()) return false;
       await setSource(player).timeout(const Duration(seconds: 30));
     } catch (error) {
@@ -3912,6 +4050,30 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       if (state.currentSong == null) return;
       _preCacheNextSong();
       final now = _clock();
+      final previousPoll = _lastPollAt;
+      final wasBackground = _lastPollWasBackground;
+      final wasRequested = _lastPollRequestedPlayback;
+      _lastPollAt = now;
+      _lastPollRequestedPlayback = _playbackRequested;
+      final lifecycle = WidgetsBinding.instance.lifecycleState;
+      _lastPollWasBackground =
+          lifecycle == AppLifecycleState.paused ||
+          lifecycle == AppLifecycleState.hidden;
+      if (_playbackRequested &&
+          wasRequested &&
+          previousPoll != null &&
+          now.difference(previousPoll) > const Duration(seconds: 3)) {
+        if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+          BackgroundPlaybackAdvisor.instance.recordGap(
+            gap: now.difference(previousPoll),
+            wasBackground: wasBackground,
+          );
+        }
+        Logger.warnWithTag(
+          'PLAYBACK',
+          'event_loop_gap ms=${now.difference(previousPoll).inMilliseconds} song=${state.currentSong?.id} state=${player.processingState.name}',
+        );
+      }
       if (_playbackRequested &&
           player.processingState == ProcessingState.buffering &&
           _replacingSourceGeneration == null) {
@@ -4125,6 +4287,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     _playbackSessionPersistTimer?.cancel();
     unawaited(_persistPlaybackSession());
     _positionPollTimer?.cancel();
+    unawaited(_wakeGuard.dispose());
     _cancelFade();
     _downloadProgressSubscription?.cancel();
     _networkTypeSubscription?.cancel();

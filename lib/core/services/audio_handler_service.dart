@@ -25,6 +25,7 @@ class EchoAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   bool _transitionPlaying = false;
   Future<void> Function(Duration position)? onSeek;
   Duration _positionOffset = Duration.zero;
+  (AudioProcessingState, bool)? _lastLoggedState;
 
   EchoAudioHandler(this._audioPlayer) {
     _init();
@@ -39,27 +40,30 @@ class EchoAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       }),
     );
 
-    // 监听播放位置
+    // Android's media session extrapolates position while playing. Publishing
+    // UI position ticks (5-60/sec) needlessly queues platform calls in background.
     _subscriptions.add(
-      _audioPlayer.positionStream.listen((position) {
-        playbackState.add(
-          playbackState.value.copyWith(
-            updatePosition: _logicalPosition(position),
-          ),
-        );
-      }),
-    );
-
-    // 监听播放完成
-    _subscriptions.add(
-      _audioPlayer.processingStateStream.listen((processingState) {
-        _broadcastState();
-      }),
+      _audioPlayer.playbackEventStream.listen(
+        (event) {
+          _broadcastState(processingState: event.processingState);
+        },
+        onError: (Object error, StackTrace stack) {
+          // PlayerNotifier owns runtime error recovery.
+        },
+      ),
     );
   }
 
   /// 广播当前状态到通知栏
-  void _broadcastState() {
+  void _broadcastState({ProcessingState? processingState}) {
+    final report = (_getProcessingState(processingState), _reportedPlaying);
+    if (_lastLoggedState != report) {
+      _lastLoggedState = report;
+      Logger.infoWithTag(
+        'AUDIO_SERVICE',
+        'publish state=${report.$1.name} playing=${report.$2} transition=$_sourceTransition',
+      );
+    }
     playbackState.add(
       playbackState.value.copyWith(
         controls: _getControls(),
@@ -67,7 +71,7 @@ class EchoAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         // Explicitly advertise seeking so OEM MediaStyle implementations do
         // not render the notification progress control as disabled.
         systemActions: echoPlaybackSystemActions,
-        processingState: _getProcessingState(),
+        processingState: _getProcessingState(processingState),
         playing: _reportedPlaying,
         updatePosition: _logicalPosition(_audioPlayer.position),
         bufferedPosition: _logicalPosition(_audioPlayer.bufferedPosition),
@@ -92,9 +96,9 @@ class EchoAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   }
 
   /// 获取处理状态
-  AudioProcessingState _getProcessingState() {
+  AudioProcessingState _getProcessingState(ProcessingState? eventState) {
     if (_sourceTransition != null) return AudioProcessingState.loading;
-    switch (_audioPlayer.processingState) {
+    switch (eventState ?? _audioPlayer.processingState) {
       case ProcessingState.idle:
         // A failed prepare may leave the decoder idle while bounded recovery
         // is pending. Only an explicit pause/stop should tear down the service.

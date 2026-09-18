@@ -14,6 +14,9 @@ void main() {
 
   setUp(() {
     player = _MockAudioPlayer();
+    when(
+      () => player.playbackEventStream,
+    ).thenAnswer((_) => const Stream.empty());
     when(() => player.playingStream).thenAnswer((_) => const Stream.empty());
     when(() => player.positionStream).thenAnswer((_) => const Stream.empty());
     when(
@@ -49,12 +52,12 @@ void main() {
   test(
     'source replacement never publishes idle until the transition ends',
     () async {
-      final events = StreamController<ProcessingState>();
-      when(() => player.processingStateStream).thenAnswer((_) => events.stream);
+      final events = StreamController<PlaybackEvent>();
+      when(() => player.playbackEventStream).thenAnswer((_) => events.stream);
       final transitioning = EchoAudioHandler(player);
       when(() => player.processingState).thenReturn(ProcessingState.idle);
       transitioning.beginSourceTransition(1, playing: true);
-      events.add(ProcessingState.idle);
+      events.add(PlaybackEvent(processingState: ProcessingState.idle));
       await Future<void>.delayed(Duration.zero);
       expect(
         transitioning.playbackState.value.processingState,
@@ -116,6 +119,24 @@ void main() {
     verifyNever(() => player.play());
     verifyNever(() => player.pause());
   });
+
+  test(
+    'native events update seek progress without UI position ticks',
+    () async {
+      final events = StreamController<PlaybackEvent>.broadcast(sync: true);
+      when(() => player.playbackEventStream).thenAnswer((_) => events.stream);
+      final session = EchoAudioHandler(player);
+      when(() => player.position).thenReturn(const Duration(seconds: 45));
+      events.add(PlaybackEvent(processingState: ProcessingState.ready));
+      expect(
+        session.playbackState.value.updatePosition,
+        const Duration(seconds: 45),
+      );
+      // Neither handler subscribes to high-frequency UI interpolation ticks.
+      verifyNever(() => player.positionStream);
+      await events.close();
+    },
+  );
 
   test('adds the server timeOffset to media-session progress', () {
     handler.setPositionOffset(const Duration(seconds: 45));
