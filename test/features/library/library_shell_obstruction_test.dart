@@ -22,6 +22,7 @@ import 'package:echoes/providers/playlist_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 const _obstruction = 120.0;
 final _expectedBottomSpace = EchoSpacing.standard.xxl + _obstruction;
@@ -101,6 +102,8 @@ void _expectAzCollection(WidgetTester tester, String key) {
 }
 
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues(<String, Object>{}));
+
   testWidgets('album detail keeps its base spacer above shell chrome', (
     tester,
   ) async {

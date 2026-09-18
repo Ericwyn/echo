@@ -54,6 +54,13 @@ extension SongSortOptionX on SongSortOption {
   bool get usesAlphabeticalIndexBar => this == SongSortOption.alphabeticalAsc;
 }
 
+SongSortOption parseAllSongsSortOption(String? stored) {
+  for (final option in selectableSongSortOptionsWithoutDefault) {
+    if (option.name == stored) return option;
+  }
+  return SongSortOption.alphabeticalAsc;
+}
+
 List<Song> sortSongs(List<Song> songs, SongSortOption option) {
   if (songs.length < 2 || option == SongSortOption.defaultOrder) {
     return List<Song>.of(songs);

@@ -8,6 +8,7 @@ import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import '../../../core/design/echo_design.dart';
 import '../../../data/models/song.dart';
+import '../../../data/sources/local_storage.dart';
 import '../../../providers/music_provider.dart';
 import '../../../providers/navigation_provider.dart';
 import '../../../providers/player_provider.dart';
@@ -34,12 +35,22 @@ class _SongListPageState extends ConsumerState<SongListPage> {
   late final ItemPositionsListener _itemPositionsListener;
   int _coverLoadStart = 0;
   int _coverLoadEnd = -1;
+  bool _sortSelectionChanged = false;
 
   @override
   void initState() {
     super.initState();
     _itemPositionsListener = ItemPositionsListener.create();
     _itemPositionsListener.itemPositions.addListener(_onItemPositionsChanged);
+    unawaited(_restoreSortOption());
+  }
+
+  Future<void> _restoreSortOption() async {
+    final stored = await LocalStorage.getAllSongsSortOption();
+    if (!mounted || _sortSelectionChanged) return;
+    final restored = parseAllSongsSortOption(stored);
+    if (restored == _sortOption) return;
+    setState(() => _sortOption = restored);
   }
 
   @override
@@ -155,8 +166,10 @@ class _SongListPageState extends ConsumerState<SongListPage> {
     );
     if (!mounted || selected == null || selected == _sortOption) return;
     setState(() {
+      _sortSelectionChanged = true;
       _sortOption = selected;
     });
+    await LocalStorage.setAllSongsSortOption(selected.name);
   }
 
   @override

@@ -19,6 +19,7 @@ class LocalStorage {
   static const String _keyMaxCacheSizeBytes = 'max_cache_size_bytes';
   static const String _keyHasLaunchedBefore = 'has_launched_before';
   static const String _keyCrossfadeDurationMs = 'crossfade_duration_ms';
+  static const String _keyAllSongsSortOption = 'all_songs_sort_option';
 
   /// 是否曾经启动过（用于判断是否显示开屏动画）
   static Future<bool> hasLaunchedBefore() async {
@@ -337,5 +338,20 @@ class LocalStorage {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_keyCrossfadeDurationMs, ms);
     Logger.infoWithTag(_logTag, 'crossfadeDurationMs saved: $ms');
+  }
+
+  /// 读取“全部歌曲”页面上次选择的排序方式。
+  static Future<String?> getAllSongsSortOption() async {
+    final prefs = await SharedPreferences.getInstance();
+    final option = prefs.getString(_keyAllSongsSortOption);
+    Logger.debugWithTag(_logTag, 'allSongsSortOption=$option');
+    return option;
+  }
+
+  /// 保存“全部歌曲”页面的排序方式。
+  static Future<void> setAllSongsSortOption(String option) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyAllSongsSortOption, option);
+    Logger.infoWithTag(_logTag, 'allSongsSortOption saved: $option');
   }
 }
