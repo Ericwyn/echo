@@ -94,7 +94,7 @@ class UpdateChecker {
         );
       }).toList();
 
-      final hasUpdate = _compareVersions(currentVersion, latestVersion) < 0;
+      final hasUpdate = compareVersions(currentVersion, latestVersion) < 0;
 
       Logger.infoWithTag(
         _logTag,
@@ -122,18 +122,74 @@ class UpdateChecker {
 
   /// Compare two semver-like version strings.
   /// Returns negative if a < b, 0 if equal, positive if a > b.
-  static int _compareVersions(String a, String b) {
-    final aParts = a.split('.').map((s) => int.tryParse(s) ?? 0).toList();
-    final bParts = b.split('.').map((s) => int.tryParse(s) ?? 0).toList();
-    final length = aParts.length > bParts.length
-        ? aParts.length
-        : bParts.length;
+  @visibleForTesting
+  static int compareVersions(String a, String b) {
+    final aVersion = _ParsedVersion.parse(a);
+    final bVersion = _ParsedVersion.parse(b);
+    final length = aVersion.core.length > bVersion.core.length
+        ? aVersion.core.length
+        : bVersion.core.length;
 
     for (var i = 0; i < length; i++) {
-      final av = i < aParts.length ? aParts[i] : 0;
-      final bv = i < bParts.length ? bParts[i] : 0;
+      final av = i < aVersion.core.length ? aVersion.core[i] : 0;
+      final bv = i < bVersion.core.length ? bVersion.core[i] : 0;
       if (av != bv) return av.compareTo(bv);
     }
+
+    if (aVersion.preRelease.isEmpty && bVersion.preRelease.isEmpty) return 0;
+    if (aVersion.preRelease.isEmpty) return 1;
+    if (bVersion.preRelease.isEmpty) return -1;
+
+    final preReleaseLength =
+        aVersion.preRelease.length > bVersion.preRelease.length
+        ? aVersion.preRelease.length
+        : bVersion.preRelease.length;
+    for (var i = 0; i < preReleaseLength; i++) {
+      if (i >= aVersion.preRelease.length) return -1;
+      if (i >= bVersion.preRelease.length) return 1;
+      final comparison = _comparePreReleasePart(
+        aVersion.preRelease[i],
+        bVersion.preRelease[i],
+      );
+      if (comparison != 0) return comparison;
+    }
     return 0;
+  }
+
+  static int _comparePreReleasePart(String a, String b) {
+    final aNumber = int.tryParse(a);
+    final bNumber = int.tryParse(b);
+    if (aNumber != null && bNumber != null) return aNumber.compareTo(bNumber);
+    if (aNumber != null) return -1;
+    if (bNumber != null) return 1;
+    return a.compareTo(b);
+  }
+}
+
+class _ParsedVersion {
+  const _ParsedVersion({required this.core, required this.preRelease});
+
+  final List<int> core;
+  final List<String> preRelease;
+
+  factory _ParsedVersion.parse(String value) {
+    final withoutPrefix = value.trim().replaceFirst(RegExp(r'^v'), '');
+    final withoutBuild = withoutPrefix.split('+').first;
+    final separator = withoutBuild.indexOf('-');
+    final coreText = separator < 0
+        ? withoutBuild
+        : withoutBuild.substring(0, separator);
+    final preReleaseText = separator < 0
+        ? ''
+        : withoutBuild.substring(separator + 1);
+    return _ParsedVersion(
+      core: coreText
+          .split('.')
+          .map((part) => int.tryParse(part) ?? 0)
+          .toList(growable: false),
+      preRelease: preReleaseText.isEmpty
+          ? const <String>[]
+          : preReleaseText.split('.'),
+    );
   }
 }
