@@ -343,6 +343,9 @@ class LocalStorage {
   /// 读取“全部歌曲”页面上次选择的排序方式。
   static Future<String?> getAllSongsSortOption() async {
     final prefs = await SharedPreferences.getInstance();
+    // SharedPreferences keeps an isolate-local cache. Echoes also runs an
+    // audio-service engine, so refresh before reading UI preferences.
+    await prefs.reload();
     final option = prefs.getString(_keyAllSongsSortOption);
     Logger.debugWithTag(_logTag, 'allSongsSortOption=$option');
     return option;
@@ -351,7 +354,10 @@ class LocalStorage {
   /// 保存“全部歌曲”页面的排序方式。
   static Future<void> setAllSongsSortOption(String option) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyAllSongsSortOption, option);
+    final saved = await prefs.setString(_keyAllSongsSortOption, option);
+    if (!saved) {
+      throw StateError('Failed to save all-songs sort option');
+    }
     Logger.infoWithTag(_logTag, 'allSongsSortOption saved: $option');
   }
 }

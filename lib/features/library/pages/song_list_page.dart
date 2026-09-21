@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 import '../../../core/design/echo_design.dart';
+import '../../../core/utils/logger.dart';
 import '../../../data/models/song.dart';
 import '../../../data/sources/local_storage.dart';
 import '../../../providers/music_provider.dart';
@@ -19,6 +20,10 @@ import '../widgets/library_collection_components.dart';
 import '../../player/widgets/song_options_sheet.dart';
 import '../../../widgets/song_list_item.dart';
 import '../../../widgets/visible_remote_retry_scope.dart';
+
+final allSongsSortOptionProvider = StateProvider<SongSortOption?>(
+  (ref) => null,
+);
 
 class SongListPage extends ConsumerStatefulWidget {
   const SongListPage({super.key});
@@ -42,15 +47,29 @@ class _SongListPageState extends ConsumerState<SongListPage> {
     super.initState();
     _itemPositionsListener = ItemPositionsListener.create();
     _itemPositionsListener.itemPositions.addListener(_onItemPositionsChanged);
-    unawaited(_restoreSortOption());
+    final remembered = ref.read(allSongsSortOptionProvider);
+    if (remembered != null) {
+      _sortOption = remembered;
+    } else {
+      unawaited(_restoreSortOption());
+    }
   }
 
   Future<void> _restoreSortOption() async {
-    final stored = await LocalStorage.getAllSongsSortOption();
-    if (!mounted || _sortSelectionChanged) return;
-    final restored = parseAllSongsSortOption(stored);
-    if (restored == _sortOption) return;
-    setState(() => _sortOption = restored);
+    try {
+      final stored = await LocalStorage.getAllSongsSortOption();
+      if (!mounted || _sortSelectionChanged) return;
+      final restored = parseAllSongsSortOption(stored);
+      ref.read(allSongsSortOptionProvider.notifier).state = restored;
+      Logger.infoWithTag(
+        'LIBRARY',
+        'all_songs_sort restored=${restored.name} stored=$stored',
+      );
+      if (restored == _sortOption) return;
+      setState(() => _sortOption = restored);
+    } catch (error) {
+      Logger.warnWithTag('LIBRARY', 'all_songs_sort restore failed', error);
+    }
   }
 
   @override
@@ -169,7 +188,13 @@ class _SongListPageState extends ConsumerState<SongListPage> {
       _sortSelectionChanged = true;
       _sortOption = selected;
     });
-    await LocalStorage.setAllSongsSortOption(selected.name);
+    ref.read(allSongsSortOptionProvider.notifier).state = selected;
+    try {
+      await LocalStorage.setAllSongsSortOption(selected.name);
+      Logger.infoWithTag('LIBRARY', 'all_songs_sort saved=${selected.name}');
+    } catch (error) {
+      Logger.warnWithTag('LIBRARY', 'all_songs_sort save failed', error);
+    }
   }
 
   @override
