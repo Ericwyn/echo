@@ -28,6 +28,10 @@ class EchoSongRow extends StatelessWidget {
     this.selected = false,
     this.onToggleSelected,
     this.isCurrent = false,
+    this.isDimmed = false,
+    this.currentStatusLabel,
+    this.currentIndicatorIcon,
+    this.isCurrentLoading = false,
     this.isDownloaded = false,
     this.isFavorite,
     this.isPreview,
@@ -50,6 +54,10 @@ class EchoSongRow extends StatelessWidget {
   final bool selected;
   final VoidCallback? onToggleSelected;
   final bool isCurrent;
+  final bool isDimmed;
+  final String? currentStatusLabel;
+  final IconData? currentIndicatorIcon;
+  final bool isCurrentLoading;
   final bool isDownloaded;
   final bool? isFavorite;
   final bool? isPreview;
@@ -114,6 +122,8 @@ class EchoSongRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: selectionMode && selected
             ? context.echoColors.accent.withValues(alpha: 0.1)
+            : isCurrent
+            ? context.echoColors.accent.withValues(alpha: 0.08)
             : Colors.transparent,
         borderRadius: context.echoRadii.control,
       ),
@@ -163,6 +173,8 @@ class EchoSongRow extends StatelessWidget {
           style: context.echoTypography.title.copyWith(
             color: isCurrent
                 ? context.echoColors.accent
+                : isDimmed
+                ? context.echoColors.muted
                 : context.echoColors.ink,
           ),
         ),
@@ -207,6 +219,8 @@ class EchoSongRow extends StatelessWidget {
                 child: _CurrentPlayingBadge(
                   background: context.echoColors.accent,
                   foreground: context.echoColors.onAccent,
+                  icon: currentIndicatorIcon ?? AppIcons.equalizer,
+                  isLoading: isCurrentLoading,
                 ),
               ),
           ],
@@ -226,7 +240,8 @@ class EchoSongRow extends StatelessWidget {
 
   String _buildSemanticLabel(String artistText) {
     return <String>[
-      if (isCurrent) '正在播放',
+      if (isCurrent) currentStatusLabel ?? '正在播放',
+      if (isDimmed) '当前之前',
       song.title,
       artistText,
       song.durationString,
@@ -283,10 +298,14 @@ class _CurrentPlayingBadge extends StatelessWidget {
   const _CurrentPlayingBadge({
     required this.background,
     required this.foreground,
+    required this.icon,
+    required this.isLoading,
   });
 
   final Color background;
   final Color foreground;
+  final IconData icon;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -298,7 +317,17 @@ class _CurrentPlayingBadge extends StatelessWidget {
       ),
       child: SizedBox.square(
         dimension: 20,
-        child: Icon(AppIcons.equalizer, size: 12, color: foreground),
+        child: Center(
+          child: isLoading
+              ? SizedBox.square(
+                  dimension: 10,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 1.5,
+                    color: foreground,
+                  ),
+                )
+              : Icon(icon, size: 12, color: foreground),
+        ),
       ),
     );
   }

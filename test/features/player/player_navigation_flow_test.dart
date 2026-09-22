@@ -83,7 +83,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(PlayQueueSheet), findsOneWidget);
-    expect(find.text('2 首曲目'), findsOneWidget);
+    expect(find.text('共 2 首 · 当前第 1 首 · 后续 1 首'), findsOneWidget);
     final queuedRow = find.bySemanticsLabel(
       RegExp('Queued track.*Second artist'),
     );

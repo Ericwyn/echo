@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/design/echo_design.dart';
@@ -31,17 +33,27 @@ class PlayQueueSheet extends ConsumerWidget {
     final queueSnapshot = ref.watch(
       playerProvider.select(
         (state) => (
-          currentSong: state.currentSong,
-          queue: state.queue,
-          currentIndex: state.currentIndex,
+          playbackQueue: state.playbackQueue,
+          isPlaying: state.isPlaying,
+          processingState: state.processingState,
+          isSeeking: state.isSeeking,
+          isChangingSource: state.isChangingSource,
+          hasPlaybackError: state.hasPlaybackError,
+          shuffleEnabled: state.shuffleEnabled,
+          loopMode: state.loopMode,
         ),
       ),
     );
     final visuals = ref.watch(resolvedCurrentSongMediaVisualsProvider);
     final playerState = PlayerState(
-      currentSong: queueSnapshot.currentSong,
-      queue: queueSnapshot.queue,
-      currentIndex: queueSnapshot.currentIndex,
+      playbackQueue: queueSnapshot.playbackQueue,
+      isPlaying: queueSnapshot.isPlaying,
+      processingState: queueSnapshot.processingState,
+      isSeeking: queueSnapshot.isSeeking,
+      isChangingSource: queueSnapshot.isChangingSource,
+      hasPlaybackError: queueSnapshot.hasPlaybackError,
+      shuffleEnabled: queueSnapshot.shuffleEnabled,
+      loopMode: queueSnapshot.loopMode,
     );
 
     return PlayQueueSheetView(
@@ -49,14 +61,16 @@ class PlayQueueSheet extends ConsumerWidget {
       mediaVisuals: visuals,
       onSelect: (index) async {
         final player = ref.read(playerProvider.notifier);
+        final entryId = queueSnapshot.playbackQueue.entryIds[index];
         Navigator.of(context).pop();
         await Future<void>.delayed(Duration.zero);
-        unawaited(player.skipToQueueItem(index));
+        unawaited(player.skipToQueueEntry(entryId));
       },
       onClear: () async {
         await ref.read(playerProvider.notifier).clearQueue();
         if (context.mounted) Navigator.of(context).pop();
       },
+      onReorder: ref.read(playerProvider.notifier).reorderQueue,
       onOpenSongActions: (rowContext, index, song) {
         return showSongOptionsSheet(
           context: rowContext,
@@ -68,7 +82,8 @@ class PlayQueueSheet extends ConsumerWidget {
               title: '从队列移除',
               isDestructive: true,
               onPressed: () {
-                ref.read(playerProvider.notifier).removeFromQueue(index);
+                final entryId = queueSnapshot.playbackQueue.entryIds[index];
+                ref.read(playerProvider.notifier).removeQueueEntry(entryId);
               },
             ),
           ],
@@ -90,6 +105,7 @@ class PlayQueueSheetView extends StatelessWidget {
     required this.onSelect,
     required this.onClear,
     required this.onOpenSongActions,
+    this.onReorder,
     this.mediaVisuals,
     this.albumColor,
   });
@@ -102,6 +118,7 @@ class PlayQueueSheetView extends StatelessWidget {
   final Future<void> Function(int index) onSelect;
   final Future<void> Function() onClear;
   final QueueSongAction onOpenSongActions;
+  final void Function(int oldIndex, int newIndex)? onReorder;
 
   @override
   Widget build(BuildContext context) {
@@ -177,7 +194,9 @@ class PlayQueueSheetView extends StatelessWidget {
                                 ),
                                 SizedBox(height: context.echoSpacing.xxs),
                                 Text(
-                                  '${queue.length} 首曲目',
+                                  currentIndex < 0
+                                      ? '共 ${queue.length} 首'
+                                      : '共 ${queue.length} 首 · 当前第 ${currentIndex + 1} 首 · 后续 ${queue.length - currentIndex - 1} 首',
                                   style: context.echoTypography.metadata,
                                 ),
                               ],
@@ -200,38 +219,12 @@ class PlayQueueSheetView extends StatelessWidget {
                               description: '开始播放一首歌曲后，接下来的曲目会出现在这里。',
                               icon: AppIcons.queue,
                             )
-                          : ListView.separated(
-                              controller: scrollController,
-                              padding: EdgeInsets.symmetric(
-                                vertical: context.echoSpacing.xs,
-                              ),
-                              itemCount: queue.length,
-                              separatorBuilder: (context, index) =>
-                                  SizedBox(height: context.echoSpacing.xxs),
-                              itemBuilder: (context, index) {
-                                final song = queue[index];
-                                return EchoSongRow(
-                                  index: index,
-                                  song: song,
-                                  variant: EchoSongRowVariant.standard,
-                                  isCurrent: index == currentIndex,
-                                  contentPadding:
-                                      EdgeInsetsDirectional.fromSTEB(
-                                        context.echoSpacing.md,
-                                        context.echoSpacing.xs,
-                                        context.echoSpacing.xs,
-                                        context.echoSpacing.xs,
-                                      ),
-                                  onPressed: () => unawaited(onSelect(index)),
-                                  onLongPress: () => unawaited(
-                                    onOpenSongActions(context, index, song),
-                                  ),
-                                  onMorePressed: () => unawaited(
-                                    onOpenSongActions(context, index, song),
-                                  ),
-                                  moreSemanticLabel: '${song.title}，更多操作',
-                                );
-                              },
+                          : _PlayQueueList(
+                              scrollController: scrollController,
+                              playerState: playerState,
+                              onSelect: onSelect,
+                              onOpenSongActions: onOpenSongActions,
+                              onReorder: onReorder,
                             ),
                     ),
                     const EchoDivider(),
@@ -262,5 +255,173 @@ class PlayQueueSheetView extends StatelessWidget {
         },
       ),
     );
+  }
+}
+
+class _PlayQueueList extends StatefulWidget {
+  const _PlayQueueList({
+    required this.scrollController,
+    required this.playerState,
+    required this.onSelect,
+    required this.onOpenSongActions,
+    required this.onReorder,
+  });
+
+  final ScrollController scrollController;
+  final PlayerState playerState;
+  final Future<void> Function(int index) onSelect;
+  final QueueSongAction onOpenSongActions;
+  final void Function(int oldIndex, int newIndex)? onReorder;
+
+  @override
+  State<_PlayQueueList> createState() => _PlayQueueListState();
+}
+
+class _PlayQueueListState extends State<_PlayQueueList> {
+  final Map<String, GlobalKey> _entryKeys = <String, GlobalKey>{};
+  bool _positionScheduled = false;
+  int? _dragRevision;
+  bool? _dragShuffleEnabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final state = widget.playerState;
+    final activeIds = state.queueEntryIds.toSet();
+    _entryKeys.removeWhere((id, _) => !activeIds.contains(id));
+    _scheduleInitialPosition(context);
+
+    return ReorderableListView.builder(
+      scrollController: widget.scrollController,
+      buildDefaultDragHandles: false,
+      padding: EdgeInsets.symmetric(vertical: context.echoSpacing.xs),
+      itemCount: state.queue.length,
+      onReorderStart: (_) {
+        _dragRevision = widget.playerState.playbackQueue.revision;
+        _dragShuffleEnabled = widget.playerState.shuffleEnabled;
+      },
+      onReorder: (oldIndex, newIndex) {
+        final startedAt = _dragRevision;
+        final startedWithShuffle = _dragShuffleEnabled;
+        _dragRevision = null;
+        _dragShuffleEnabled = null;
+        if (startedAt != null &&
+            (startedAt != widget.playerState.playbackQueue.revision ||
+                startedWithShuffle != widget.playerState.shuffleEnabled)) {
+          return;
+        }
+        widget.onReorder?.call(oldIndex, newIndex);
+      },
+      itemBuilder: (context, index) {
+        final song = state.queue[index];
+        final entryId = state.queueEntryIds[index];
+        final isCurrent = index == state.currentIndex;
+        final statusLabel = state.isLoading
+            ? '正在加载'
+            : state.isPlaying
+            ? '正在播放'
+            : '当前已暂停';
+        final semanticsActions = <CustomSemanticsAction, VoidCallback>{};
+        if (widget.onReorder != null && index > 0) {
+          semanticsActions[const CustomSemanticsAction(label: '上移')] = () {
+            widget.onReorder!(index, index - 1);
+          };
+        }
+        if (widget.onReorder != null && index < state.queue.length - 1) {
+          semanticsActions[const CustomSemanticsAction(label: '下移')] = () {
+            widget.onReorder!(index, index + 2);
+          };
+        }
+
+        return Padding(
+          key: _entryKeys.putIfAbsent(entryId, GlobalKey.new),
+          padding: EdgeInsets.only(bottom: context.echoSpacing.xxs),
+          child: Row(
+            children: <Widget>[
+              ReorderableDelayedDragStartListener(
+                index: index,
+                enabled: widget.onReorder != null,
+                child: Semantics(
+                  button: true,
+                  label: '按住并拖动 ${song.title}，调整播放顺序',
+                  customSemanticsActions: semanticsActions,
+                  child: SizedBox.square(
+                    dimension: context.echoInteraction.minimumTouchTarget,
+                    child: Center(
+                      child: Icon(
+                        AppIcons.dragHandle,
+                        size: 22,
+                        color: context.echoColors.muted,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: EchoSongRow(
+                  index: index,
+                  song: song,
+                  variant: EchoSongRowVariant.standard,
+                  isCurrent: isCurrent,
+                  isDimmed:
+                      state.currentIndex >= 0 && index < state.currentIndex,
+                  currentStatusLabel: statusLabel,
+                  isCurrentLoading: state.isLoading,
+                  currentIndicatorIcon: state.isPlaying
+                      ? AppIcons.pause
+                      : AppIcons.play,
+                  contentPadding: EdgeInsetsDirectional.fromSTEB(
+                    context.echoSpacing.xs,
+                    context.echoSpacing.xs,
+                    context.echoSpacing.xs,
+                    context.echoSpacing.xs,
+                  ),
+                  onPressed: () => unawaited(widget.onSelect(index)),
+                  onLongPress: () =>
+                      unawaited(widget.onOpenSongActions(context, index, song)),
+                  onMorePressed: () =>
+                      unawaited(widget.onOpenSongActions(context, index, song)),
+                  moreSemanticLabel: '${song.title}，更多操作',
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _scheduleInitialPosition(BuildContext context) {
+    final currentIndex = widget.playerState.currentIndex;
+    if (_positionScheduled || currentIndex < 0) return;
+    _positionScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !widget.scrollController.hasClients) return;
+      final entryId = widget.playerState.currentEntryId;
+      final targetContext = entryId == null
+          ? null
+          : _entryKeys[entryId]?.currentContext;
+      if (targetContext != null) {
+        unawaited(Scrollable.ensureVisible(targetContext, alignment: 0.35));
+        return;
+      }
+
+      final textScale = MediaQuery.textScalerOf(context).scale(1);
+      final estimatedExtent = 76 + max(0.0, textScale - 1) * 48;
+      final position = widget.scrollController.position;
+      widget.scrollController.jumpTo(
+        (currentIndex * estimatedExtent)
+            .clamp(position.minScrollExtent, position.maxScrollExtent)
+            .toDouble(),
+      );
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final context = entryId == null
+            ? null
+            : _entryKeys[entryId]?.currentContext;
+        if (context != null) {
+          unawaited(Scrollable.ensureVisible(context, alignment: 0.35));
+        }
+      });
+    });
   }
 }

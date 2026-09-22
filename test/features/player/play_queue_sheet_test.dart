@@ -29,6 +29,7 @@ void main() {
     double textScale = 1,
     EchoMediaVisuals? mediaVisuals,
     Color? albumColor,
+    void Function(int, int)? onReorder,
   }) {
     return ProviderScope(
       child: MaterialApp(
@@ -52,6 +53,7 @@ void main() {
               onSelect: onSelect,
               onClear: onClear,
               onOpenSongActions: onOpenSongActions,
+              onReorder: onReorder,
             ),
           ),
         ),
@@ -86,31 +88,33 @@ void main() {
     expect(find.bySemanticsLabel('关闭播放队列'), findsOneWidget);
     expect(find.byType(EchoSongRow), findsNWidgets(2));
     expect(find.byType(CoverArtImage), findsNWidgets(2));
-    expect(find.bySemanticsLabel(RegExp('正在播放')), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp('当前已暂停')), findsOneWidget);
     expect(find.bySemanticsLabel(RegExp('试听')), findsOneWidget);
-    expect(find.byIcon(AppIcons.equalizer), findsOneWidget);
+    expect(find.byIcon(AppIcons.play), findsOneWidget);
     expect(find.text('2'), findsNothing);
     final covers = tester.widgetList<CoverArtImage>(find.byType(CoverArtImage));
     expect(covers.last.coverArtId, 'https://images.example.test/preview.jpg');
     expect(find.bySemanticsLabel(RegExp('更多操作')), findsNWidgets(2));
     expect(
       find.descendant(
-        of: find.byType(ListView),
+        of: find.byType(ReorderableListView),
         matching: find.byType(EchoDivider),
       ),
       findsNothing,
     );
     expect(tester.takeException(), isNull);
 
-    await tester.ensureVisible(find.text(songs[1].title));
-    await tester.pump();
+    await tester.drag(find.byType(ReorderableListView), const Offset(0, -260));
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(ReorderableListView), const Offset(0, -320));
+    await tester.pumpAndSettle();
     await tester.tap(find.text(songs[1].title));
     await tester.pump();
     expect(selected, <int>[1]);
     expect(opened, isEmpty);
 
     final secondMore = find.bySemanticsLabel('${songs[1].title}，更多操作');
-    await tester.drag(find.byType(ListView), const Offset(0, -160));
+    await tester.drag(find.byType(ReorderableListView), const Offset(0, -160));
     await tester.pump();
     final moreSize = tester.getSize(secondMore);
     expect(moreSize.width, greaterThanOrEqualTo(48));
@@ -120,17 +124,46 @@ void main() {
     expect(selected, <int>[1]);
     expect(opened, <int>[1]);
 
-    await tester.drag(find.byType(ListView), const Offset(0, 600));
-    await tester.pumpAndSettle();
-    await tester.longPress(find.text(songs.first.title));
-    await tester.pump();
-    expect(selected, <int>[1]);
-    expect(opened, <int>[1, 0]);
-
     final clearQueue = find.bySemanticsLabel(RegExp('清空后续播放队列'));
     await tester.tap(clearQueue);
     await tester.pump();
     expect(cleared, 1);
+  });
+
+  testWidgets('queue exposes stable drag handles and position styling', (
+    tester,
+  ) async {
+    final moves = <(int, int)>[];
+    await tester.pumpWidget(
+      buildSubject(
+        state: PlayerState(
+          currentSong: songs.last,
+          queue: songs,
+          currentIndex: 1,
+          isPlaying: true,
+        ),
+        onSelect: (_) async {},
+        onClear: () async {},
+        onReorder: (oldIndex, newIndex) => moves.add((oldIndex, newIndex)),
+        onOpenSongActions: (context, index, song) async {},
+      ),
+    );
+    await tester.pump();
+
+    expect(find.bySemanticsLabel(RegExp('调整播放顺序')), findsNWidgets(2));
+    final rows = tester
+        .widgetList<EchoSongRow>(find.byType(EchoSongRow))
+        .toList();
+    expect(rows.first.isDimmed, isTrue);
+    expect(rows.last.isCurrent, isTrue);
+    expect(find.bySemanticsLabel(RegExp('正在播放')), findsOneWidget);
+    expect(find.text('共 2 首 · 当前第 2 首 · 后续 0 首'), findsOneWidget);
+
+    final list = tester.widget<ReorderableListView>(
+      find.byType(ReorderableListView),
+    );
+    list.onReorder(0, 2);
+    expect(moves, <(int, int)>[(0, 2)]);
   });
 
   testWidgets('queue content consumes the panel media color scope', (

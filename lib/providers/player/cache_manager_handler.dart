@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:just_audio/just_audio.dart' show LoopMode;
 import '../../core/services/audio_prefetch_service.dart';
 import '../../core/platform/platform_file_bridge.dart';
 import '../../data/models/audio_quality.dart';
@@ -80,9 +81,11 @@ class CacheManagerHandler {
     await _prefetch.cancel();
     if (generation != _generation || !state.hasNext) return;
     if (kIsWeb) return;
-    if (state.shuffleEnabled) return;
     if (state.queue.length < 2 || state.currentIndex < 0) return;
-    final nextSong = state.queue[(state.currentIndex + 1) % state.queue.length];
+    if (state.loopMode == LoopMode.one) return;
+    final nextIndex = state.currentIndex + 1;
+    if (state.shuffleEnabled && nextIndex >= state.queue.length) return;
+    final nextSong = state.queue[nextIndex % state.queue.length];
     if (nextSong.isPreview || (nextSong.duration ?? 0) > 1200) return;
     final authState = _ref.read(authStateProvider);
     final libraryId = authState.currentLibrary?.id ?? '';

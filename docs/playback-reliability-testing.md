@@ -37,7 +37,7 @@ flutter test test/core/services/audio_handler_service_test.dart \
 | 下一首预缓存 | 当前歌曲已有至少 30 秒缓冲，检查 PRECACHE 日志和服务器访问 | 出现实际下载；完成后下一首命中缓存；切歌取消未完成预缓存 |
 | 隔夜日志 | 播放、退出进程、重新启动，然后导出日志 | 导出文件包含 Persistent playback history 与 Current session |
 
-预缓存跳过 Web、随机队列、试听歌曲、单曲队列和超过 20 分钟的下一首；单次下载限制 64 MiB 和 2 分钟。
+预缓存跳过 Web、试听歌曲、单曲队列和超过 20 分钟的下一首；随机模式按当前可见顺序预缓存下一首，在一轮末尾生成新随机顺序前不提前猜测下一轮。单次下载限制 64 MiB 和 2 分钟。
 
 ## 诊断日志
 

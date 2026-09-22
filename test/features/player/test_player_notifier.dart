@@ -16,6 +16,7 @@ class TestPlayerNotifier extends StateNotifier<PlayerState>
   final List<Duration> seekTargets = <Duration>[];
   final List<int> skippedIndices = <int>[];
   final List<int> removedIndices = <int>[];
+  final List<(int, int)> reorderedIndices = <(int, int)>[];
 
   void emit(PlayerState value) => state = value;
 
@@ -95,6 +96,13 @@ class TestPlayerNotifier extends StateNotifier<PlayerState>
   }
 
   @override
+  Future<void> skipToQueueEntry(String entryId) async {
+    final index = state.playbackQueue.indexOfEntry(entryId);
+    if (index < 0) return;
+    await skipToQueueItem(index);
+  }
+
+  @override
   Future<void> clearQueue() async {
     clearCount += 1;
     final current = state.currentSong;
@@ -117,6 +125,25 @@ class TestPlayerNotifier extends StateNotifier<PlayerState>
       currentIndex: index < state.currentIndex
           ? state.currentIndex - 1
           : state.currentIndex,
+    );
+  }
+
+  @override
+  void removeQueueEntry(String entryId) {
+    final index = state.playbackQueue.indexOfEntry(entryId);
+    if (index < 0) return;
+    removeFromQueue(index);
+  }
+
+  @override
+  void reorderQueue(int oldIndex, int newIndex) {
+    reorderedIndices.add((oldIndex, newIndex));
+    state = state.copyWith(
+      playbackQueue: state.playbackQueue.move(
+        oldIndex,
+        newIndex,
+        shuffleEnabled: state.shuffleEnabled,
+      ),
     );
   }
 

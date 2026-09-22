@@ -1,6 +1,7 @@
 import 'package:just_audio/just_audio.dart';
 import '../../../data/models/song.dart';
 import '../../../data/models/audio_quality.dart';
+import 'playback_queue_state.dart';
 
 /// 播放来源
 enum PlaybackSource {
@@ -12,23 +13,9 @@ enum PlaybackSource {
 /// 播放模式（用于播放器控制区三态切换）
 enum PlaybackMode { shuffle, repeatAll, repeatOne }
 
-const maxShuffleHistoryEntries = 200;
-
-class ShuffleHistoryEntry {
-  const ShuffleHistoryEntry({
-    required this.songId,
-    required this.preferredIndex,
-  });
-
-  final String songId;
-  final int preferredIndex;
-}
-
 /// 播放器状态
 class PlayerState {
-  final Song? currentSong;
-  final List<Song> queue;
-  final int currentIndex;
+  final PlaybackQueueState playbackQueue;
   final bool isPlaying;
   final ProcessingState processingState;
   final bool isSeeking;
@@ -38,16 +25,16 @@ class PlayerState {
   final Duration duration;
   final LoopMode loopMode;
   final bool shuffleEnabled;
-  final int shuffleHistoryCount;
   final AudioQualityLevel? currentQuality;
   final PlaybackSource? playbackSource;
   final int currentBitRateKbps;
   final Duration bufferedPosition;
 
   PlayerState({
-    this.currentSong,
-    this.queue = const [],
-    this.currentIndex = 0,
+    Song? currentSong,
+    List<Song> queue = const [],
+    int currentIndex = 0,
+    PlaybackQueueState? playbackQueue,
     this.isPlaying = false,
     this.processingState = ProcessingState.idle,
     this.isSeeking = false,
@@ -57,17 +44,32 @@ class PlayerState {
     this.duration = Duration.zero,
     this.loopMode = LoopMode.off,
     this.shuffleEnabled = false,
-    this.shuffleHistoryCount = 0,
     this.currentQuality,
     this.playbackSource,
     this.currentBitRateKbps = 0,
     this.bufferedPosition = Duration.zero,
-  });
+  }) : playbackQueue =
+           playbackQueue ??
+           PlaybackQueueState.fromSongs(
+             queue.isEmpty && currentSong != null ? <Song>[currentSong] : queue,
+             currentIndex: currentSong == null
+                 ? null
+                 : queue.isEmpty
+                 ? 0
+                 : currentIndex,
+           );
+
+  Song? get currentSong => playbackQueue.currentSong;
+  List<Song> get queue => playbackQueue.songs;
+  List<String> get queueEntryIds => playbackQueue.entryIds;
+  String? get currentEntryId => playbackQueue.currentEntryId;
+  int get currentIndex => playbackQueue.currentIndex;
 
   PlayerState copyWith({
-    Song? currentSong,
+    Object? currentSong = _keepValue,
     List<Song>? queue,
     int? currentIndex,
+    PlaybackQueueState? playbackQueue,
     bool? isPlaying,
     ProcessingState? processingState,
     bool? isSeeking,
@@ -77,16 +79,55 @@ class PlayerState {
     Duration? duration,
     LoopMode? loopMode,
     bool? shuffleEnabled,
-    int? shuffleHistoryCount,
-    AudioQualityLevel? currentQuality,
-    PlaybackSource? playbackSource,
+    Object? currentQuality = _keepValue,
+    Object? playbackSource = _keepValue,
     int? currentBitRateKbps,
     Duration? bufferedPosition,
   }) {
+    var nextQueue = playbackQueue ?? this.playbackQueue;
+    final hasSongOverride = !identical(currentSong, _keepValue);
+    final requestedSong = hasSongOverride
+        ? currentSong as Song?
+        : this.currentSong;
+
+    if (playbackQueue == null &&
+        queue != null &&
+        !identical(queue, this.queue)) {
+      if (queue.length == this.queue.length) {
+        nextQueue = nextQueue.replaceVisibleSongs(queue);
+      } else {
+        var requestedIndex = currentIndex;
+        if (requestedIndex == null && requestedSong != null) {
+          requestedIndex = queue.indexWhere(
+            (song) => song.id == requestedSong.id,
+          );
+        }
+        nextQueue = PlaybackQueueState.fromSongs(
+          queue,
+          currentIndex: requestedSong == null ? null : requestedIndex,
+        );
+      }
+    }
+
+    if (playbackQueue == null) {
+      if (hasSongOverride && requestedSong == null) {
+        nextQueue = nextQueue.selectEntry(null);
+      } else {
+        final targetIndex = currentIndex ?? nextQueue.currentIndex;
+        if (targetIndex >= 0 && targetIndex < nextQueue.length) {
+          nextQueue = nextQueue.selectIndex(targetIndex);
+          if (hasSongOverride && requestedSong != null) {
+            nextQueue = nextQueue.updateEntrySong(
+              nextQueue.currentEntryId!,
+              requestedSong,
+            );
+          }
+        }
+      }
+    }
+
     return PlayerState(
-      currentSong: currentSong ?? this.currentSong,
-      queue: queue ?? this.queue,
-      currentIndex: currentIndex ?? this.currentIndex,
+      playbackQueue: nextQueue,
       isPlaying: isPlaying ?? this.isPlaying,
       processingState: processingState ?? this.processingState,
       isSeeking: isSeeking ?? this.isSeeking,
@@ -96,9 +137,12 @@ class PlayerState {
       duration: duration ?? this.duration,
       loopMode: loopMode ?? this.loopMode,
       shuffleEnabled: shuffleEnabled ?? this.shuffleEnabled,
-      shuffleHistoryCount: shuffleHistoryCount ?? this.shuffleHistoryCount,
-      currentQuality: currentQuality ?? this.currentQuality,
-      playbackSource: playbackSource ?? this.playbackSource,
+      currentQuality: identical(currentQuality, _keepValue)
+          ? this.currentQuality
+          : currentQuality as AudioQualityLevel?,
+      playbackSource: identical(playbackSource, _keepValue)
+          ? this.playbackSource
+          : playbackSource as PlaybackSource?,
       currentBitRateKbps: currentBitRateKbps ?? this.currentBitRateKbps,
       bufferedPosition: bufferedPosition ?? this.bufferedPosition,
     );
@@ -126,3 +170,5 @@ class PlayerState {
     return queue.isNotEmpty;
   }
 }
+
+const Object _keepValue = Object();

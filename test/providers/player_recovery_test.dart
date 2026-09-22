@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:echoes/core/services/playback_wake_guard.dart';
 
 import 'package:dio/dio.dart';
@@ -19,6 +20,7 @@ import 'package:echoes/data/models/song.dart';
 import 'package:echoes/providers/api_provider.dart';
 import 'package:echoes/providers/crossfade_provider.dart';
 import 'package:echoes/providers/player_provider.dart';
+import 'package:echoes/providers/player/playback_queue_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:just_audio/just_audio.dart' as audio;
@@ -89,8 +91,10 @@ void main() {
   void createFixture({
     DateTime Function()? clock,
     PlaybackWakeGuard? wakeGuard,
+    bool restoreSession = false,
+    Map<String, Object> initialPreferences = const <String, Object>{},
   }) {
-    SharedPreferences.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues(initialPreferences);
     engine = MockPlayer();
     final network = MockConnectivity();
     when(() => network.currentNetworkType).thenReturn(NetworkType.wifi);
@@ -218,7 +222,7 @@ void main() {
           (ref) => PlayerNotifier(
             ref,
             player: engine,
-            restoreSession: false,
+            restoreSession: restoreSession,
             clock: clock,
             wakeGuard: wakeGuard ?? PlaybackWakeGuard(enabled: false),
           ),
@@ -675,6 +679,206 @@ void main() {
     await tester.pump();
     verify(() => engine.setLoopMode(audio.LoopMode.one)).called(1);
     expect(loads, 1);
+  });
+
+  playbackTest(
+    'shuffle materializes the visible order and restores the filtered base',
+    (tester) async {
+      createFixture();
+      await notifier.initialized;
+      final songs = <Song>[
+        for (var i = 0; i < 6; i++)
+          song.copyWith(id: 'song-$i', title: 'Song $i'),
+      ];
+      await notifier.playQueue(songs, startIndex: 1);
+      final before = container.read(playerProvider);
+      final currentEntryId = before.currentEntryId;
+      final baseBefore = before.playbackQueue.baseOrder;
+      final loadsBeforeQueueEdits = loads;
+
+      await notifier.setPlaybackMode(PlaybackMode.shuffle, persist: false);
+      var shuffled = container.read(playerProvider);
+      expect(shuffled.queueEntryIds.take(2), baseBefore.take(2));
+      expect(shuffled.currentEntryId, currentEntryId);
+
+      final removedEntryId = shuffled.queueEntryIds.last;
+      notifier.removeFromQueue(shuffled.queue.length - 1);
+      notifier.reorderQueue(2, shuffled.queue.length - 1);
+      await notifier.setPlaybackMode(PlaybackMode.repeatAll, persist: false);
+
+      final restored = container.read(playerProvider);
+      expect(restored.queueEntryIds, restored.playbackQueue.baseOrder);
+      expect(restored.queueEntryIds, isNot(contains(removedEntryId)));
+      expect(restored.currentEntryId, currentEntryId);
+      expect(loads, loadsBeforeQueueEdits);
+    },
+  );
+
+  playbackTest('shuffle next follows the visible order and renews at the end', (
+    tester,
+  ) async {
+    createFixture();
+    await notifier.initialized;
+    final songs = <Song>[
+      for (var i = 0; i < 5; i++) song.copyWith(id: 'round-$i'),
+    ];
+    await notifier.playQueue(songs, startIndex: 1);
+    await notifier.setPlaybackMode(PlaybackMode.shuffle, persist: false);
+    var state = container.read(playerProvider);
+    final expectedNextId = state.queueEntryIds[state.currentIndex + 1];
+
+    await notifier.next();
+
+    state = container.read(playerProvider);
+    expect(state.currentEntryId, expectedNextId);
+
+    await notifier.skipToQueueItem(state.queue.length - 1);
+    state = container.read(playerProvider);
+    final previousSongId = state.currentSong!.id;
+    final previousEntries = state.queueEntryIds.toSet();
+    await notifier.next();
+
+    final nextRound = container.read(playerProvider);
+    expect(nextRound.currentIndex, 0);
+    expect(nextRound.currentSong!.id, isNot(previousSongId));
+    expect(nextRound.queueEntryIds.toSet(), previousEntries);
+  });
+
+  playbackTest('normal reorder updates the durable base without reloading', (
+    tester,
+  ) async {
+    createFixture();
+    await notifier.initialized;
+    final songs = <Song>[
+      for (var i = 0; i < 3; i++) song.copyWith(id: 'ordered-$i'),
+    ];
+    await notifier.playQueue(songs, startIndex: 0);
+    final currentEntryId = container.read(playerProvider).currentEntryId;
+    final loadsBeforeMove = loads;
+
+    notifier.reorderQueue(0, 3);
+
+    final moved = container.read(playerProvider);
+    expect(moved.queue.map((item) => item.id), <String>[
+      'ordered-1',
+      'ordered-2',
+      'ordered-0',
+    ]);
+    expect(moved.queueEntryIds, moved.playbackQueue.baseOrder);
+    expect(moved.currentEntryId, currentEntryId);
+    expect(moved.currentIndex, 2);
+    expect(loads, loadsBeforeMove);
+  });
+
+  playbackTest('v2 session restores exact shuffle order and entry identity', (
+    tester,
+  ) async {
+    var id = 0;
+    final queue = PlaybackQueueState.fromSongs(
+      <Song>[
+        song.copyWith(id: 'persist-a'),
+        song.copyWith(id: 'persist-b'),
+        song.copyWith(id: 'persist-c'),
+      ],
+      currentIndex: 1,
+      idFactory: () => 'persist-entry-${id++}',
+    ).move(2, 0, shuffleEnabled: true);
+    final payload = <String, dynamic>{
+      'version': 2,
+      'mode': PlaybackMode.shuffle.name,
+      ...queue.toJson(),
+      'positionMs': 0,
+      'isPlaying': true,
+    };
+    createFixture(
+      restoreSession: true,
+      initialPreferences: <String, Object>{
+        'playback_session_v2': jsonEncode(payload),
+      },
+    );
+
+    await notifier.initialized;
+
+    final restored = container.read(playerProvider);
+    expect(restored.shuffleEnabled, isTrue);
+    expect(restored.queueEntryIds, queue.playOrder);
+    expect(restored.playbackQueue.baseOrder, queue.baseOrder);
+    expect(restored.currentEntryId, queue.currentEntryId);
+    expect(restored.isPlaying, isFalse);
+  });
+
+  playbackTest('v1 session migrates once without reviving a legacy snapshot', (
+    tester,
+  ) async {
+    final legacySongs = <Song>[
+      song.copyWith(id: 'legacy-a'),
+      song.copyWith(id: 'legacy-b'),
+      song.copyWith(id: 'legacy-c'),
+      song.copyWith(id: 'legacy-d'),
+    ];
+    createFixture(
+      restoreSession: true,
+      initialPreferences: <String, Object>{
+        'playback_mode': PlaybackMode.shuffle.name,
+        'playback_session_v1': jsonEncode(<String, dynamic>{
+          'version': 1,
+          'queue': legacySongs.map((item) => item.toJson()).toList(),
+          'currentIndex': 1,
+          'currentSongId': 'legacy-b',
+          'positionMs': 0,
+          'isPlaying': true,
+        }),
+      },
+    );
+
+    await notifier.initialized;
+    await tester.pump();
+
+    final restored = container.read(playerProvider);
+    expect(restored.shuffleEnabled, isTrue);
+    expect(
+      restored.playbackQueue.baseOrder.map(
+        (id) => restored.playbackQueue.entries[id]!.song.id,
+      ),
+      legacySongs.map((item) => item.id),
+    );
+    expect(restored.queue.take(2).map((item) => item.id), <String>[
+      'legacy-a',
+      'legacy-b',
+    ]);
+    final preferences = await SharedPreferences.getInstance();
+    expect(preferences.containsKey('playback_session_v2'), isTrue);
+    expect(preferences.containsKey('playback_session_v1'), isFalse);
+  });
+
+  playbackTest('unrepairable v2 session falls back to a valid v1 snapshot', (
+    tester,
+  ) async {
+    final legacySong = song.copyWith(id: 'fallback-song');
+    createFixture(
+      restoreSession: true,
+      initialPreferences: <String, Object>{
+        'playback_session_v2': jsonEncode(<String, dynamic>{
+          'version': 2,
+          'mode': PlaybackMode.repeatAll.name,
+          'entries': <Object>[],
+          'baseOrder': <Object>[],
+          'playOrder': <Object>[],
+        }),
+        'playback_session_v1': jsonEncode(<String, dynamic>{
+          'version': 1,
+          'queue': <Object>[legacySong.toJson()],
+          'currentIndex': 0,
+          'currentSongId': legacySong.id,
+          'positionMs': 0,
+          'isPlaying': false,
+        }),
+      },
+    );
+
+    await notifier.initialized;
+
+    expect(container.read(playerProvider).currentSong?.id, legacySong.id);
   });
 
   playbackTest(
