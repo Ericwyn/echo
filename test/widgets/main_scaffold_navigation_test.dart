@@ -91,16 +91,16 @@ void main() {
         ).map((destination) => destination.branchIndex),
         <int>[
           discoverBranchIndex,
-          catalogBranchIndex,
           exploreBranchIndex,
           libraryBranchIndex,
+          catalogBranchIndex,
         ],
       );
       expect(
         echoMainDestinations(
           showExploreTab: false,
         ).map((destination) => destination.branchIndex),
-        <int>[discoverBranchIndex, catalogBranchIndex, libraryBranchIndex],
+        <int>[discoverBranchIndex, libraryBranchIndex, catalogBranchIndex],
       );
     });
 

@@ -350,18 +350,34 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                     ),
                   ),
                   SizedBox(height: context.echoSpacing.lg),
-                  EchoSectionHeader(
-                    title: '我的歌单',
-                    actionLabel: _playlistSortOption.label,
-                    onAction: () => _showPlaylistSortSheet(context),
-                  ),
-                  Align(
-                    alignment: AlignmentDirectional.centerEnd,
-                    child: EchoButton.ghost(
-                      label: '新建歌单',
-                      leadingIcon: AppIcons.add,
-                      onPressed: () => _createPlaylist(context, ref),
-                    ),
+                  const EchoSectionHeader(title: '我的歌单'),
+                  SizedBox(height: context.echoSpacing.xs),
+                  Row(
+                    key: const ValueKey<String>('playlist-section-actions'),
+                    children: <Widget>[
+                      Expanded(
+                        child: Align(
+                          alignment: AlignmentDirectional.centerStart,
+                          child: EchoButton.ghost(
+                            label: _playlistSortOption.label,
+                            semanticLabel: '歌单排序：${_playlistSortOption.label}',
+                            leadingIcon: AppIcons.sort,
+                            onPressed: () => _showPlaylistSortSheet(context),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: context.echoSpacing.sm),
+                      Expanded(
+                        child: Align(
+                          alignment: AlignmentDirectional.centerEnd,
+                          child: EchoButton.ghost(
+                            label: '新建歌单',
+                            leadingIcon: AppIcons.add,
+                            onPressed: () => _createPlaylist(context, ref),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   SizedBox(height: context.echoSpacing.xs),
                   playlistsAsync.when(

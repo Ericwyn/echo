@@ -116,9 +116,9 @@ List<EchoShellDestination> echoMainDestinations({
 }) {
   return <EchoShellDestination>[
     _discoverDestination,
-    _catalogDestination,
     if (showExploreTab) _exploreDestination,
     _libraryDestination,
+    _catalogDestination,
   ];
 }
 

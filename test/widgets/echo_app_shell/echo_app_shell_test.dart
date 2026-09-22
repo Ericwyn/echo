@@ -23,7 +23,7 @@ void main() {
           size: const Size(390, 800),
           showExploreTab: showExplore,
         );
-        final labels = <String>['音乐流', '曲库', if (showExplore) '探索', '我的'];
+        final labels = <String>['音乐流', if (showExplore) '探索', '我的', '曲库'];
         final rects = [
           for (final label in labels)
             tester.getRect(find.bySemanticsLabel(label)),

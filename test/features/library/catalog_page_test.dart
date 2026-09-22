@@ -126,4 +126,30 @@ void main() {
       expect(find.text('浏览完整曲库'), findsNothing);
     },
   );
+
+  testWidgets('playlist sort and create actions share one aligned row', (
+    tester,
+  ) async {
+    await pumpPage(tester, page: const LibraryPage());
+    final actions = find
+        .byKey(const ValueKey<String>('playlist-section-actions'))
+        .first;
+    final sort = find.descendant(
+      of: actions,
+      matching: find.bySemanticsLabel('歌单排序：默认顺序'),
+    );
+    final create = find.descendant(
+      of: actions,
+      matching: find.bySemanticsLabel('新建歌单'),
+    );
+    await tester.drag(find.byType(ListView), const Offset(0, -600));
+    await tester.pumpAndSettle();
+    expect(actions, findsOneWidget);
+    expect(
+      tester.getCenter(sort).dy,
+      closeTo(tester.getCenter(create).dy, 0.01),
+    );
+    expect(tester.getCenter(sort).dx, lessThan(tester.getCenter(create).dx));
+    expect(tester.takeException(), isNull);
+  });
 }
