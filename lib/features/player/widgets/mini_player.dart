@@ -30,6 +30,10 @@ class MiniPlayer extends ConsumerWidget {
           queue: state.queue,
           currentIndex: state.currentIndex,
           isPlaying: state.isPlaying,
+          processingState: state.processingState,
+          isSeeking: state.isSeeking,
+          isChangingSource: state.isChangingSource,
+          hasPlaybackError: state.hasPlaybackError,
           shuffleEnabled: state.shuffleEnabled,
           duration: state.duration,
         ),
@@ -40,6 +44,10 @@ class MiniPlayer extends ConsumerWidget {
       queue: snapshot.queue,
       currentIndex: snapshot.currentIndex,
       isPlaying: snapshot.isPlaying,
+      processingState: snapshot.processingState,
+      isSeeking: snapshot.isSeeking,
+      isChangingSource: snapshot.isChangingSource,
+      hasPlaybackError: snapshot.hasPlaybackError,
       shuffleEnabled: snapshot.shuffleEnabled,
       duration: snapshot.duration,
     );
@@ -226,6 +234,7 @@ class _MiniPlayerViewState extends State<MiniPlayerView> {
   }
 
   void _togglePlayPause() {
+    if (_playerState.isLoading) return;
     HapticFeedback.selectionClick();
     unawaited(widget.onTogglePlayPause());
   }
@@ -539,7 +548,12 @@ class _MiniPlayerViewState extends State<MiniPlayerView> {
                             icon: _playerState.isPlaying
                                 ? AppIcons.pause
                                 : AppIcons.play,
-                            label: _playerState.isPlaying ? '暂停' : '播放',
+                            label: _playerState.isLoading
+                                ? '加载中'
+                                : _playerState.isPlaying
+                                ? '暂停'
+                                : '播放',
+                            isLoading: _playerState.isLoading,
                             foregroundColor: context.echoColors.ink,
                             backgroundColor: Colors.transparent,
                             onPressed: _togglePlayPause,

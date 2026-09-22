@@ -134,6 +134,8 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   int _transportRequestGeneration = 0;
   int? _activeSeekGeneration;
   String? _activeSeekSongId;
+  bool _seekAwaitingReady = false;
+  int _internalSeekPauseDepth = 0;
   bool _isApplyingPendingSeek = false;
   bool _seekByReloadStream = false;
   Duration _sourcePositionOffset = Duration.zero;
@@ -302,6 +304,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
         );
         if (!mounted) return;
         if (_replacingSourceGeneration == null &&
+            _internalSeekPauseDepth == 0 &&
             _loadedSourceSongId != null &&
             player.processingState == ProcessingState.ready) {
           if (!isPlaying && _playbackRequested) {
@@ -470,6 +473,12 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
         }
         if (playerState.processingState == ProcessingState.ready ||
             playerState.processingState == ProcessingState.completed) {
+          if (_seekAwaitingReady && _activeSeekGeneration != null) {
+            _releaseSeekAnchor(_activeSeekGeneration!);
+            if (_playbackRequested && !player.playing) {
+              _startPlayback(fadeIn: false);
+            }
+          }
           unawaited(_applyPendingSeekIfNeeded());
         }
 
@@ -612,7 +621,9 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       song: song,
       isPreview: song.isPreview,
       autoPlay: true,
-      position: _logicalPlayerPosition(_audioPlayer?.position ?? Duration.zero),
+      position: _shouldPreserveSeekPosition()
+          ? state.position
+          : _logicalPlayerPosition(_audioPlayer?.position ?? Duration.zero),
     );
   }
 
@@ -629,6 +640,8 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     _retryPosition = position ?? _retryPosition ?? state.position;
     if (_recoveryAttempts >= 4) {
       _playbackRequested = false;
+      _invalidateSeekRequests();
+      state = state.copyWith(hasPlaybackError: true, isPlaying: false);
       unawaited(_wakeGuard.setActive(false, reason: 'recovery_exhausted'));
       _audioHandler?.updateTransportIntent(false);
       _cancelFade();
@@ -892,7 +905,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
         currentSong: song,
         queue: playQueue,
         currentIndex: playIndex,
-        position: Duration.zero,
+        position: resumePosition,
         duration: initialDuration, // 使用歌曲元数据的时长
         currentBitRateKbps: 0,
       );
@@ -2125,7 +2138,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       currentSong: resolvedSong,
       queue: playQueue,
       currentIndex: playIndex,
-      position: Duration.zero,
+      position: resumePosition,
       duration: initialDuration,
       currentBitRateKbps: 0,
     );
@@ -2244,6 +2257,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
 
   /// 播放/暂停
   Future<void> togglePlayPause() async {
+    if (state.isLoading) return;
     if (state.isPlaying) {
       await pause();
     } else {
@@ -2286,6 +2300,13 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     _audioHandler?.updateTransportIntent(true);
     _transportRequestGeneration += 1;
     _cancelFade(); // 取消任何进行中的淡入淡出，恢复音量到 1.0
+    // A transport resume during a seek/source replacement updates intent only.
+    // Starting playSong here would invalidate the seek and reload from a stale
+    // (often zero) position before the replacement's timeOffset is installed.
+    if (_replacingSourceGeneration != null || state.isSeeking) {
+      return Future<void>.value();
+    }
+    state = state.copyWith(hasPlaybackError: false);
     final song = state.currentSong;
     if (song != null &&
         (_loadedSourceSongId != song.id || _recoveryAttempts >= 4)) {
@@ -2479,6 +2500,8 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       songId: currentSongId,
     );
     final target = _normalizeSeekPosition(position);
+    state = state.copyWith(isSeeking: true, hasPlaybackError: false);
+    _seekAwaitingReady = false;
     final canSeekNow = canSeekLoadedPlayerSource(
       processingState: player.processingState,
       loadedSourceSongId: _loadedSourceSongId,
@@ -2523,6 +2546,9 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       );
       if (isCurrentSeek() && mounted) {
         state = state.copyWith(position: target);
+        if (_playbackRequested && !player.playing) {
+          _startPlayback(fadeIn: false);
+        }
       }
     } on _SeekSourceRestored {
       if (isCurrentSeek()) {
@@ -3445,6 +3471,8 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     final target = _normalizeSeekPosition(pending);
     _activeSeekGeneration = seekGeneration;
     _activeSeekSongId = currentSongId;
+    _seekAwaitingReady = false;
+    state = state.copyWith(isSeeking: true);
     _seekDbg(
       'applyPendingSeek song=$currentSongId target=$target '
       'playerPos=${player.position} state=${player.processingState.name}',
@@ -3459,6 +3487,9 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       );
       if (isCurrentSeek() && mounted) {
         state = state.copyWith(position: target);
+        if (_playbackRequested && !player.playing) {
+          _startPlayback(fadeIn: false);
+        }
       }
     } on _SeekSourceRestored {
       if (isCurrentSeek()) {
@@ -3495,7 +3526,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     if (_seekByReloadStream &&
         _currentStreamSongId == songId &&
         _currentStreamUrl != null) {
-      final shouldResume = player.playing;
+      final shouldResume = _playbackRequested;
       final seekTarget = TranscodedStreamSeekTarget.fromLogical(target);
       final streamFormat = _currentStreamFormat;
       final streamMaxBitRate = _currentStreamMaxBitRate;
@@ -3600,6 +3631,12 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
 
     await Future<void>.delayed(const Duration(milliseconds: 220));
     if (!isCurrentSeek()) return;
+    // A slow range request is not evidence of seek drift. Keep the target
+    // anchored until the engine reports ready instead of pausing/reloading it.
+    if (player.processingState == ProcessingState.buffering ||
+        player.processingState == ProcessingState.loading) {
+      return;
+    }
     final actual = _logicalPlayerPosition(player.position);
     final drift = (actual - target).inMilliseconds.abs();
     _seekDbg(
@@ -3611,7 +3648,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     // LockCachingAudioSource 在刚开始下载时，远跳转可能出现“位置变化但音频仍从头播放”。
     // 检测到明显偏差时切换到直连流并携带 initialPosition，保证实际音频位置正确。
     if (_usingLockCachingSource && _currentStreamUrl != null) {
-      final shouldResume = player.playing;
+      final shouldResume = _playbackRequested;
       final isAppleHttpStream = _isAppleHttpUrl(_currentStreamUrl);
       if (isAppleHttpStream) {
         Logger.warn(
@@ -3691,13 +3728,20 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     }
 
     // 直连流/本地文件也做一次强制重试，规避解码器刚起播时的 seek 抖动。
-    final shouldResume = player.playing;
+    final shouldResume = _playbackRequested;
     Logger.warn(
       'Seek drift detected on non-lock source (target=$target, actual=$actual), '
       'retrying seek',
     );
     if (shouldResume) {
-      await player.pause();
+      // Only this pause belongs to seek recovery. Genuine transport/audio
+      // focus pauses during a seek must still cancel the playback intent.
+      _internalSeekPauseDepth += 1;
+      try {
+        await player.pause();
+      } finally {
+        _internalSeekPauseDepth -= 1;
+      }
       if (!isCurrentSeek()) return;
     }
     await player.seek(sourceTarget);
@@ -3890,6 +3934,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     final generation = ++_sourceGeneration;
     _loadedSourceSongId = null;
     _replacingSourceGeneration = generation;
+    state = state.copyWith(isChangingSource: true, hasPlaybackError: false);
     _audioHandler?.beginSourceTransition(
       generation,
       playing: _playbackRequested,
@@ -3957,6 +4002,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     } finally {
       if (_replacingSourceGeneration == generation) {
         _replacingSourceGeneration = null;
+        if (mounted) state = state.copyWith(isChangingSource: false);
       }
       _audioHandler?.endSourceTransition(generation);
     }
@@ -3992,6 +4038,8 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     _seekRequestGeneration += 1;
     _activeSeekGeneration = null;
     _activeSeekSongId = null;
+    _seekAwaitingReady = false;
+    if (mounted) state = state.copyWith(isSeeking: false);
   }
 
   bool _isSeekRequestCurrent({
@@ -4005,8 +4053,20 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
 
   void _releaseSeekAnchor(int seekGeneration) {
     if (_activeSeekGeneration != seekGeneration) return;
+    if (mounted &&
+        seekGeneration == _seekRequestGeneration &&
+        _activeSeekSongId == state.currentSong?.id &&
+        (_audioPlayer?.processingState == ProcessingState.buffering ||
+            _audioPlayer?.processingState == ProcessingState.loading)) {
+      _seekAwaitingReady = true;
+      return;
+    }
     _activeSeekGeneration = null;
     _activeSeekSongId = null;
+    _seekAwaitingReady = false;
+    if (mounted) {
+      state = state.copyWith(isSeeking: _shouldPreserveSeekPosition());
+    }
   }
 
   void _schedulePendingSeekIfReady() {

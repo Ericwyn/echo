@@ -15,6 +15,7 @@ class EchoIconButton extends StatelessWidget {
     this.iconSize = 22,
     this.enableHaptics = false,
     this.autofocus = false,
+    this.isLoading = false,
   });
 
   final IconData icon;
@@ -26,12 +27,13 @@ class EchoIconButton extends StatelessWidget {
   final double iconSize;
   final bool enableHaptics;
   final bool autofocus;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.echoColors;
-    final enabled = onPressed != null;
-    final foreground = enabled
+    final enabled = onPressed != null && !isLoading;
+    final foreground = enabled || isLoading
         ? foregroundColor ?? (selected ? colors.accent : colors.ink)
         : colors.onDisabled;
     final background =
@@ -45,7 +47,7 @@ class EchoIconButton extends StatelessWidget {
     return EchoPressable(
       semanticLabel: label,
       selected: selected,
-      onPressed: onPressed,
+      onPressed: enabled ? onPressed : null,
       minimumSize: context.echoInteraction.minimumTouchSize,
       borderRadius: context.echoRadii.control,
       enableHaptics: enableHaptics,
@@ -58,7 +60,18 @@ class EchoIconButton extends StatelessWidget {
             borderRadius: context.echoRadii.control,
           ),
           child: Center(
-            child: Icon(icon, size: iconSize, color: foreground),
+            child: isLoading
+                ? SizedBox.square(
+                    dimension: iconSize,
+                    child: CircularProgressIndicator(
+                      value: MediaQuery.disableAnimationsOf(context)
+                          ? 0.75
+                          : null,
+                      strokeWidth: 2,
+                      color: foreground,
+                    ),
+                  )
+                : Icon(icon, size: iconSize, color: foreground),
           ),
         ),
       ),

@@ -31,6 +31,9 @@ class PlayerState {
   final int currentIndex;
   final bool isPlaying;
   final ProcessingState processingState;
+  final bool isSeeking;
+  final bool isChangingSource;
+  final bool hasPlaybackError;
   final Duration position;
   final Duration duration;
   final LoopMode loopMode;
@@ -47,6 +50,9 @@ class PlayerState {
     this.currentIndex = 0,
     this.isPlaying = false,
     this.processingState = ProcessingState.idle,
+    this.isSeeking = false,
+    this.isChangingSource = false,
+    this.hasPlaybackError = false,
     this.position = Duration.zero,
     this.duration = Duration.zero,
     this.loopMode = LoopMode.off,
@@ -64,6 +70,9 @@ class PlayerState {
     int? currentIndex,
     bool? isPlaying,
     ProcessingState? processingState,
+    bool? isSeeking,
+    bool? isChangingSource,
+    bool? hasPlaybackError,
     Duration? position,
     Duration? duration,
     LoopMode? loopMode,
@@ -80,6 +89,9 @@ class PlayerState {
       currentIndex: currentIndex ?? this.currentIndex,
       isPlaying: isPlaying ?? this.isPlaying,
       processingState: processingState ?? this.processingState,
+      isSeeking: isSeeking ?? this.isSeeking,
+      isChangingSource: isChangingSource ?? this.isChangingSource,
+      hasPlaybackError: hasPlaybackError ?? this.hasPlaybackError,
       position: position ?? this.position,
       duration: duration ?? this.duration,
       loopMode: loopMode ?? this.loopMode,
@@ -94,6 +106,15 @@ class PlayerState {
 
   bool get _hasValidCurrent =>
       currentSong != null && currentIndex >= 0 && currentIndex < queue.length;
+
+  /// Loading is independent of the native play/pause flag: a seek may pause
+  /// the engine while replacing its source, or keep playing while buffering.
+  bool get isLoading =>
+      !hasPlaybackError &&
+      (isSeeking ||
+          isChangingSource ||
+          processingState == ProcessingState.loading ||
+          processingState == ProcessingState.buffering);
 
   bool get hasNext {
     if (!_hasValidCurrent) return false;

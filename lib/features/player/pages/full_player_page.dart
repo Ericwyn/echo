@@ -1279,13 +1279,11 @@ class _ProgressBarState extends ConsumerState<ProgressBar>
           position: state.position,
           duration: state.duration,
           buffered: state.bufferedPosition,
-          processing: state.processingState,
+          isLoading: state.isLoading,
         ),
       ),
     );
-    final isLoading =
-        state.processing == ProcessingState.loading ||
-        state.processing == ProcessingState.buffering;
+    final isLoading = state.isLoading;
     _syncLoadingPulse(isLoading);
 
     final maxMilliseconds = state.duration.inMilliseconds > 0
@@ -1420,6 +1418,7 @@ class PlaybackControls extends ConsumerWidget {
       playerProvider.select(
         (state) => (
           isPlaying: state.isPlaying,
+          isLoading: state.isLoading,
           hasPrevious: state.hasPrevious,
           hasNext: state.hasNext,
         ),
@@ -1439,15 +1438,23 @@ class PlaybackControls extends ConsumerWidget {
       ),
       _PlayerIconButton(
         icon: state.isPlaying ? AppIcons.pause : AppIcons.play,
-        label: state.isPlaying ? '暂停' : '播放',
+        label: state.isLoading
+            ? '加载中'
+            : state.isPlaying
+            ? '暂停'
+            : '播放',
+        isLoading: state.isLoading,
         emphasized: true,
         dimension: playDimension,
         iconSize: playIconSize,
         iconOffset: state.isPlaying
             ? Offset.zero
             : Offset(playIconSize * _playIconOpticalCorrection, 0),
-        onPressed: () =>
-            unawaited(ref.read(playerProvider.notifier).togglePlayPause()),
+        onPressed: state.isLoading
+            ? null
+            : () => unawaited(
+                ref.read(playerProvider.notifier).togglePlayPause(),
+              ),
       ),
       _PlayerIconButton(
         icon: AppIcons.next,
@@ -1562,6 +1569,7 @@ class _PlayerIconButton extends StatelessWidget {
     this.dimension = 48,
     this.iconSize = 22,
     this.iconOffset = Offset.zero,
+    this.isLoading = false,
   });
 
   final IconData icon;
@@ -1572,6 +1580,7 @@ class _PlayerIconButton extends StatelessWidget {
   final double dimension;
   final double iconSize;
   final Offset iconOffset;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -1606,15 +1615,26 @@ class _PlayerIconButton extends StatelessWidget {
                 : null,
           ),
           child: Center(
-            child: Transform.translate(
-              key: emphasized
-                  ? const ValueKey<String>(
-                      'full_player_primary_transport_glyph',
-                    )
-                  : null,
-              offset: iconOffset,
-              child: Icon(icon, size: iconSize, color: foreground),
-            ),
+            child: isLoading
+                ? SizedBox.square(
+                    dimension: iconSize,
+                    child: CircularProgressIndicator(
+                      value: MediaQuery.disableAnimationsOf(context)
+                          ? 0.75
+                          : null,
+                      strokeWidth: 2.5,
+                      color: foreground,
+                    ),
+                  )
+                : Transform.translate(
+                    key: emphasized
+                        ? const ValueKey<String>(
+                            'full_player_primary_transport_glyph',
+                          )
+                        : null,
+                    offset: iconOffset,
+                    child: Icon(icon, size: iconSize, color: foreground),
+                  ),
           ),
         ),
       ),

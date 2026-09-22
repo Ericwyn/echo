@@ -135,6 +135,47 @@ void main() {
     expect(find.descendant(of: utility, matching: quality), findsNothing);
   }
 
+  testWidgets('transport shows disabled loading then restores play and pause', (
+    tester,
+  ) async {
+    final notifier = TestPlayerNotifier(initialState());
+    await tester.pumpWidget(
+      providerApp(
+        notifier: notifier,
+        home: const Scaffold(body: PlaybackControls()),
+      ),
+    );
+    for (final loading in <PlayerState>[
+      initialState().copyWith(processingState: ProcessingState.loading),
+      initialState().copyWith(processingState: ProcessingState.buffering),
+      initialState().copyWith(isSeeking: true, isPlaying: false),
+      initialState().copyWith(isChangingSource: true, isPlaying: false),
+    ]) {
+      notifier.emit(loading);
+      await tester.pump();
+      final control = find.bySemanticsLabel('加载中');
+      expect(control, findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(
+        tester
+            .getSemantics(control)
+            .getSemanticsData()
+            .hasAction(SemanticsAction.tap),
+        isFalse,
+      );
+      await tester.tap(control);
+      expect(notifier.toggleCount, 0);
+      expect(find.bySemanticsLabel('下一首'), findsOneWidget);
+    }
+    notifier.emit(initialState());
+    await tester.pump();
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    await tester.tap(find.bySemanticsLabel('暂停'));
+    await tester.pump();
+    expect(notifier.toggleCount, 1);
+    expect(find.bySemanticsLabel('播放'), findsOneWidget);
+  });
+
   testWidgets('full player keeps Hero contract and works at 200% text', (
     tester,
   ) async {

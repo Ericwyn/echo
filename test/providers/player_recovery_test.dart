@@ -138,17 +138,20 @@ void main() {
       source = audio.AudioSource.uri(
         Uri.parse(call.positionalArguments.first as String),
       );
-      position = Duration.zero;
+      position =
+          call.namedArguments[#initialPosition] as Duration? ?? Duration.zero;
       return pendingLoad == null
           ? const Duration(seconds: 120)
           : pendingLoad!.future;
     });
     when(() => engine.play()).thenAnswer((_) async {
       playing = true;
+      playingEvents.add(true);
       plays++;
     });
     when(() => engine.pause()).thenAnswer((_) async {
       playing = false;
+      playingEvents.add(false);
     });
     when(() => engine.stop()).thenAnswer((_) async {
       playing = false;
@@ -245,6 +248,199 @@ void main() {
     });
   }
 
+  playbackTest('seek retry internal pause does not cancel playback intent', (
+    tester,
+  ) async {
+    createFixture();
+    await notifier.initialized;
+    final initial = notifier.playSong(song);
+    await tester.pump();
+    await initial;
+    position = const Duration(seconds: 12);
+    var seeks = 0;
+    when(() => engine.seek(any())).thenAnswer((call) async {
+      if (++seeks > 1) position = call.positionalArguments.first as Duration;
+    });
+    final seek = notifier.seek(const Duration(seconds: 60));
+    await tester.pump();
+    expect(container.read(playerProvider).isLoading, isTrue);
+    await notifier.togglePlayPause();
+    await tester.pump(const Duration(milliseconds: 230));
+    await tester.pump(const Duration(milliseconds: 130));
+    await seek;
+    expect(seeks, 2);
+    expect(playing, isTrue);
+    expect(position, const Duration(seconds: 60));
+    expect(container.read(playerProvider).isLoading, isFalse);
+  });
+
+  playbackTest('buffering seek keeps target and does not retry prematurely', (
+    tester,
+  ) async {
+    createFixture();
+    await notifier.initialized;
+    final initial = notifier.playSong(song);
+    await tester.pump();
+    await initial;
+    position = const Duration(seconds: 12);
+    when(() => engine.seek(any())).thenAnswer((_) async {
+      processing = audio.ProcessingState.buffering;
+      states.add(audio.PlayerState(playing, processing));
+    });
+    final seek = notifier.seek(const Duration(seconds: 60));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await seek;
+    await tester.pump(const Duration(seconds: 2));
+    expect(
+      container.read(playerProvider).position,
+      const Duration(seconds: 60),
+    );
+    expect(container.read(playerProvider).isLoading, isTrue);
+    verify(() => engine.seek(any())).called(1);
+    expect(loads, 1);
+    position = const Duration(seconds: 60);
+    processing = audio.ProcessingState.ready;
+    states.add(audio.PlayerState(playing, processing));
+    expect(container.read(playerProvider).isLoading, isFalse);
+    expect(playing, isTrue);
+  });
+
+  playbackTest('resume during transcoded seek does not reload from zero', (
+    tester,
+  ) async {
+    createFixture();
+    await notifier.initialized;
+    final regular = Song(
+      id: 'normal',
+      title: 'Normal',
+      suffix: 'mp3',
+      bitRate: 320,
+      duration: 120,
+    );
+    final initial = notifier.playSong(regular);
+    await tester.pump();
+    await initial;
+    position = const Duration(seconds: 12);
+    pendingLoad = Completer<Duration?>();
+    final seek = notifier.seek(const Duration(seconds: 60));
+    await tester.pump();
+    expect(playing, isFalse);
+    expect(container.read(playerProvider).isLoading, isTrue);
+    expect(
+      container.read(playerProvider).position,
+      const Duration(seconds: 60),
+    );
+    await notifier.play();
+    expect(loads, 2);
+    pendingLoad!.complete(const Duration(seconds: 60));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await seek;
+    expect(loads, 2);
+    expect(playing, isTrue);
+    expect(container.read(playerProvider).isLoading, isFalse);
+    expect(
+      container.read(playerProvider).position,
+      const Duration(seconds: 60),
+    );
+    expect(
+      (source as audio.UriAudioSource).uri.queryParameters['timeOffset'],
+      '60',
+    );
+  });
+
+  playbackTest('pause during seek retry remains paused after seek completes', (
+    tester,
+  ) async {
+    createFixture();
+    await notifier.initialized;
+    final initial = notifier.playSong(song);
+    await tester.pump();
+    await initial;
+    final seek = notifier.seek(const Duration(seconds: 60));
+    await tester.pump();
+    await notifier.pause();
+    await tester.pump(const Duration(milliseconds: 300));
+    await seek;
+    expect(playing, isFalse);
+    expect(container.read(playerProvider).isLoading, isFalse);
+    expect(position, const Duration(seconds: 60));
+  });
+
+  playbackTest('buffering failure recovers at the requested lyric position', (
+    tester,
+  ) async {
+    createFixture();
+    await notifier.initialized;
+    final initial = notifier.playSong(song);
+    await tester.pump();
+    await initial;
+    position = const Duration(seconds: 12);
+    when(() => engine.seek(any())).thenAnswer((_) async {
+      processing = audio.ProcessingState.buffering;
+      states.add(audio.PlayerState(playing, processing));
+    });
+    final seek = notifier.seek(const Duration(seconds: 60));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await seek;
+    errors.addError(audio.PlayerException(0, 'range request failed'));
+    processing = audio.ProcessingState.ready;
+    when(() => engine.seek(any())).thenAnswer((call) async {
+      position = call.positionalArguments.first as Duration;
+    });
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pump(const Duration(milliseconds: 300));
+    states.add(audio.PlayerState(playing, processing));
+    expect(loads, 2);
+    expect(position, const Duration(seconds: 60));
+    expect(playing, isTrue);
+    expect(container.read(playerProvider).isLoading, isFalse);
+  });
+
+  playbackTest('external pause during a seek is not treated as internal', (
+    tester,
+  ) async {
+    createFixture();
+    await notifier.initialized;
+    final initial = notifier.playSong(song);
+    await tester.pump();
+    await initial;
+    final seek = notifier.seek(const Duration(seconds: 60));
+    await tester.pump();
+    playing = false;
+    playingEvents.add(false);
+    await tester.pump(const Duration(milliseconds: 300));
+    await seek;
+    expect(playing, isFalse);
+    expect(plays, 1);
+    expect(container.read(playerProvider).isLoading, isFalse);
+  });
+
+  playbackTest('latest lyric seek during initial loading wins', (tester) async {
+    createFixture();
+    await notifier.initialized;
+    pendingLoad = Completer<Duration?>();
+    final initial = notifier.playSong(song);
+    await tester.pump();
+    await notifier.seek(const Duration(seconds: 30));
+    await notifier.seek(const Duration(seconds: 75));
+    expect(container.read(playerProvider).isLoading, isTrue);
+    expect(
+      container.read(playerProvider).position,
+      const Duration(seconds: 75),
+    );
+    pendingLoad!.complete(const Duration(seconds: 120));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await initial;
+    expect(position, const Duration(seconds: 75));
+    expect(container.read(playerProvider).isLoading, isFalse);
+    expect(playing, isTrue);
+    expect(loads, 1);
+  });
+
   playbackTest(
     'stream failure retries on unchanged Wi-Fi and restores position',
     (tester) async {
@@ -276,6 +472,9 @@ void main() {
     }
     expect(loads, 5); // initial load plus four recoveries
     expect(playing, isFalse);
+    states.add(audio.PlayerState(false, audio.ProcessingState.buffering));
+    expect(container.read(playerProvider).hasPlaybackError, isTrue);
+    expect(container.read(playerProvider).isLoading, isFalse);
   });
 
   playbackTest('buffering watchdog retries after thirty seconds', (

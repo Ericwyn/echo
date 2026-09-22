@@ -11,6 +11,7 @@ import 'package:echoes/widgets/cover_art_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:just_audio/just_audio.dart' hide PlayerState;
 
 import 'test_player_notifier.dart';
 
@@ -82,6 +83,58 @@ void main() {
       albumColor: albumColor,
     );
   }
+
+  testWidgets('mini player loading blocks button and double-tap transport', (
+    tester,
+  ) async {
+    var toggles = 0;
+    for (final loading in <PlayerState>[
+      playerState().copyWith(isSeeking: true),
+      playerState().copyWith(isChangingSource: true),
+      playerState(
+        playing: true,
+      ).copyWith(processingState: ProcessingState.buffering),
+    ]) {
+      await tester.pumpWidget(
+        appFor(
+          view(
+            state: loading,
+            onToggle: () async {
+              toggles++;
+            },
+          ),
+        ),
+      );
+      final control = find.bySemanticsLabel('加载中');
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(
+        tester
+            .getSemantics(control)
+            .getSemanticsData()
+            .hasAction(SemanticsAction.tap),
+        isFalse,
+      );
+      await tester.tap(control);
+      final track = find.byKey(const Key('mini-player-track'));
+      await tester.tap(track);
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(track);
+      await tester.pump(const Duration(milliseconds: 350));
+      expect(toggles, 0);
+    }
+    await tester.pumpWidget(
+      appFor(
+        view(
+          state: playerState(),
+          onToggle: () async {
+            toggles++;
+          },
+        ),
+      ),
+    );
+    await tester.tap(find.bySemanticsLabel('播放'));
+    expect(toggles, 1);
+  });
 
   testWidgets('stays 72dp, keeps two visible actions, and survives 200% text', (
     tester,
