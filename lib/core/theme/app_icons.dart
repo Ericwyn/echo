@@ -96,7 +96,7 @@ abstract final class AppIcons {
   static const clearAll = Remix.eraser_line;
   static const removeCircle = Remix.checkbox_indeterminate_line;
   static const save = Remix.save_2_line;
-  static const dragHandle = Remix.drag_move_2_line;
+  static const dragHandle = Remix.draggable;
   static const sort = Remix.sort_alphabet_asc;
   static const tune = Remix.equalizer_line;
   static const refresh = Remix.restart_line;

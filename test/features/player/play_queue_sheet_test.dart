@@ -151,6 +151,7 @@ void main() {
     await tester.pump();
 
     expect(find.bySemanticsLabel(RegExp('调整播放顺序')), findsNWidgets(2));
+    expect(find.byIcon(AppIcons.dragHandle), findsNWidgets(2));
     final rows = tester
         .widgetList<EchoSongRow>(find.byType(EchoSongRow))
         .toList();
@@ -162,6 +163,7 @@ void main() {
     final list = tester.widget<ReorderableListView>(
       find.byType(ReorderableListView),
     );
+    expect(list.proxyDecorator, isNotNull);
     list.onReorder(0, 2);
     expect(moves, <(int, int)>[(0, 2)]);
   });

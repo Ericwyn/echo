@@ -293,6 +293,33 @@ class _PlayQueueListState extends State<_PlayQueueList> {
     return ReorderableListView.builder(
       scrollController: widget.scrollController,
       buildDefaultDragHandles: false,
+      proxyDecorator: (child, index, animation) {
+        return AnimatedBuilder(
+          animation: animation,
+          builder: (context, child) {
+            final progress = Curves.easeOut.transform(animation.value);
+            final accent = context.echoColors.accent;
+            return DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: context.echoRadii.control,
+                border: Border.all(
+                  color: accent.withValues(alpha: 0.65 + 0.35 * progress),
+                  width: 1.5,
+                ),
+                boxShadow: <BoxShadow>[
+                  BoxShadow(
+                    color: accent.withValues(alpha: 0.08 * progress),
+                    blurRadius: 10 * progress,
+                    spreadRadius: progress,
+                  ),
+                ],
+              ),
+              child: child,
+            );
+          },
+          child: child,
+        );
+      },
       padding: EdgeInsets.symmetric(vertical: context.echoSpacing.xs),
       itemCount: state.queue.length,
       onReorderStart: (_) {
