@@ -36,6 +36,9 @@ void main() {
       frequent: frequent,
     );
 
+    expect(find.byType(EchoTopBar), findsOneWidget);
+    expect(find.byType(EchoPageHeader), findsNothing);
+    expect(tester.widget<EchoTopBar>(find.byType(EchoTopBar)).title, '音乐流');
     expect(find.text('随机推荐'), findsNothing);
     expect(find.byType(DiscoverRecentAlbumRail), findsOneWidget);
     expect(find.byKey(const Key('discover-recent-spotlight')), findsOneWidget);

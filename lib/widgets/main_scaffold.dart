@@ -85,8 +85,8 @@ EchoBackAction resolveEchoBackAction({
 const EchoShellDestination _discoverDestination = EchoShellDestination(
   branchIndex: discoverBranchIndex,
   label: '音乐流',
-  icon: AppIcons.home,
-  selectedIcon: AppIcons.homeFilled,
+  icon: AppIcons.musicFlow,
+  selectedIcon: AppIcons.musicFlowFilled,
 );
 
 const EchoShellDestination _exploreDestination = EchoShellDestination(
@@ -99,15 +99,15 @@ const EchoShellDestination _exploreDestination = EchoShellDestination(
 const EchoShellDestination _libraryDestination = EchoShellDestination(
   branchIndex: libraryBranchIndex,
   label: '我的',
-  icon: AppIcons.profile,
-  selectedIcon: AppIcons.profileFilled,
+  icon: AppIcons.personal,
+  selectedIcon: AppIcons.personalFilled,
 );
 
 const EchoShellDestination _catalogDestination = EchoShellDestination(
   branchIndex: catalogBranchIndex,
   label: '曲库',
-  icon: AppIcons.library,
-  selectedIcon: AppIcons.libraryFilled,
+  icon: AppIcons.catalog,
+  selectedIcon: AppIcons.catalogFilled,
 );
 
 @visibleForTesting

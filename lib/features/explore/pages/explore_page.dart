@@ -485,7 +485,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              EchoPageHeader(
+              EchoTopBar(
                 title: '探索',
                 leading: shouldShowPageDrawerTrigger(context)
                     ? EchoIconButton(
@@ -494,24 +494,21 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                         onPressed: openEchoAppDrawer,
                       )
                     : null,
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    EchoIconButton(
-                      icon: AppIcons.refresh,
-                      label: '刷新搜索结果',
-                      onPressed: query.isEmpty ? null : _refreshSearchResults,
+                actions: <Widget>[
+                  EchoIconButton(
+                    icon: AppIcons.refresh,
+                    label: '刷新搜索结果',
+                    onPressed: query.isEmpty ? null : _refreshSearchResults,
+                  ),
+                  EchoIconButton(
+                    icon: AppIcons.more,
+                    label: '切换搜索范围和远程来源',
+                    onPressed: () => _showSearchOptions(
+                      searchMode: searchMode,
+                      remoteSource: remoteSource,
                     ),
-                    EchoIconButton(
-                      icon: AppIcons.more,
-                      label: '切换搜索范围和远程来源',
-                      onPressed: () => _showSearchOptions(
-                        searchMode: searchMode,
-                        remoteSource: remoteSource,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
               Padding(
                 padding: EdgeInsets.fromLTRB(

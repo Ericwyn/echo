@@ -68,6 +68,9 @@ void main() {
     'catalog groups browse destinations and statistics with bottom clearance',
     (tester) async {
       await pumpPage(tester, textScale: 2);
+      final catalogTopBar = tester.widget<EchoTopBar>(find.byType(EchoTopBar));
+      expect(catalogTopBar.title, '曲库');
+      expect(catalogTopBar.subtitle, isNull);
       final list = tester.widget<ListView>(find.byType(ListView));
       expect(
         (list.padding! as EdgeInsets).bottom,
@@ -119,7 +122,9 @@ void main() {
     'personal tab retains collections and playlists without full catalog',
     (tester) async {
       await pumpPage(tester, page: const LibraryPage());
-      expect(find.text('我的'), findsOneWidget);
+      final personalTopBar = tester.widget<EchoTopBar>(find.byType(EchoTopBar));
+      expect(personalTopBar.title, '我的');
+      expect(personalTopBar.subtitle, isNull);
       expect(find.text('收藏歌曲'), findsOneWidget);
       expect(find.text('我的歌单'), findsOneWidget);
       expect(find.text('全部歌曲'), findsNothing);

@@ -31,13 +31,16 @@ void main() {
       isEmpty,
       reason: 'Every AppIcons call must resolve through the semantic map.',
     );
-    expect(declarations, hasLength(93));
+    expect(declarations, hasLength(99));
   });
 
   test('product symbols use Remix and platform actions use Cupertino', () {
     const productSymbols = [
       AppIcons.home,
+      AppIcons.musicFlow,
       AppIcons.discover,
+      AppIcons.personal,
+      AppIcons.catalog,
       AppIcons.library,
       AppIcons.music,
       AppIcons.play,
@@ -56,7 +59,10 @@ void main() {
 
   test('state and destination pairs remain visually distinguishable', () {
     expect(AppIcons.home, isNot(AppIcons.homeFilled));
+    expect(AppIcons.musicFlow, isNot(AppIcons.musicFlowFilled));
     expect(AppIcons.discover, isNot(AppIcons.discoverFilled));
+    expect(AppIcons.personal, isNot(AppIcons.personalFilled));
+    expect(AppIcons.catalog, isNot(AppIcons.catalogFilled));
     expect(AppIcons.library, isNot(AppIcons.libraryFilled));
     expect(AppIcons.profile, isNot(AppIcons.profileFilled));
     expect(AppIcons.lyrics, isNot(AppIcons.lyricsFilled));

@@ -64,7 +64,7 @@ class _DiscoverPageState extends ConsumerState<DiscoverPage> {
           bottom: false,
           child: Column(
             children: <Widget>[
-              EchoPageHeader(
+              EchoTopBar(
                 title: '音乐流',
                 leading: shouldShowPageDrawerTrigger(context)
                     ? EchoIconButton(
@@ -73,18 +73,20 @@ class _DiscoverPageState extends ConsumerState<DiscoverPage> {
                         onPressed: openEchoAppDrawer,
                       )
                     : null,
-                trailing: EchoIconButton(
-                  icon: AppIcons.search,
-                  label: '搜索音乐库',
-                  onPressed: () {
-                    Navigator.of(context).push<void>(
-                      EchoPageRoute<void>(
-                        context: context,
-                        builder: (context) => const SearchPage(),
-                      ),
-                    );
-                  },
-                ),
+                actions: <Widget>[
+                  EchoIconButton(
+                    icon: AppIcons.search,
+                    label: '搜索音乐库',
+                    onPressed: () {
+                      Navigator.of(context).push<void>(
+                        EchoPageRoute<void>(
+                          context: context,
+                          builder: (context) => const SearchPage(),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
               Expanded(
                 child: EchoRefreshView(

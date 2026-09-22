@@ -18,8 +18,14 @@ abstract final class AppIcons {
   // App destinations and global actions.
   static const home = Remix.home_8_line;
   static const homeFilled = Remix.home_8_fill;
+  static const musicFlow = Remix.disc_line;
+  static const musicFlowFilled = Remix.disc_fill;
   static const discover = Remix.compass_discover_line;
   static const discoverFilled = Remix.compass_discover_fill;
+  static const personal = Remix.stack_line;
+  static const personalFilled = Remix.stack_fill;
+  static const catalog = Remix.database_line;
+  static const catalogFilled = Remix.database_fill;
   static const library = Remix.folder_music_line;
   static const libraryFilled = Remix.folder_music_fill;
   static const profile = Remix.account_circle_line;

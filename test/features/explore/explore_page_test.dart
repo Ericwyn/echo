@@ -89,6 +89,10 @@ void main() {
         ),
       ),
     );
+
+    expect(find.byType(EchoTopBar), findsOneWidget);
+    expect(find.byType(EchoPageHeader), findsNothing);
+    expect(tester.widget<EchoTopBar>(find.byType(EchoTopBar)).title, '探索');
     await tester.pump();
 
     await tester.enterText(find.byType(TextField), '浮层避让');

@@ -5,6 +5,7 @@ import 'package:echoes/core/theme/app_theme.dart';
 import 'package:echoes/data/models/song.dart';
 import 'package:echoes/features/player/widgets/mini_player.dart';
 import 'package:echoes/providers/player_provider.dart';
+import 'package:echoes/providers/navigation_provider.dart';
 import 'package:echoes/widgets/echo_app_shell/echo_app_shell.dart';
 import 'package:echoes/widgets/echo_app_shell/echo_network_status_bar.dart';
 import 'package:echoes/widgets/main_scaffold.dart';
@@ -36,9 +37,19 @@ void main() {
           find.bySemanticsLabel('探索'),
           showExplore ? findsOneWidget : findsNothing,
         );
-        expect(find.byIcon(AppIcons.library), findsOneWidget);
-        expect(find.byIcon(AppIcons.profile), findsOneWidget);
+        expect(find.byIcon(AppIcons.musicFlowFilled), findsOneWidget);
+        expect(find.byIcon(AppIcons.personal), findsOneWidget);
+        expect(find.byIcon(AppIcons.catalog), findsOneWidget);
       }
+
+      await _pumpShell(
+        tester,
+        size: const Size(390, 800),
+        showExploreTab: false,
+        selectedBranchIndex: libraryBranchIndex,
+      );
+      expect(find.byIcon(AppIcons.personalFilled), findsOneWidget);
+      expect(find.byIcon(AppIcons.personal), findsNothing);
     });
     testWidgets('uses compact, medium, and expanded navigation structures', (
       tester,
@@ -110,8 +121,8 @@ void main() {
       expect(tester.getSize(selectedMarker), const Size(24, 3));
       expect(tester.widget<AnimatedOpacity>(selectedMarker).opacity, 1);
       expect(tester.widget<AnimatedOpacity>(unselectedMarker).opacity, 0);
-      expect(find.byIcon(AppIcons.homeFilled), findsOneWidget);
-      expect(find.byIcon(AppIcons.home), findsNothing);
+      expect(find.byIcon(AppIcons.musicFlowFilled), findsOneWidget);
+      expect(find.byIcon(AppIcons.musicFlow), findsNothing);
       expect(find.byIcon(AppIcons.discover), findsOneWidget);
 
       await _pumpShell(

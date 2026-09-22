@@ -277,7 +277,6 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
       child: EchoScaffold(
         topBar: EchoTopBar(
           title: '我的',
-          subtitle: '收藏与歌单',
           leading: shouldShowPageDrawerTrigger(context)
               ? EchoIconButton(
                   icon: AppIcons.menu,
