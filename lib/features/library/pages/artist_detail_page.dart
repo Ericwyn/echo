@@ -16,9 +16,14 @@ import '../widgets/media_detail_components.dart';
 import 'album_detail_page.dart';
 
 class ArtistDetailPage extends ConsumerStatefulWidget {
-  const ArtistDetailPage({super.key, required this.artistId});
+  const ArtistDetailPage({
+    super.key,
+    required this.artistId,
+    this.branchIndex = libraryBranchIndex,
+  });
 
   final String artistId;
+  final int branchIndex;
 
   @override
   ConsumerState<ArtistDetailPage> createState() => _ArtistDetailPageState();
@@ -42,7 +47,7 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
         : ref.watch(topSongsByArtistLoadFailedProvider(currentArtistName));
 
     return VisibleRemoteRetryScope(
-      branchIndex: libraryBranchIndex,
+      branchIndex: widget.branchIndex,
       debugLabel: 'artist_detail_page',
       shouldRetry: (ref) =>
           loadFailed || detailAsync.hasError || topSongsLoadFailed,
@@ -381,7 +386,8 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
     Navigator.of(context).push<void>(
       EchoPageRoute<void>(
         context: context,
-        builder: (context) => AlbumDetailPage(albumId: album.id),
+        builder: (context) =>
+            AlbumDetailPage(albumId: album.id, branchIndex: widget.branchIndex),
       ),
     );
   }

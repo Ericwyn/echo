@@ -18,9 +18,14 @@ import '../widgets/album_options_sheet.dart';
 import '../widgets/media_detail_components.dart';
 
 class AlbumDetailPage extends ConsumerStatefulWidget {
-  const AlbumDetailPage({super.key, required this.albumId});
+  const AlbumDetailPage({
+    super.key,
+    required this.albumId,
+    this.branchIndex = libraryBranchIndex,
+  });
 
   final String albumId;
+  final int branchIndex;
 
   @override
   ConsumerState<AlbumDetailPage> createState() => _AlbumDetailPageState();
@@ -36,7 +41,7 @@ class _AlbumDetailPageState extends ConsumerState<AlbumDetailPage> {
     final currentAlbum = detailAsync.valueOrNull?.album;
 
     return VisibleRemoteRetryScope(
-      branchIndex: libraryBranchIndex,
+      branchIndex: widget.branchIndex,
       debugLabel: 'album_detail_page',
       shouldRetry: (ref) => loadFailed || detailAsync.hasError,
       onRetry: (ref) => ref.invalidate(albumDetailProvider(widget.albumId)),

@@ -61,7 +61,7 @@ class _ArtistListPageState extends ConsumerState<ArtistListPage> {
     final artistCount = artistsAsync.valueOrNull?.length;
 
     return VisibleRemoteRetryScope(
-      branchIndex: libraryBranchIndex,
+      branchIndex: catalogBranchIndex,
       debugLabel: 'artist_list_page',
       shouldRetry: (ref) => loadFailed || artistsAsync.hasError,
       onRetry: (ref) => ref.invalidate(allArtistsProvider),
@@ -130,8 +130,10 @@ class _ArtistListPageState extends ConsumerState<ArtistListPage> {
                             onPressed: () => Navigator.of(context).push<void>(
                               EchoPageRoute<void>(
                                 context: context,
-                                builder: (_) =>
-                                    ArtistDetailPage(artistId: artist.id),
+                                builder: (_) => ArtistDetailPage(
+                                  artistId: artist.id,
+                                  branchIndex: catalogBranchIndex,
+                                ),
                               ),
                             ),
                           ),

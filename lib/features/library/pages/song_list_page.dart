@@ -204,7 +204,7 @@ class _SongListPageState extends ConsumerState<SongListPage> {
     final songCount = songsAsync.valueOrNull?.length;
 
     return VisibleRemoteRetryScope(
-      branchIndex: libraryBranchIndex,
+      branchIndex: catalogBranchIndex,
       debugLabel: 'song_list_page',
       shouldRetry: (ref) => loadFailed || songsAsync.hasError,
       onRetry: (ref) => ref.invalidate(allSongsProvider),

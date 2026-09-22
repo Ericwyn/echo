@@ -99,6 +99,13 @@ const EchoShellDestination _exploreDestination = EchoShellDestination(
 const EchoShellDestination _libraryDestination = EchoShellDestination(
   branchIndex: libraryBranchIndex,
   label: '我的',
+  icon: AppIcons.profile,
+  selectedIcon: AppIcons.profileFilled,
+);
+
+const EchoShellDestination _catalogDestination = EchoShellDestination(
+  branchIndex: catalogBranchIndex,
+  label: '曲库',
   icon: AppIcons.library,
   selectedIcon: AppIcons.libraryFilled,
 );
@@ -109,6 +116,7 @@ List<EchoShellDestination> echoMainDestinations({
 }) {
   return <EchoShellDestination>[
     _discoverDestination,
+    _catalogDestination,
     if (showExploreTab) _exploreDestination,
     _libraryDestination,
   ];

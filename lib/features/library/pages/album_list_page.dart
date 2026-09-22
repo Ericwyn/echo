@@ -93,7 +93,7 @@ class _AlbumListPageState extends ConsumerState<AlbumListPage> {
     final albumCount = albumsAsync.valueOrNull?.length;
 
     return VisibleRemoteRetryScope(
-      branchIndex: libraryBranchIndex,
+      branchIndex: catalogBranchIndex,
       debugLabel: 'album_list_page',
       shouldRetry: (ref) => loadFailed || albumsAsync.hasError,
       onRetry: (ref) => ref.invalidate(allAlbumsProvider),
@@ -225,7 +225,8 @@ class _AlbumListPageState extends ConsumerState<AlbumListPage> {
     Navigator.of(context).push<void>(
       EchoPageRoute<void>(
         context: context,
-        builder: (_) => AlbumDetailPage(albumId: album.id),
+        builder: (_) =>
+            AlbumDetailPage(albumId: album.id, branchIndex: catalogBranchIndex),
       ),
     );
   }

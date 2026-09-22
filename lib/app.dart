@@ -16,6 +16,7 @@ import 'widgets/main_scaffold.dart';
 import 'features/discover/pages/discover_page.dart';
 import 'features/explore/pages/explore_page.dart';
 import 'features/library/pages/library_page.dart';
+import 'features/library/pages/catalog_page.dart';
 import 'features/library/pages/edit_library_page.dart';
 
 /// 应用主入口 Widget
@@ -132,11 +133,13 @@ class App extends ConsumerWidget {
 final _homeBranchNavigatorKey = GlobalKey<NavigatorState>();
 final _exploreBranchNavigatorKey = GlobalKey<NavigatorState>();
 final _libraryBranchNavigatorKey = GlobalKey<NavigatorState>();
+final _catalogBranchNavigatorKey = GlobalKey<NavigatorState>();
 
 final _branchNavigatorKeys = <GlobalKey<NavigatorState>>[
   _homeBranchNavigatorKey,
   _exploreBranchNavigatorKey,
   _libraryBranchNavigatorKey,
+  _catalogBranchNavigatorKey,
 ];
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -235,7 +238,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-          // Tab 2: 探索
+          // 探索：按配置决定是否展示。
           StatefulShellBranch(
             navigatorKey: _exploreBranchNavigatorKey,
             routes: [
@@ -245,13 +248,23 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-          // Tab 3: 我的
+          // 我的：保留收藏和歌单。
           StatefulShellBranch(
             navigatorKey: _libraryBranchNavigatorKey,
             routes: [
               GoRoute(
                 path: '/library',
                 builder: (context, state) => const LibraryPage(),
+              ),
+            ],
+          ),
+          // 曲库：独立导航栈，在主导航中展示为第二项。
+          StatefulShellBranch(
+            navigatorKey: _catalogBranchNavigatorKey,
+            routes: [
+              GoRoute(
+                path: '/catalog',
+                builder: (context, state) => const CatalogPage(),
               ),
             ],
           ),

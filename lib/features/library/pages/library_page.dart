@@ -15,16 +15,14 @@ import '../../../providers/player_provider.dart';
 import '../../../providers/playlist_provider.dart';
 import '../../../widgets/main_scaffold.dart';
 import '../../../widgets/visible_remote_retry_scope.dart';
-import 'album_list_page.dart';
-import 'artist_list_page.dart';
 import 'playlist_detail_page.dart';
-import 'song_list_page.dart';
 import 'starred_page.dart';
 import '../utils/library_sorting.dart';
 import '../widgets/playlist_manage_dialogs.dart';
+import '../widgets/library_destination_row.dart';
 import '../widgets/playlist_options_sheet.dart';
 
-/// 我的页面 - Tab 2
+/// 我的页面：收藏与个人歌单。
 class LibraryPage extends ConsumerStatefulWidget {
   const LibraryPage({super.key});
 
@@ -278,8 +276,8 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
       },
       child: EchoScaffold(
         topBar: EchoTopBar(
-          title: '资料库',
-          subtitle: '收藏、歌单与完整曲库',
+          title: '我的',
+          subtitle: '收藏与歌单',
           leading: shouldShowPageDrawerTrigger(context)
               ? EchoIconButton(
                   icon: AppIcons.menu,
@@ -313,7 +311,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                   starredAsync.when(
                     data: (starred) => Column(
                       children: <Widget>[
-                        _LibraryDestinationRow(
+                        LibraryDestinationRow(
                           icon: AppIcons.heart,
                           title: '收藏歌曲',
                           detail: '${starred.songs.length} 首',
@@ -322,7 +320,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                             const StarredPage(initialTab: StarredTab.songs),
                           ),
                         ),
-                        _LibraryDestinationRow(
+                        LibraryDestinationRow(
                           icon: AppIcons.album,
                           title: '收藏专辑',
                           detail: '${starred.albums.length} 张',
@@ -331,7 +329,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                             const StarredPage(initialTab: StarredTab.albums),
                           ),
                         ),
-                        _LibraryDestinationRow(
+                        LibraryDestinationRow(
                           icon: AppIcons.profile,
                           title: '收藏歌手',
                           detail: '${starred.artists.length} 位',
@@ -426,26 +424,6 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                       padding: const EdgeInsets.all(24),
                     ),
                   ),
-                  SizedBox(height: context.echoSpacing.xl),
-                  const EchoSectionHeader(title: '浏览完整曲库'),
-                  _LibraryDestinationRow(
-                    icon: AppIcons.music,
-                    title: '全部歌曲',
-                    detail: '按标题、歌手或专辑排序',
-                    onPressed: () => _push(context, const SongListPage()),
-                  ),
-                  _LibraryDestinationRow(
-                    icon: AppIcons.albumOutline,
-                    title: '按专辑浏览',
-                    detail: '查看封面与发行信息',
-                    onPressed: () => _push(context, const AlbumListPage()),
-                  ),
-                  _LibraryDestinationRow(
-                    icon: AppIcons.profile,
-                    title: '按歌手浏览',
-                    detail: '从歌手进入专辑与热门曲目',
-                    onPressed: () => _push(context, const ArtistListPage()),
-                  ),
                 ],
               ),
             ),
@@ -488,67 +466,6 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
       return;
     }
     setState(() => _playlistSortOption = selected);
-  }
-}
-
-class _LibraryDestinationRow extends StatelessWidget {
-  const _LibraryDestinationRow({
-    required this.icon,
-    required this.title,
-    required this.detail,
-    required this.onPressed,
-  });
-
-  final IconData icon;
-  final String title;
-  final String detail;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return EchoPressable(
-      semanticLabel: '$title，$detail',
-      onPressed: onPressed,
-      minimumSize: const Size(double.infinity, 72),
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: context.echoSpacing.xs,
-          vertical: context.echoSpacing.xs,
-        ),
-        child: Row(
-          children: <Widget>[
-            SizedBox.square(
-              dimension: context.echoInteraction.minimumTouchTarget,
-              child: Center(
-                child: Icon(icon, size: 24, color: context.echoColors.accent),
-              ),
-            ),
-            SizedBox(width: context.echoSpacing.sm),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(title, style: context.echoTypography.title),
-                  SizedBox(height: context.echoSpacing.xxs),
-                  Text(
-                    detail,
-                    style: context.echoTypography.body.copyWith(
-                      color: context.echoColors.muted,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(width: context.echoSpacing.xs),
-            Icon(
-              AppIcons.chevronRight,
-              size: 20,
-              color: context.echoColors.muted,
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
 

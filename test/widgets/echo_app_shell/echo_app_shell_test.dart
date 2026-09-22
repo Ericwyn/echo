@@ -7,34 +7,39 @@ import 'package:echoes/features/player/widgets/mini_player.dart';
 import 'package:echoes/providers/player_provider.dart';
 import 'package:echoes/widgets/echo_app_shell/echo_app_shell.dart';
 import 'package:echoes/widgets/echo_app_shell/echo_network_status_bar.dart';
-import 'package:echoes/widgets/echo_app_shell/echo_shell_navigation.dart';
+import 'package:echoes/widgets/main_scaffold.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-const _destinations = <EchoShellDestination>[
-  EchoShellDestination(
-    branchIndex: 0,
-    label: '音乐流',
-    icon: AppIcons.home,
-    selectedIcon: AppIcons.homeFilled,
-  ),
-  EchoShellDestination(
-    branchIndex: 1,
-    label: '探索',
-    icon: AppIcons.discover,
-    selectedIcon: AppIcons.discoverFilled,
-  ),
-  EchoShellDestination(
-    branchIndex: 2,
-    label: '我的',
-    icon: AppIcons.library,
-    selectedIcon: AppIcons.libraryFilled,
-  ),
-];
-
 void main() {
   group('EchoAppShell responsive navigation', () {
+    testWidgets('three and four destinations stay ordered and equally spaced', (
+      tester,
+    ) async {
+      for (final showExplore in <bool>[false, true]) {
+        await _pumpShell(
+          tester,
+          size: const Size(390, 800),
+          showExploreTab: showExplore,
+        );
+        final labels = <String>['音乐流', '曲库', if (showExplore) '探索', '我的'];
+        final rects = [
+          for (final label in labels)
+            tester.getRect(find.bySemanticsLabel(label)),
+        ];
+        for (var i = 1; i < rects.length; i++) {
+          expect(rects[i].width, closeTo(rects[0].width, 0.01));
+          expect(rects[i].left, greaterThan(rects[i - 1].left));
+        }
+        expect(
+          find.bySemanticsLabel('探索'),
+          showExplore ? findsOneWidget : findsNothing,
+        );
+        expect(find.byIcon(AppIcons.library), findsOneWidget);
+        expect(find.byIcon(AppIcons.profile), findsOneWidget);
+      }
+    });
     testWidgets('uses compact, medium, and expanded navigation structures', (
       tester,
     ) async {
@@ -512,6 +517,7 @@ Future<void> _pumpShell(
   double textScale = 1,
   double bottomSafeArea = 0,
   bool showMiniPlayer = false,
+  bool showExploreTab = true,
   bool disableAnimations = false,
   EchoNetworkStatus networkStatus = EchoNetworkStatus.online,
   int selectedBranchIndex = 0,
@@ -538,7 +544,7 @@ Future<void> _pumpShell(
           child: EchoAppShell(
             scaffoldKey: GlobalKey<ScaffoldState>(),
             drawer: const SizedBox(width: 320),
-            destinations: _destinations,
+            destinations: echoMainDestinations(showExploreTab: showExploreTab),
             selectedBranchIndex: selectedBranchIndex,
             onDestinationSelected: onDestinationSelected ?? (_) {},
             showMiniPlayer: showMiniPlayer,

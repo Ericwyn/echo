@@ -89,14 +89,51 @@ void main() {
         echoMainDestinations(
           showExploreTab: true,
         ).map((destination) => destination.branchIndex),
-        <int>[discoverBranchIndex, exploreBranchIndex, libraryBranchIndex],
+        <int>[
+          discoverBranchIndex,
+          catalogBranchIndex,
+          exploreBranchIndex,
+          libraryBranchIndex,
+        ],
       );
       expect(
         echoMainDestinations(
           showExploreTab: false,
         ).map((destination) => destination.branchIndex),
-        <int>[discoverBranchIndex, libraryBranchIndex],
+        <int>[discoverBranchIndex, catalogBranchIndex, libraryBranchIndex],
       );
+    });
+
+    testWidgets('catalog stack survives tab switches with Explore hidden', (
+      tester,
+    ) async {
+      final harness = await _pumpMainScaffold(tester);
+      harness.showExplore.value = false;
+      await tester.pumpAndSettle();
+      await tester.tap(find.bySemanticsLabel('曲库'));
+      await tester.pumpAndSettle();
+      expect(find.text('Catalog root'), findsOneWidget);
+      expect(
+        harness.container.read(currentVisibleBranchIndexProvider),
+        catalogBranchIndex,
+      );
+      harness.router.go('/catalog/detail');
+      await tester.pumpAndSettle();
+      await tester.tap(find.bySemanticsLabel('我的'));
+      await tester.pumpAndSettle();
+      expect(find.text('Library root'), findsOneWidget);
+      await tester.tap(find.bySemanticsLabel('曲库'));
+      await tester.pumpAndSettle();
+      expect(find.text('Catalog detail'), findsOneWidget);
+      harness.showExplore.value = true;
+      await tester.pumpAndSettle();
+      expect(find.text('Catalog detail'), findsOneWidget);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.text('Catalog root'), findsOneWidget);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.text('Home root'), findsOneWidget);
     });
 
     testWidgets('preserves branch stacks and resets a reselected branch', (
@@ -184,6 +221,7 @@ Future<_MainScaffoldHarness> _pumpMainScaffold(WidgetTester tester) async {
     GlobalKey<NavigatorState>(),
     GlobalKey<NavigatorState>(),
     GlobalKey<NavigatorState>(),
+    GlobalKey<NavigatorState>(),
   ];
 
   final router = GoRouter(
@@ -245,6 +283,22 @@ Future<_MainScaffoldHarness> _pumpMainScaffold(WidgetTester tester) async {
               GoRoute(
                 path: '/library',
                 builder: (context, state) => const _BranchPage('Library root'),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            navigatorKey: branchNavigatorKeys[catalogBranchIndex],
+            routes: <RouteBase>[
+              GoRoute(
+                path: '/catalog',
+                builder: (context, state) => const _BranchPage('Catalog root'),
+                routes: <RouteBase>[
+                  GoRoute(
+                    path: 'detail',
+                    builder: (context, state) =>
+                        const _BranchPage('Catalog detail'),
+                  ),
+                ],
               ),
             ],
           ),

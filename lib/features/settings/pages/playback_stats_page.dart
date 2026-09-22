@@ -10,7 +10,9 @@ import '../../../widgets/visible_remote_retry_scope.dart';
 import '../widgets/echo_settings_components.dart';
 
 class PlaybackStatsPage extends ConsumerWidget {
-  const PlaybackStatsPage({super.key});
+  const PlaybackStatsPage({super.key, this.branchIndex});
+
+  final int? branchIndex;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -24,6 +26,7 @@ class PlaybackStatsPage extends ConsumerWidget {
         ref.watch(frequentAlbumsLoadFailedProvider);
 
     return VisibleRemoteRetryScope(
+      branchIndex: branchIndex,
       debugLabel: 'playback_stats_page',
       shouldRetry: (ref) => hasRemoteLoadFailed || statsAsync.hasError,
       onRetry: _invalidateStats,
