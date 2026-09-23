@@ -20,6 +20,7 @@ class LocalStorage {
   static const String _keyMaxCacheSizeBytes = 'max_cache_size_bytes';
   static const String _keyHasLaunchedBefore = 'has_launched_before';
   static const String _keyCrossfadeDurationMs = 'crossfade_duration_ms';
+  static const String _keyPlaybackVolume = 'playback_volume_v1';
   static const String _keyAllSongsSortOption = 'all_songs_sort_option';
 
   /// 是否曾经启动过（用于判断是否显示开屏动画）
@@ -360,6 +361,19 @@ class LocalStorage {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_keyCrossfadeDurationMs, ms);
     Logger.infoWithTag(_logTag, 'crossfadeDurationMs saved: $ms');
+  }
+
+  /// Reads the user playback volume in the inclusive range 0–1.
+  static Future<double> getPlaybackVolume() async {
+    final prefs = await SharedPreferences.getInstance();
+    final value = prefs.getDouble(_keyPlaybackVolume) ?? 1.0;
+    return value.clamp(0.0, 1.0).toDouble();
+  }
+
+  /// Persists the user playback volume in the inclusive range 0–1.
+  static Future<void> setPlaybackVolume(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_keyPlaybackVolume, value.clamp(0.0, 1.0).toDouble());
   }
 
   /// 读取“全部歌曲”页面上次选择的排序方式。

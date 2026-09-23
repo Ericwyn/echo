@@ -31,10 +31,12 @@ import 'gd_music_provider.dart';
 import '../providers/auth_provider.dart';
 
 export 'player/player_state.dart';
+export 'player/playback_contract.dart';
 export 'player/favorite_scrobble_handler.dart';
 export 'player/cache_manager_handler.dart';
 import 'player/player_state.dart';
 import 'player/playback_queue_state.dart';
+import 'player/playback_contract.dart';
 import 'player/favorite_scrobble_handler.dart';
 import 'player/cache_manager_handler.dart';
 import 'player/player_seek_policy.dart';
@@ -104,7 +106,8 @@ final playerProvider = StateNotifierProvider<PlayerNotifier, PlayerState>((
 });
 
 /// 播放器状态管理器
-class PlayerNotifier extends StateNotifier<PlayerState> {
+class PlayerNotifier extends StateNotifier<PlayerState>
+    implements PlaybackCommands {
   final Ref _ref;
   final DateTime Function() _clock;
   AudioPlayer? _audioPlayer;
@@ -155,6 +158,8 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   bool _loggedDurationUnavailableForSong = false;
   Timer? _fadeTimer;
   Completer<void>? _fadeCompleter;
+  Timer? _playbackVolumePersistTimer;
+  double _fadeGain = 1;
   static const Duration _playbackSessionPersistInterval = Duration(seconds: 15);
   Timer? _playbackSessionPersistTimer;
   bool _isPersistingPlaybackSession = false;
@@ -186,6 +191,8 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       _ref.read(musicRepositoryProvider) ?? MusicRepository(_apiClient);
 
   late final Future<void> initialized;
+
+  PlaybackSnapshot get snapshot => PlaybackSnapshot.fromState(state);
 
   PlayerNotifier(
     this._ref, {
@@ -269,6 +276,17 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       return;
     }
     _audioPlayer = player;
+    try {
+      final volume = await LocalStorage.getPlaybackVolume();
+      if (!mounted) {
+        await player.dispose();
+        return;
+      }
+      state = state.copyWith(userVolume: volume);
+      await player.setVolume(_effectivePlaybackVolume);
+    } catch (error) {
+      Logger.warnWithTag('PLAYBACK', 'failed to restore volume', error);
+    }
 
     _playerSubscriptions.add(
       player.playbackEventStream.listen(
@@ -1954,7 +1972,42 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   // 淡入淡出
   // ---------------------------------------------------------------------------
 
-  /// 取消正在进行的淡入淡出动画并将音量恢复为 1.0
+  double get _effectivePlaybackVolume =>
+      state.isMuted ? 0 : state.userVolume * _fadeGain;
+
+  void _applyEffectivePlaybackVolume() {
+    final player = _audioPlayer;
+    if (player == null) return;
+    unawaited(
+      player.setVolume(_effectivePlaybackVolume).catchError((Object error) {
+        Logger.warnWithTag('PLAYBACK', 'failed to apply volume', error);
+      }),
+    );
+  }
+
+  /// Sets the persistent user volume independently from crossfade gain.
+  @override
+  Future<void> setUserVolume(double value) async {
+    final volume = value.clamp(0.0, 1.0).toDouble();
+    if ((state.userVolume - volume).abs() < 0.0001) return;
+    state = state.copyWith(userVolume: volume);
+    _applyEffectivePlaybackVolume();
+    _playbackVolumePersistTimer?.cancel();
+    _playbackVolumePersistTimer = Timer(const Duration(milliseconds: 250), () {
+      unawaited(LocalStorage.setPlaybackVolume(volume));
+    });
+  }
+
+  @override
+  Future<void> setMuted(bool muted) async {
+    if (state.isMuted == muted) return;
+    state = state.copyWith(isMuted: muted);
+    _applyEffectivePlaybackVolume();
+  }
+
+  Future<void> toggleMuted() => setMuted(!state.isMuted);
+
+  /// 取消正在进行的淡入淡出动画并恢复用户设定音量。
   void _cancelFade() {
     _fadeTimer?.cancel();
     _fadeTimer = null;
@@ -1963,7 +2016,8 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     if (completer != null && !completer.isCompleted) {
       completer.complete();
     }
-    _audioPlayer?.setVolume(1.0);
+    _fadeGain = 1;
+    _applyEffectivePlaybackVolume();
   }
 
   /// 淡出当前正在播放的歌曲。
@@ -1984,7 +2038,8 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     const stepMs = 20;
     final steps = (fadeMs / stepMs).ceil().clamp(1, 500);
     final volumeStep = 1.0 / steps;
-    var currentVolume = 1.0;
+    var currentGain = 1.0;
+    _fadeGain = currentGain;
 
     _playDbg('sid=$session fadeOut start durationMs=$fadeMs steps=$steps');
 
@@ -1994,17 +2049,17 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       // 会话已变（用户快速切歌）→ 立即中止
       if (_playDebugSession != session) {
         timer.cancel();
-        _fadeTimer = null;
+        if (identical(_fadeTimer, timer)) _fadeTimer = null;
         if (identical(_fadeCompleter, completer)) {
           _fadeCompleter = null;
         }
-        player.setVolume(0.0);
         if (!completer.isCompleted) completer.complete();
         return;
       }
-      currentVolume = (currentVolume - volumeStep).clamp(0.0, 1.0);
-      player.setVolume(currentVolume);
-      if (currentVolume <= 0.0) {
+      currentGain = (currentGain - volumeStep).clamp(0.0, 1.0);
+      _fadeGain = currentGain;
+      _applyEffectivePlaybackVolume();
+      if (currentGain <= 0.0) {
         timer.cancel();
         _fadeTimer = null;
         if (identical(_fadeCompleter, completer)) {
@@ -2018,12 +2073,13 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     return completer.future;
   }
 
-  /// 淡入新歌曲：从 0.0 渐变到 1.0
+  /// 淡入新歌曲：仅调整 fade gain，不覆盖用户音量。
   void _fadeIn() {
     _cancelFade();
     final durationMs = _ref.read(crossfadeDurationMsProvider);
     if (durationMs <= 0) {
-      _audioPlayer?.setVolume(1.0);
+      _fadeGain = 1;
+      _applyEffectivePlaybackVolume();
       return;
     }
     final player = _audioPlayer;
@@ -2034,8 +2090,9 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     const stepMs = 20;
     final steps = (fadeMs / stepMs).ceil().clamp(1, 500);
     final volumeStep = 1.0 / steps;
-    var currentVolume = 0.0;
-    player.setVolume(0.0);
+    var currentGain = 0.0;
+    _fadeGain = currentGain;
+    _applyEffectivePlaybackVolume();
 
     final session = _playDebugSession;
     _playDbg('sid=$session fadeIn start durationMs=$fadeMs steps=$steps');
@@ -2043,13 +2100,13 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     _fadeTimer = Timer.periodic(const Duration(milliseconds: stepMs), (timer) {
       if (_playDebugSession != session) {
         timer.cancel();
-        _fadeTimer = null;
-        player.setVolume(1.0);
+        if (identical(_fadeTimer, timer)) _fadeTimer = null;
         return;
       }
-      currentVolume = (currentVolume + volumeStep).clamp(0.0, 1.0);
-      player.setVolume(currentVolume);
-      if (currentVolume >= 1.0) {
+      currentGain = (currentGain + volumeStep).clamp(0.0, 1.0);
+      _fadeGain = currentGain;
+      _applyEffectivePlaybackVolume();
+      if (currentGain >= 1.0) {
         timer.cancel();
         _fadeTimer = null;
         _playDbg('sid=$session fadeIn complete');
@@ -2259,6 +2316,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   }
 
   /// 播放/暂停
+  @override
   Future<void> togglePlayPause() async {
     if (state.isLoading) return;
     if (state.isPlaying) {
@@ -2269,6 +2327,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   }
 
   /// 暂停（带淡出）
+  @override
   Future<void> pause() async {
     Logger.infoWithTag('PLAYBACK', 'pause song=${state.currentSong?.id}');
     _playbackRequested = false;
@@ -2297,6 +2356,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   }
 
   /// 播放（从暂停恢复，不使用淡入——淡入淡出仅用于切歌）
+  @override
   Future<void> play() {
     Logger.infoWithTag('PLAYBACK', 'resume song=${state.currentSong?.id}');
     _playbackRequested = true;
@@ -2334,6 +2394,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     return Future<void>.value();
   }
 
+  @override
   Future<void> stop() async {
     Logger.infoWithTag('PLAYBACK', 'stop song=${state.currentSong?.id}');
     _playbackRequested = false;
@@ -2366,14 +2427,26 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     const stepMs = 20;
     final steps = (fadeMs / stepMs).ceil().clamp(1, 500);
     final volumeStep = 1.0 / steps;
-    var currentVolume = 1.0;
+    var currentGain = 1.0;
+    final session = _playDebugSession;
+    final transportRequest = _transportRequestGeneration;
+    _fadeGain = currentGain;
 
     final completer = Completer<void>();
     _fadeCompleter = completer;
     _fadeTimer = Timer.periodic(const Duration(milliseconds: stepMs), (timer) {
-      currentVolume = (currentVolume - volumeStep).clamp(0.0, 1.0);
-      player.setVolume(currentVolume);
-      if (currentVolume <= 0.0) {
+      if (_playDebugSession != session ||
+          _transportRequestGeneration != transportRequest) {
+        timer.cancel();
+        if (identical(_fadeTimer, timer)) _fadeTimer = null;
+        if (identical(_fadeCompleter, completer)) _fadeCompleter = null;
+        if (!completer.isCompleted) completer.complete();
+        return;
+      }
+      currentGain = (currentGain - volumeStep).clamp(0.0, 1.0);
+      _fadeGain = currentGain;
+      _applyEffectivePlaybackVolume();
+      if (currentGain <= 0.0) {
         timer.cancel();
         _fadeTimer = null;
         if (identical(_fadeCompleter, completer)) {
@@ -2387,6 +2460,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   }
 
   /// 上一首
+  @override
   Future<void> previous() async {
     if (!state.hasPrevious) return;
 
@@ -2397,6 +2471,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   }
 
   /// 下一首
+  @override
   Future<void> next() async {
     if (!state.hasNext) return;
 
@@ -2421,6 +2496,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   }
 
   /// 跳转到指定位置
+  @override
   Future<void> seek(Duration position) async {
     final player = _audioPlayer;
     final currentSongId = state.currentSong?.id;
@@ -2518,6 +2594,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     await playSong(song, queue: state.queue, index: index);
   }
 
+  @override
   Future<void> skipToQueueEntry(String entryId) async {
     final index = state.playbackQueue.indexOfEntry(entryId);
     if (index < 0) return;
@@ -2554,6 +2631,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   }
 
   /// 设置循环模式
+  @override
   Future<void> setLoopMode(LoopMode mode) async {
     await setPlaybackMode(switch (mode) {
       LoopMode.off => PlaybackMode.sequential,
@@ -2573,6 +2651,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   }
 
   /// 设置随机播放
+  @override
   Future<void> setShuffleEnabled(bool enabled) async {
     await setPlaybackMode(
       enabled
@@ -3055,6 +3134,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     }
   }
 
+  @override
   void removeQueueEntry(String entryId) {
     final index = state.playbackQueue.indexOfEntry(entryId);
     if (index < 0) return;
@@ -3062,6 +3142,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   }
 
   /// Reorders the visible queue without reloading the current audio source.
+  @override
   void reorderQueue(int oldIndex, int newIndex) {
     final nextQueue = state.playbackQueue.move(
       oldIndex,
@@ -4191,6 +4272,8 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
   @override
   void dispose() {
     _playbackSessionPersistTimer?.cancel();
+    _playbackVolumePersistTimer?.cancel();
+    unawaited(LocalStorage.setPlaybackVolume(state.userVolume));
     unawaited(_persistPlaybackSession());
     _positionPollTimer?.cancel();
     unawaited(_wakeGuard.dispose());

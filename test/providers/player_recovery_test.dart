@@ -10,6 +10,7 @@ import 'package:echoes/data/models/audio_quality.dart';
 import 'package:echoes/data/models/server_address.dart';
 import 'package:echoes/data/repositories/music_repository.dart';
 import 'package:echoes/data/sources/subsonic_api_client.dart';
+import 'package:echoes/data/sources/local_storage.dart';
 import 'package:echoes/providers/audio_cache_provider.dart';
 import 'package:echoes/providers/audio_quality_provider.dart';
 import 'package:echoes/providers/auth_provider.dart';
@@ -70,6 +71,7 @@ void main() {
   late audio.AudioSource? source;
   late int loads;
   late int plays;
+  late List<double> volumeWrites;
   Completer<Duration?>? pendingLoad;
   final song = Song(
     id: 'preview',
@@ -110,6 +112,7 @@ void main() {
     source = null;
     loads = 0;
     plays = 0;
+    volumeWrites = <double>[];
     pendingLoad = null;
     when(() => engine.playbackEventStream).thenAnswer((_) => errors.stream);
     when(
@@ -161,7 +164,9 @@ void main() {
       playing = false;
     });
     when(() => engine.dispose()).thenAnswer((_) async {});
-    when(() => engine.setVolume(any())).thenAnswer((_) async {});
+    when(() => engine.setVolume(any())).thenAnswer((call) async {
+      volumeWrites.add(call.positionalArguments.first as double);
+    });
     when(() => engine.setLoopMode(any())).thenAnswer((_) async {});
     when(() => engine.setShuffleModeEnabled(any())).thenAnswer((_) async {});
     when(() => engine.seek(any())).thenAnswer((call) async {
@@ -1028,5 +1033,41 @@ void main() {
     await notifier.play();
     verify(() => engine.setVolume(1.0)).called(1);
     expect(playing, isTrue);
+  });
+
+  playbackTest('user volume and mute survive crossfade changes', (
+    tester,
+  ) async {
+    createFixture(
+      initialPreferences: const <String, Object>{'playback_volume_v1': 0.2},
+    );
+    await notifier.initialized;
+    expect(notifier.state.userVolume, 0.2);
+    expect(volumeWrites.last, 0.2);
+
+    final initial = notifier.playSong(song);
+    await tester.pump();
+    await initial;
+    await notifier.setMuted(true);
+    expect(volumeWrites.last, 0);
+    await notifier.setMuted(false);
+    expect(volumeWrites.last, 0.2);
+
+    await notifier.setUserVolume(0.23);
+    await tester.pump(const Duration(milliseconds: 260));
+    expect(await LocalStorage.getPlaybackVolume(), 0.23);
+    await container.read(crossfadeDurationMsProvider.notifier).setDuration(400);
+    volumeWrites.clear();
+    final pause = notifier.pause();
+    for (var i = 0; i < 12; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    await pause;
+    expect(volumeWrites, isNotEmpty);
+    expect(volumeWrites.every((volume) => volume <= 0.23), isTrue);
+    expect(volumeWrites.last, 0);
+
+    await notifier.play();
+    expect(volumeWrites.last, 0.23);
   });
 }

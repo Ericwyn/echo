@@ -25,6 +25,8 @@ class PlayerState {
   final Duration duration;
   final LoopMode loopMode;
   final bool shuffleEnabled;
+  final double userVolume;
+  final bool isMuted;
   final AudioQualityLevel? currentQuality;
   final PlaybackSource? playbackSource;
   final int currentBitRateKbps;
@@ -44,6 +46,8 @@ class PlayerState {
     this.duration = Duration.zero,
     this.loopMode = LoopMode.all,
     this.shuffleEnabled = false,
+    this.userVolume = 1,
+    this.isMuted = false,
     this.currentQuality,
     this.playbackSource,
     this.currentBitRateKbps = 0,
@@ -79,6 +83,8 @@ class PlayerState {
     Duration? duration,
     LoopMode? loopMode,
     bool? shuffleEnabled,
+    double? userVolume,
+    bool? isMuted,
     Object? currentQuality = _keepValue,
     Object? playbackSource = _keepValue,
     int? currentBitRateKbps,
@@ -137,6 +143,8 @@ class PlayerState {
       duration: duration ?? this.duration,
       loopMode: loopMode ?? this.loopMode,
       shuffleEnabled: shuffleEnabled ?? this.shuffleEnabled,
+      userVolume: userVolume ?? this.userVolume,
+      isMuted: isMuted ?? this.isMuted,
       currentQuality: identical(currentQuality, _keepValue)
           ? this.currentQuality
           : currentQuality as AudioQualityLevel?,
