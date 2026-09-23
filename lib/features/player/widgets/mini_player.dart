@@ -13,6 +13,7 @@ import '../../../widgets/cover_art_image.dart';
 import '../pages/full_player_page.dart';
 import 'play_queue_sheet.dart';
 import 'player_hero_helpers.dart';
+import 'player_track_identity.dart';
 import 'song_options_sheet.dart';
 
 /// Stable bridge between the application shell and the immersive player.
@@ -792,8 +793,21 @@ class _MiniPlayerTrack extends StatelessWidget {
     final album = song.album?.trim() ?? '';
     final subtitle = artist.isNotEmpty ? artist : album;
     final cover = _MiniPlayerCover(song: song);
-    final title = _MiniPlayerTitle(song: song);
-    final subtitleWidget = _MiniPlayerSubtitle(text: subtitle);
+    final identity = PlayerTrackIdentity(
+      title: song.title,
+      subtitle: showSubtitle ? subtitle : '',
+      titleStyle: context.echoTypography.title,
+      subtitleStyle: context.echoTypography.metadata.copyWith(
+        color: context.echoColors.muted,
+      ),
+      textAlign: TextAlign.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      titleMaxLines: 1,
+      subtitleMaxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      useHero: useHero,
+      scrollable: false,
+    );
 
     return Row(
       children: <Widget>[
@@ -806,33 +820,7 @@ class _MiniPlayerTrack extends StatelessWidget {
         else
           cover,
         SizedBox(width: context.echoSpacing.sm),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              if (useHero)
-                Hero(
-                  tag: playerTitleHeroTag,
-                  createRectTween: playerLinearRectTween,
-                  flightShuttleBuilder: playerTextFlightShuttleBuilder,
-                  child: title,
-                )
-              else
-                title,
-              if (showSubtitle && subtitle.isNotEmpty)
-                if (useHero)
-                  Hero(
-                    tag: playerSubtitleHeroTag,
-                    createRectTween: playerLinearRectTween,
-                    flightShuttleBuilder: playerTextFlightShuttleBuilder,
-                    child: subtitleWidget,
-                  )
-                else
-                  subtitleWidget,
-            ],
-          ),
-        ),
+        Expanded(child: identity),
       ],
     );
   }
@@ -855,46 +843,6 @@ class _MiniPlayerCover extends StatelessWidget {
           requestSize: 320,
           fit: BoxFit.cover,
           semanticLabel: '${song.title} 封面',
-        ),
-      ),
-    );
-  }
-}
-
-class _MiniPlayerTitle extends StatelessWidget {
-  const _MiniPlayerTitle({required this.song});
-
-  final Song song;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      type: MaterialType.transparency,
-      child: Text(
-        song.title,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: context.echoTypography.title,
-      ),
-    );
-  }
-}
-
-class _MiniPlayerSubtitle extends StatelessWidget {
-  const _MiniPlayerSubtitle({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      type: MaterialType.transparency,
-      child: Text(
-        text,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: context.echoTypography.metadata.copyWith(
-          color: context.echoColors.muted,
         ),
       ),
     );

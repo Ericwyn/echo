@@ -20,6 +20,7 @@ import '../../../widgets/cover_art_image.dart';
 import '../widgets/play_queue_sheet.dart';
 import '../widgets/current_lyrics_panel.dart';
 import '../widgets/player_hero_helpers.dart';
+import '../widgets/player_track_identity.dart';
 import '../widgets/playback_controls.dart';
 import '../widgets/song_action.dart';
 import '../widgets/song_options_sheet.dart';
@@ -769,51 +770,18 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage>
     TextOverflow? overflow,
     bool scrollable = true,
   }) {
-    final identity = Column(
-      mainAxisSize: MainAxisSize.min,
+    return PlayerTrackIdentity(
+      title: song.title,
+      subtitle: subtitle,
+      titleStyle: titleStyle,
+      subtitleStyle: subtitleStyle,
+      textAlign: textAlign,
       crossAxisAlignment: crossAxisAlignment,
-      children: <Widget>[
-        Hero(
-          tag: playerTitleHeroTag,
-          createRectTween: playerLinearRectTween,
-          flightShuttleBuilder: playerTextFlightShuttleBuilder,
-          child: Material(
-            type: MaterialType.transparency,
-            child: Text(
-              song.title,
-              style: titleStyle,
-              textAlign: textAlign,
-              maxLines: titleMaxLines,
-              overflow: overflow,
-            ),
-          ),
-        ),
-        if (subtitle.isNotEmpty) ...<Widget>[
-          SizedBox(height: context.echoSpacing.xxs),
-          Hero(
-            tag: playerSubtitleHeroTag,
-            createRectTween: playerLinearRectTween,
-            flightShuttleBuilder: playerTextFlightShuttleBuilder,
-            child: Material(
-              type: MaterialType.transparency,
-              child: Text(
-                subtitle,
-                style: subtitleStyle,
-                textAlign: textAlign,
-                maxLines: subtitleMaxLines,
-                overflow: overflow,
-              ),
-            ),
-          ),
-        ],
-      ],
-    );
-
-    if (!scrollable) return identity;
-    return SingleChildScrollView(
-      primary: false,
-      physics: const ClampingScrollPhysics(),
-      child: identity,
+      titleMaxLines: titleMaxLines,
+      subtitleMaxLines: subtitleMaxLines,
+      overflow: overflow,
+      subtitleGap: context.echoSpacing.xxs,
+      scrollable: scrollable,
     );
   }
 
