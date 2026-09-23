@@ -7,15 +7,37 @@ import '../echo_context.dart';
 /// The route resolves its durations before it is pushed, so a system request
 /// for reduced motion becomes an actual jump cut instead of an invisible wait.
 class EchoPageRoute<T> extends PageRouteBuilder<T> {
-  // Explicit parameters keep the context-derived route setup in one initializer.
-  // ignore: use_super_parameters
-  EchoPageRoute({
+  factory EchoPageRoute({
     required BuildContext context,
     required WidgetBuilder builder,
     RouteSettings? settings,
     bool fullscreenDialog = false,
+    PageStorageBucket? pageStorageBucket,
+    Object? pageStorageKey,
+  }) {
+    return EchoPageRoute<T>._(
+      context: context,
+      builder: builder,
+      settings: settings,
+      fullscreenDialog: fullscreenDialog,
+      pageStorageBucket: pageStorageBucket ?? PageStorageBucket(),
+      pageStorageKey: pageStorageKey ?? Object(),
+    );
+  }
+
+  // Explicit parameters keep the context-derived route setup in one initializer.
+  // ignore: use_super_parameters
+  EchoPageRoute._({
+    required BuildContext context,
+    required WidgetBuilder builder,
+    required PageStorageBucket pageStorageBucket,
+    required Object pageStorageKey,
+    RouteSettings? settings,
+    bool fullscreenDialog = false,
   }) : _builder = builder,
        _fullscreenDialog = fullscreenDialog,
+       _pageStorageBucket = pageStorageBucket,
+       _pageStorageKey = pageStorageKey,
        super(
          settings: settings,
          fullscreenDialog: fullscreenDialog,
@@ -28,21 +50,31 @@ class EchoPageRoute<T> extends PageRouteBuilder<T> {
            context.echoMotion.state,
          ),
          pageBuilder: (context, animation, secondaryAnimation) {
-           return builder(context);
+           return PageStorage(
+             bucket: pageStorageBucket,
+             child: KeyedSubtree(
+               key: PageStorageKey<Object>(pageStorageKey),
+               child: builder(context),
+             ),
+           );
          },
          transitionsBuilder: _buildTransitions,
        );
 
   final WidgetBuilder _builder;
   final bool _fullscreenDialog;
+  final PageStorageBucket _pageStorageBucket;
+  final Object _pageStorageKey;
 
   /// Rebuilds this route when desktop history moves forward after a pop.
   EchoPageRoute<T> recreate(BuildContext context) {
-    return EchoPageRoute<T>(
+    return EchoPageRoute<T>._(
       context: context,
       builder: _builder,
       settings: settings,
       fullscreenDialog: _fullscreenDialog,
+      pageStorageBucket: _pageStorageBucket,
+      pageStorageKey: _pageStorageKey,
     );
   }
 

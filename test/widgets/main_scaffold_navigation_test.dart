@@ -352,6 +352,56 @@ void main() {
       );
     });
 
+    testWidgets('desktop forward restores a detail page scroll position', (
+      tester,
+    ) async {
+      await _pumpMainScaffold(tester, size: const Size(1440, 900));
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('echo-desktop-sidebar-songs')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey<String>('open-desktop-scroll-detail')),
+      );
+      await tester.pumpAndSettle();
+
+      final list = find.byKey(
+        const ValueKey<String>('desktop-forward-detail-list'),
+      );
+      await tester.drag(list, const Offset(0, -500));
+      await tester.pumpAndSettle();
+      final scrollable = find.descendant(
+        of: list,
+        matching: find.byType(Scrollable),
+      );
+      final before = tester
+          .state<ScrollableState>(scrollable.first)
+          .position
+          .pixels;
+      expect(before, greaterThan(0));
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey<String>('echo-desktop-forward')),
+      );
+      await tester.pumpAndSettle();
+
+      final restoredList = find.byKey(
+        const ValueKey<String>('desktop-forward-detail-list'),
+      );
+      final restoredScrollable = find.descendant(
+        of: restoredList,
+        matching: find.byType(Scrollable),
+      );
+      final after = tester
+          .state<ScrollableState>(restoredScrollable.first)
+          .position
+          .pixels;
+      expect(after, closeTo(before, 1));
+    });
+
     testWidgets('desktop shortcuts respect text entry and Escape route order', (
       tester,
     ) async {
@@ -638,6 +688,26 @@ class _DesktopDestinationPage extends StatelessWidget {
               ),
               child: const Text('Open detail'),
             ),
+            if (destinationId == 'songs')
+              ElevatedButton(
+                key: const ValueKey<String>('open-desktop-scroll-detail'),
+                onPressed: () => Navigator.of(context).push<void>(
+                  EchoPageRoute<void>(
+                    context: context,
+                    builder: (_) => Scaffold(
+                      body: ListView.builder(
+                        key: const ValueKey<String>(
+                          'desktop-forward-detail-list',
+                        ),
+                        itemCount: 60,
+                        itemBuilder: (context, index) =>
+                            ListTile(title: Text('Forward detail row $index')),
+                      ),
+                    ),
+                  ),
+                ),
+                child: const Text('Open scroll detail'),
+              ),
           ],
         ),
       ),
