@@ -2,7 +2,7 @@
 
 [返回 spec](README.md) · [验收矩阵](acceptance.md) · [决策](decisions.md)
 
-状态：播放模式并发修正提交 `24e5319e` 已在全新 `build/linux-lldtmp-2069` 构建 `.deb`/bundle，Linux 版本 `1.1.0+2058` 高于上一版 2057；本机签名 ARM64 APK versionCode `2056`，高于用户设备的 2026，仅含 ARM64 ABI。签名脚本仍由 `.git/info/exclude` 忽略，版本状态现为 2056、下次构建默认 2057。Linux/Android 产物未安装或启动；测试未运行，MPRIS/Android 播放模式和 P0–P5 手动场景仍待验收。当前优先 Ubuntu/Linux；Windows CI 暂缓。详情见[播放模式并发修正](evidence/260924-playback-mode-serialization/README.md)。
+状态：播放模式并发修正提交 `24e5319e` 的 Linux app bundle 在全新 `build/linux-lldtmp-2069` 编译；打包脚本提交 `818239ea` 将 `.deb` 与 bundle ZIP 一次生成到 `build/linux-lldtmp-2072/packages/`。Linux 版本 `1.1.0+2058` 高于上一版 2057；本机签名 ARM64 APK versionCode `2056`，高于用户设备的 2026。签名脚本仍由 `.git/info/exclude` 忽略，版本状态为 2056、下次构建默认 2057。Linux/Android 产物未安装或启动；Flutter 测试/analyze 未运行，P0–P5 手动场景仍待验收。当前优先 Ubuntu/Linux；Windows CI 暂缓。详情见[Linux 可重复打包产物](evidence/260924-linux-repeatable-package-artifacts/README.md)。
 
 ## 目标与交付范围
 
@@ -14,7 +14,7 @@ Ubuntu 交付可安装 `.deb` 与完整 bundle 压缩包；Windows 交付 releas
 
 1. 使用 Ubuntu 22.04 构建环境和 Flutter 3.41.7；PR Linux job 固定 runner 并运行 Linux release build。当前不增加 Windows CI job。
 2. 固定 pub 依赖锁文件和 native 依赖，补齐 clang/lld、GTK、CMake、Ninja 与选定托盘实现要求。构建过程不依赖开发者机器绝对路径、手工 symlink 或旧缓存。
-3. Linux bundle 检查 `echoes`、`lib/`、`data/` 和插件资源完整；不能只分发可执行文件。扫描直接动态依赖，同时确认运行时动态加载的 libmpv 与编解码依赖。`scripts/package_linux_deb.sh` 默认读取 Flutter 标准 bundle；设置 `ECHO_LINUX_BUNDLE_DIR` 可直接打包非默认 build-dir 的 bundle。
+3. Linux bundle 检查 `echoes`、`lib/`、`data/` 和插件资源完整；不能只分发可执行文件。扫描直接动态依赖，同时确认运行时动态加载的 libmpv 与编解码依赖。`scripts/package_linux_deb.sh` 默认读取 Flutter 标准 bundle，并在同一输出目录生成 `.deb` 与完整 bundle ZIP；设置 `ECHO_LINUX_BUNDLE_DIR` 可直接打包非默认 build-dir 的 bundle。
 4. `.deb` 与 bundle 仍需明确系统 libmpv 运行依赖；本地 smoke test 已在 Ubuntu 22.04/libmpv 0.34.1 上通过，但还需在干净环境验证包依赖、实际播放和 ABI。
 5. 添加 `.desktop`、图标、分类、应用名称和身份；安装后从应用列表、Dock 和命令行启动指向同一应用，重复启动能恢复窗口。按实际设计申明 D-Bus 激活能力，不能只加 DesktopEntry 字段就当激活实现完成。当前 `scripts/package_linux_deb.sh` 将完整 bundle 安装到 `/opt/echoes`，安装 `.desktop` 与 hicolor 图标；明确 `DBusActivatable=false`，因为首版没有桌面文件 D-Bus 激活服务。
 6. Windows 包与 SMTC 验证暂缓，不纳入当前 Linux 交付门槛。
@@ -27,10 +27,10 @@ Ubuntu 交付可安装 `.deb` 与完整 bundle 压缩包；Windows 交付 releas
 ## 当前 Linux 打包实现记录
 
 - `packaging/linux/echoes.desktop` 使用 `echoes` desktop-file basename，与 Linux MPRIS 的 `DesktopEntry=echoes` 对齐；图标安装到 hicolor `192x192/apps`。
-- `scripts/package_linux_deb.sh` 从 `build/linux/x64/release/bundle` 组装 Debian 包，依赖声明面向当前 Ubuntu 22.04 基线：`libgtk-3-0`、`libayatana-appindicator3-1`、`libmpv1`。MPV 是运行时动态加载项，不会出现在主 ELF 的 `DT_NEEDED` 中，因此显式声明。
-- `.github/workflows/build_linux.yml` 在 release bundle 外再上传 `.deb`；`.github/workflows/pr_checks.yml` 加入包组装步骤。Windows workflow 未改。
+- `scripts/package_linux_deb.sh` 从 Flutter Linux bundle 组装 Debian 包和 standalone bundle ZIP，依赖声明面向当前 Ubuntu 22.04 基线：`libgtk-3-0`、`libayatana-appindicator3-1`、`libmpv1`。MPV 是运行时动态加载项，不会出现在主 ELF 的 `DT_NEEDED` 中，因此显式声明。打包前检查 bundle 必需文件；ZIP 写到临时路径后再替换目标，避免旧 archive 遗留文件。
+- `.github/workflows/build_linux.yml` 调用统一打包脚本，并上传 `.deb` 与对应 standalone bundle ZIP；`.github/workflows/pr_checks.yml` 加入包组装步骤和 `zip` 工具依赖。Windows workflow 未改。
 - 仓库 `README.md` 已增加 Linux `.deb` 安装命令、运行依赖、自绘窗口与托盘/MPRIS 说明，并明确 22.04/GNOME/X11 的验证范围；最新 Linux 桌面截图需待用户手动视觉验收后再刷新，避免把旧版界面图当作当前 release 证据。
-- 最新 DEB 为 `build/linux-lldtmp-2069/packages/echoes_1.1.0+2058_amd64.deb`，SHA-256 `0475341b788b5aaf52b178e6747bb4d39036ed9bff30080515cbbb1659230efe`；standalone bundle ZIP 为 `build/linux-lldtmp-2069/packages/echoes_1.1.0+2058_linux-x64-bundle.zip`，SHA-256 `884489b3c06823e6b116be2fe657661d72b9112af62eab9c8d253a898d74d340`，所有条目通过 `unzip -t`。Android 本机签名 arm64-only APK versionCode `2056`，SHA-256 `5d2514fa9f6bf813981ac98475bd6e0228e304d65e048ca0a7b3dab41a2ce719`，证书/ABI/package metadata 校验通过。Linux/Android 构建源均为 `24e5319e`；未安装或启动，Flutter 测试/analyze 未运行。
+- 最新 DEB 为 `build/linux-lldtmp-2072/packages/echoes_1.1.0+2058_amd64.deb`，SHA-256 `8dd62dd8b7ceeaf736aa67d845f4fe763991e5ce16a496b2a195f25095028486`；standalone bundle ZIP 为 `build/linux-lldtmp-2072/packages/echoes_1.1.0+2058_linux-x64-bundle.zip`，SHA-256 `884489b3c06823e6b116be2fe657661d72b9112af62eab9c8d253a898d74d340`，38 项通过 `unzip -t`。app bundle 在 `build/linux-lldtmp-2069` 由 `24e5319e` 构建，统一打包脚本来自 `818239ea`。Android 本机签名 arm64-only APK versionCode `2056`，SHA-256 `5d2514fa9f6bf813981ac98475bd6e0228e304d65e048ca0a7b3dab41a2ce719`，证书/ABI/package metadata 校验通过。产物未安装/启动，Flutter 测试/analyze 未运行。
 
 本机 Android 签名快捷脚本位于 `scripts/local/build_android_release_arm64.sh`，只存在本机并由 `.git/info/exclude` 忽略。它从本机 keystore 签名，只构建 `arm64-v8a`，在发布前检查包名、证书、ABI 和 versionCode；版本状态单独保存在用户目录，当前 APK 为 2056，下一次默认产生 2057。当前 APK SHA-256 为 `5d2514fa9f6bf813981ac98475bd6e0228e304d65e048ca0a7b3dab41a2ce719`。脚本和签名资料不进入仓库。
 
@@ -164,7 +164,7 @@ Ubuntu 24.04/Wayland 若仍未验收，只能先发布明确限定 22.04/X11 的
 | Ubuntu 22.04 X11 | `c4bd0b6e` / `build/linux-lldtmp-2063` | 播放队列命令加入起始索引限幅后，以系统 Clang + Ubuntu LLD 14 构建 `1.1.0+2053` amd64 `.deb`。bundle executable SHA-256 `e1eb6488780e2d70fed09976c920b12e7fd7d018439adfc0beeeb9de35cf4ec8`，`libapp.so` SHA-256 `d3a1af2c5742bb4ecbc4b1705d26998a043a4174085cab1171ec24772cfe24db`，DEB SHA-256 `955e3c8f222be6582a4ae9a9993fb5b700136cc61704401c5b06e413ed4a8ffd`；standalone bundle ZIP SHA-256 `5de9a27a5d1be3e15e3540d2750cb9323acbfd52c3f365e9e16c91dfd88f2bbd`，38 个文件通过 `unzip -t`。未安装/启动，测试/analyze 未运行 |
 | Android ARM64 APK | `c4bd0b6e` / build number override `54` / `app-arm64-v8a-release.apk` | 本机签名，version name/code `1.1.0` / `2054`，仅含 `arm64-v8a`；证书 SHA-256 `8604465c3ee1282b48a1b2759801f784ace32447d1188e0481fab0fe8ac74c94`，APK SHA-256 `26ce4001832b034a515392661eafa0ddda4c80b08b2774c9c85f0b475f4d1380`。未安装/启动，Android 真机回归待用户执行 |
 | Ubuntu 22.04 X11 | `9abb3e09` / `build/linux-lldtmp-2064` | 增加 watcher 断线退避重连、窗口 destroy 失败恢复、启动竞争修复和 show/minimize 回归定义后，Linux release build 与 `.deb` 组装成功；元数据为 `echoes`/`1.1.0+2053`/`amd64`，Depends 为 `libgtk-3-0`、`libayatana-appindicator3-1`、`libmpv1`；主程序及媒体插件为 ELF64 x86-64，当前主机 `ldd` 对主程序直接依赖无缺失，DEB SHA-256 `ab02302777cf8d9b94b9baebbb2ff053441be3e57978cb3bee3022dfbc6fc349`。Dart 格式化与 `git diff --check` 通过；standalone bundle ZIP SHA-256 `69417c0ef87a1f4630328a95a1b06ad8694d5b4ec19ee8327ecd42e72232f4b2`，完整性检查通过。静态依赖核对不替代干净 Ubuntu 安装。未安装/启动，Flutter tests/analyze 未运行；宿主重启、关窗恢复及极端销毁失败场景待 Ubuntu 手动验证 |
-| Ubuntu 22.04 X11 | `24e5319e` / `build/linux-lldtmp-2069` | 播放模式并发修复后的 Linux `1.1.0+2058` DEB 与 standalone bundle ZIP 已生成；版本顺序、包元数据、x86-64 ELF 和 ZIP 完整性核对通过。Android ARM64 versionCode `2056` 经本机发布证书签名并核对 package metadata/ABI；测试未运行，未安装或启动。详见[本轮构建证据](evidence/260924-playback-mode-serialization/README.md) |
+| Ubuntu 22.04 X11 | app `24e5319e` + package script `818239ea` / `build/linux-lldtmp-2069` → `build/linux-lldtmp-2072/packages` | 统一脚本一次产出 `1.1.0+2058` amd64 DEB 与 standalone bundle ZIP；DEB SHA-256 `8dd62dd8b7ceeaf736aa67d845f4fe763991e5ce16a496b2a195f25095028486`，ZIP SHA-256 `884489b3c06823e6b116be2fe657661d72b9112af62eab9c8d253a898d74d340`。包元数据、版本顺序、x86-64 ELF、ZIP 的 38 项完整性和 workflow YAML 均核验通过。Android ARM64 APK versionCode `2056`、本机签名；tests/analyze 未运行，未安装或启动。详见[Linux 可重复打包产物](evidence/260924-linux-repeatable-package-artifacts/README.md) |
 | Ubuntu 24.04 / Wayland | — | 待提供环境与结果 |
 | Windows | — | Windows CI 暂缓；未编译/未实机验收 |
 | Android 回归 | 先前检查点曾有 431 项 Flutter 测试通过；本次提交新增用例未运行 | 最新共享控件与歌曲操作改动的自动回归、Android 真机锁屏/通知栏/封面验证仍待完成 |
