@@ -8,6 +8,7 @@ import 'package:flutter/material.dart' show Size;
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
+import '../design/layout/echo_desktop_metrics.dart';
 import '../utils/logger.dart';
 
 const _statusNotifierWatchers = <String>[
@@ -50,7 +51,16 @@ class DesktopLifecycleService with WindowListener, TrayListener {
     trayManager.addListener(this);
     try {
       await windowManager.setTitle('Echoes');
-      await windowManager.setMinimumSize(const Size(800, 560));
+      await windowManager.setMinimumSize(
+        const Size(
+          echoDesktopMinimumWindowWidth,
+          echoDesktopMinimumWindowHeight,
+        ),
+      );
+      Logger.infoWithTag(
+        'DESKTOP',
+        'minimum window size ${echoDesktopMinimumWindowWidth.toInt()}x${echoDesktopMinimumWindowHeight.toInt()}',
+      );
       await windowManager.setPreventClose(true);
     } catch (error) {
       Logger.warnWithTag('DESKTOP', 'window lifecycle setup failed', error);

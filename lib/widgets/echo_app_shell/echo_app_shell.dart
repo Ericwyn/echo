@@ -51,6 +51,30 @@ class EchoAppShell extends StatelessWidget {
           windowClass != EchoWindowClass.compact && !showMiniPlayer,
     );
 
+    final shellBody = switch (windowClass) {
+      EchoWindowClass.compact => _CompactShellBody(
+        color: colors.canvas,
+        body: body,
+      ),
+      EchoWindowClass.medium || EchoWindowClass.expanded => _WideShellBody(
+        windowClass: windowClass,
+        destinations: destinations,
+        selectedBranchIndex: selectedBranchIndex,
+        onDestinationSelected: onDestinationSelected,
+        onOpenDrawer:
+            onOpenDrawer ?? () => scaffoldKey.currentState?.openDrawer(),
+        body: body,
+        miniPlayer: miniPlayer,
+        showMiniPlayer: showMiniPlayer,
+        networkStatusBar: networkStatusBar,
+        desktopActions: desktopActions,
+        desktopNavigationToolbar: desktopNavigationToolbar,
+        desktopAccountLabel: desktopAccountLabel,
+        desktopAccountSubtitle: desktopAccountSubtitle,
+        desktopPlaybackBarHeight: desktopPlaybackBarHeight,
+      ),
+    };
+
     return Scaffold(
       key: scaffoldKey,
       backgroundColor: colors.canvas,
@@ -60,29 +84,7 @@ class EchoAppShell extends StatelessWidget {
       // that sidebar instead of adding a second left-hand drawer.
       drawer: windowClass == EchoWindowClass.expanded ? null : drawer,
       drawerScrimColor: colors.scrim,
-      body: switch (windowClass) {
-        EchoWindowClass.compact => _CompactShellBody(
-          color: colors.canvas,
-          body: body,
-        ),
-        EchoWindowClass.medium || EchoWindowClass.expanded => _WideShellBody(
-          windowClass: windowClass,
-          destinations: destinations,
-          selectedBranchIndex: selectedBranchIndex,
-          onDestinationSelected: onDestinationSelected,
-          onOpenDrawer:
-              onOpenDrawer ?? () => scaffoldKey.currentState?.openDrawer(),
-          body: body,
-          miniPlayer: miniPlayer,
-          showMiniPlayer: showMiniPlayer,
-          networkStatusBar: networkStatusBar,
-          desktopActions: desktopActions,
-          desktopNavigationToolbar: desktopNavigationToolbar,
-          desktopAccountLabel: desktopAccountLabel,
-          desktopAccountSubtitle: desktopAccountSubtitle,
-          desktopPlaybackBarHeight: desktopPlaybackBarHeight,
-        ),
-      },
+      body: shellBody,
       bottomNavigationBar: windowClass == EchoWindowClass.compact
           ? Column(
               key: const ValueKey<String>('echo-compact-bottom-chrome'),

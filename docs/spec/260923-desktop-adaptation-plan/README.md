@@ -45,7 +45,7 @@ flowchart LR
 | --- | --- | --- |
 | P0 | Linux 部分通过 | 锁定 Ubuntu 22.04/libmpv 0.34 兼容路径；补 MPRIS seek、恢复/单实例和干净环境证据 |
 | P1 | 部分实现 | 单播放器、命令/快照、用户音量和封面缓存已接入；补 metadata 共用边界及 Android 最终实机回归 |
-| P2 | 桌面统一返回/前进栈首轮实现完成，阶段仍进行中 | 手机保留分支路由，桌面使用单 Navigator 和返回/前进/搜索工具栏；Ubuntu 实际滚动状态恢复、连续缩放与 DPI 验收仍待完成 |
+| P2 | 桌面统一返回/前进栈首轮实现完成，Linux 自绘顶栏接入中 | 手机保留分支路由，桌面使用单 Navigator；Linux 自绘窗口/导航顶栏并隐藏 GNOME 标题栏，最小宽度锁定桌面 expanded 断点；Ubuntu 窗口交互、滚动恢复与 DPI 验收仍待完成 |
 | P3 | 首轮实现中 | 固定封面、动态背景、歌词/队列切换已实现；补焦点/快捷键、长队列和窗口尺寸验收 |
 | P4 | Linux 基础可用 | 用户确认 MPRIS 控制/封面与托盘基础功能；补完整 seek、托盘宿主失效、关窗恢复与单实例 |
 | P5 | Linux release 已编译 | 做干净 Ubuntu 安装/播放与 Android 回归；Windows CI 和 Windows 实机验收暂缓 |

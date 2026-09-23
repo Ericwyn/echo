@@ -85,6 +85,49 @@ void main() {
       expect(find.text('wide'), findsOneWidget);
     });
 
+    testWidgets('expanded page headings use the shared back toolbar', (
+      tester,
+    ) async {
+      Future<void> pumpAtWidth(double width) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = Size(width, 800);
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.light(),
+            home: Builder(
+              builder: (context) => Scaffold(
+                body: EchoTopBar.back(context: context, title: '全部歌曲'),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+      }
+
+      addTearDown(tester.view.reset);
+      await pumpAtWidth(1440);
+      expect(
+        tester.widget<EchoTopBar>(find.byType(EchoTopBar)).leading,
+        isNull,
+      );
+
+      await pumpAtWidth(390);
+      expect(
+        tester.widget<EchoTopBar>(find.byType(EchoTopBar)).leading,
+        isA<EchoIconButton>(),
+      );
+    });
+
+    test(
+      'desktop minimum width keeps the expanded navigation shell active',
+      () {
+        expect(
+          echoDesktopMinimumWindowWidth,
+          greaterThanOrEqualTo(EchoBreakpoints.standard.expanded),
+        );
+      },
+    );
+
     test('keeps fixed branch indices while Explore is dynamically visible', () {
       expect(
         echoMainDestinations(
@@ -159,10 +202,22 @@ void main() {
         '我的歌单',
         '管理',
         '下载管理',
-        '离线下载',
       ]) {
         expect(find.text(label), findsOneWidget, reason: 'missing $label');
       }
+      await tester.scrollUntilVisible(
+        find.text('离线下载'),
+        120,
+        scrollable: find
+            .descendant(
+              of: find.byKey(
+                const ValueKey<String>('echo-expanded-navigation'),
+              ),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      expect(find.text('离线下载'), findsOneWidget);
       await tester.scrollUntilVisible(
         find.text('设置'),
         120,

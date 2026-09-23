@@ -30,6 +30,7 @@ import '../providers/offline_download_provider.dart';
 import '../providers/player_provider.dart';
 import 'app_drawer.dart';
 import 'echo_app_shell/echo_app_shell.dart';
+import 'echo_app_shell/desktop_navigation_strategy.dart';
 import 'echo_app_shell/echo_desktop_navigation_toolbar.dart';
 import 'echo_app_shell/echo_network_status_bar.dart';
 import 'echo_app_shell/echo_shell_navigation.dart';
@@ -80,8 +81,6 @@ enum EchoBackAction {
   switchToDiscover,
   moveAppToBackground,
 }
-
-const _desktopDestinationRoutePrefix = 'desktop-destination:';
 
 @visibleForTesting
 EchoBackAction resolveEchoBackAction({
@@ -199,14 +198,14 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
   int _desktopRouteSelectionRevision = 0;
   bool _desktopCanGoBack = false;
   bool _desktopCanGoForward = false;
-  final GlobalKey<NavigatorState> _desktopNavigatorKey =
-      GlobalKey<NavigatorState>();
-  late final _DesktopNavigationObserver _desktopNavigationObserver =
-      _DesktopNavigationObserver(_handleDesktopRouteChanged);
+  late final DesktopNavigationStrategy _desktopNavigationStrategy;
 
   @override
   void initState() {
     super.initState();
+    _desktopNavigationStrategy = DesktopNavigationStrategy(
+      onChanged: _handleDesktopRouteChanged,
+    );
     _scheduleVisibleBranchSync();
     if (widget.networkStatusOverride == null) {
       _startNetworkObservation();
@@ -317,8 +316,8 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || revision != _desktopRouteSelectionRevision) return;
       ref.read(currentVisibleBranchIndexProvider.notifier).state = branchIndex;
-      final canGoBack = _desktopNavigatorKey.currentState?.canPop() ?? false;
-      final canGoForward = _desktopNavigationObserver.canGoForward;
+      final canGoBack = _desktopNavigationStrategy.canGoBack;
+      final canGoForward = _desktopNavigationStrategy.canGoForward;
       if (_desktopSelectedActionId == destinationId &&
           _desktopCanGoBack == canGoBack &&
           _desktopCanGoForward == canGoForward) {
@@ -333,42 +332,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
   }
 
   void _navigateDesktopForward() {
-    final navigator = _desktopNavigatorKey.currentState;
-    if (navigator == null) return;
-    _desktopNavigationObserver.goForward(
-      navigator: navigator,
-      context: context,
-    );
-  }
-
-  Route<void> _desktopDestinationRoute({
-    required String destinationId,
-    required int branchIndex,
-    required Widget page,
-  }) {
-    return EchoPageRoute<void>(
-      context: context,
-      settings: RouteSettings(
-        name: '$_desktopDestinationRoutePrefix$destinationId',
-        arguments: <String, Object>{
-          'destinationId': destinationId,
-          'branchIndex': branchIndex,
-        },
-      ),
-      builder: (_) => page,
-    );
-  }
-
-  Widget _buildDesktopNavigator() {
-    return Navigator(
-      key: _desktopNavigatorKey,
-      observers: <NavigatorObserver>[_desktopNavigationObserver],
-      onGenerateRoute: (_) => _desktopDestinationRoute(
-        destinationId: 'music-flow',
-        branchIndex: discoverBranchIndex,
-        page: widget.desktopRootOverride ?? DiscoverPage(),
-      ),
-    );
+    _desktopNavigationStrategy.goForward(context);
   }
 
   Widget _desktopPage(String destinationId, Widget page) {
@@ -380,42 +344,14 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     required int branchIndex,
     required Widget page,
   }) {
-    final navigator = _desktopNavigatorKey.currentState;
-    if (navigator == null) return;
     if (_showDesktopPlayerWorkspace) {
       setState(() => _showDesktopPlayerWorkspace = false);
     }
-
-    if (destinationId == 'music-flow') {
-      _desktopNavigationObserver.withoutForwardRecording(() {
-        navigator.popUntil((route) => route.isFirst);
-      });
-      _desktopNavigationObserver.clearForwardHistory();
-      _desktopNavigationObserver.refreshCurrent();
-      return;
-    }
-
-    final destinationRouteName =
-        '$_desktopDestinationRoutePrefix$destinationId';
-    if (_desktopSelectedActionId == destinationId) {
-      _desktopNavigationObserver.withoutForwardRecording(() {
-        navigator.popUntil(
-          (route) =>
-              route.isFirst || route.settings.name == destinationRouteName,
-        );
-      });
-      _desktopNavigationObserver.clearForwardHistory();
-      _desktopNavigationObserver.refreshCurrent();
-      return;
-    }
-
-    navigator.pushAndRemoveUntil<void>(
-      _desktopDestinationRoute(
-        destinationId: destinationId,
-        branchIndex: branchIndex,
-        page: _desktopPage(destinationId, page),
-      ),
-      (route) => route.isFirst,
+    _desktopNavigationStrategy.selectDestination(
+      context: context,
+      destinationId: destinationId,
+      branchIndex: branchIndex,
+      page: _desktopPage(destinationId, page),
     );
   }
 
@@ -461,9 +397,8 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
         rootNavigator.pop();
         return;
       }
-      final desktopNavigator = _desktopNavigatorKey.currentState;
-      if (desktopNavigator?.canPop() ?? false) {
-        await desktopNavigator?.maybePop();
+      if (_desktopNavigationStrategy.canGoBack) {
+        await _desktopNavigationStrategy.maybePop();
       }
       // The desktop root is Music Flow. Window close, rather than the
       // Android move-to-background action, exits or hides the desktop app.
@@ -812,7 +747,11 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
                       enabled: !desktopWorkspaceVisible,
                       child: Offstage(
                         offstage: desktopWorkspaceVisible,
-                        child: _buildDesktopNavigator(),
+                        child: _desktopNavigationStrategy.buildNavigator(
+                          context,
+                          rootPage:
+                              widget.desktopRootOverride ?? DiscoverPage(),
+                        ),
                       ),
                     ),
                   if (desktopWorkspaceVisible)
@@ -835,7 +774,11 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
                       enabled: false,
                       child: Offstage(
                         offstage: true,
-                        child: _buildDesktopNavigator(),
+                        child: _desktopNavigationStrategy.buildNavigator(
+                          context,
+                          rootPage:
+                              widget.desktopRootOverride ?? DiscoverPage(),
+                        ),
                       ),
                     ),
                 ],
@@ -889,136 +832,5 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
         ].join(' · '),
       ),
     );
-  }
-}
-
-class _DesktopRouteSelection {
-  const _DesktopRouteSelection({
-    required this.destinationId,
-    required this.branchIndex,
-  });
-
-  final String destinationId;
-  final int branchIndex;
-}
-
-class _DesktopNavigationObserver extends NavigatorObserver {
-  _DesktopNavigationObserver(this.onCurrentChanged);
-
-  final void Function(String? destinationId, int branchIndex) onCurrentChanged;
-  final Map<Route<dynamic>, _DesktopRouteSelection> _selections =
-      <Route<dynamic>, _DesktopRouteSelection>{};
-  final List<EchoPageRoute<dynamic>> _forwardRoutes =
-      <EchoPageRoute<dynamic>>[];
-  Route<dynamic>? _currentRoute;
-  bool _replayingForward = false;
-  bool _discardForwardRecording = false;
-
-  bool get canGoForward => _forwardRoutes.isNotEmpty;
-
-  void clearForwardHistory() => _forwardRoutes.clear();
-
-  void refreshCurrent() => _setCurrent(_currentRoute);
-
-  void withoutForwardRecording(VoidCallback operation) {
-    final previousValue = _discardForwardRecording;
-    _discardForwardRecording = true;
-    try {
-      operation();
-    } finally {
-      _discardForwardRecording = previousValue;
-    }
-  }
-
-  void goForward({
-    required NavigatorState navigator,
-    required BuildContext context,
-  }) {
-    if (_forwardRoutes.isEmpty) return;
-    final route = _forwardRoutes.removeLast();
-    _replayingForward = true;
-    navigator.push<dynamic>(route.recreate(context));
-  }
-
-  _DesktopRouteSelection _selectionFor(
-    Route<dynamic> route,
-    Route<dynamic>? previousRoute,
-  ) {
-    final arguments = route.settings.arguments;
-    if (arguments is Map<String, Object>) {
-      final destinationId = arguments['destinationId'];
-      final branchIndex = arguments['branchIndex'];
-      if (destinationId is String && branchIndex is int) {
-        return _DesktopRouteSelection(
-          destinationId: destinationId,
-          branchIndex: branchIndex,
-        );
-      }
-    }
-    return _selections[previousRoute] ??
-        const _DesktopRouteSelection(
-          destinationId: 'music-flow',
-          branchIndex: discoverBranchIndex,
-        );
-  }
-
-  void _setCurrent(Route<dynamic>? route) {
-    _currentRoute = route;
-    final selection = route == null
-        ? null
-        : _selections[route] ??
-              const _DesktopRouteSelection(
-                destinationId: 'music-flow',
-                branchIndex: discoverBranchIndex,
-              );
-    onCurrentChanged(
-      selection?.destinationId,
-      selection?.branchIndex ?? discoverBranchIndex,
-    );
-  }
-
-  @override
-  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    if (!_replayingForward) clearForwardHistory();
-    _replayingForward = false;
-    _selections[route] = _selectionFor(route, previousRoute);
-    _setCurrent(route);
-  }
-
-  @override
-  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    if (!_discardForwardRecording) {
-      if (route is EchoPageRoute<dynamic>) {
-        _forwardRoutes.add(route);
-      } else {
-        clearForwardHistory();
-      }
-    }
-    _selections.remove(route);
-    if (identical(_currentRoute, route)) _setCurrent(previousRoute);
-  }
-
-  @override
-  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    _selections.remove(route);
-    if (identical(_currentRoute, route)) _setCurrent(previousRoute);
-  }
-
-  @override
-  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
-    final oldSelection = oldRoute == null ? null : _selections.remove(oldRoute);
-    if (newRoute == null) return;
-    final settings = newRoute.settings.arguments;
-    if (settings is Map<String, Object> &&
-        settings['destinationId'] is String &&
-        settings['branchIndex'] is int) {
-      _selections[newRoute] = _DesktopRouteSelection(
-        destinationId: settings['destinationId']! as String,
-        branchIndex: settings['branchIndex']! as int,
-      );
-    } else if (oldSelection != null) {
-      _selections[newRoute] = oldSelection;
-    }
-    if (identical(_currentRoute, oldRoute)) _setCurrent(newRoute);
   }
 }

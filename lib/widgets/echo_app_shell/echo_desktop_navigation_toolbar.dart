@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/design/echo_design.dart';
 
+/// Browser-style back/forward controls for the expanded desktop shell.
 class EchoDesktopNavigationToolbar extends StatelessWidget {
   const EchoDesktopNavigationToolbar({
     super.key,

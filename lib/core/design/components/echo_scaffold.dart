@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../theme/app_icons.dart';
 import '../echo_context.dart';
 import '../layout/echo_shell_obstruction.dart';
+import '../tokens/echo_breakpoints.dart';
 import 'echo_icon_button.dart';
 
 /// Stable page frame for Echo feature surfaces.
@@ -73,15 +74,20 @@ class EchoTopBar extends StatelessWidget {
     String? subtitle,
     List<Widget> actions = const <Widget>[],
   }) {
+    final isExpandedDesktop =
+        context.echoBreakpoints.classify(MediaQuery.sizeOf(context).width) ==
+        EchoWindowClass.expanded;
     return EchoTopBar(
       key: key,
       title: title,
       subtitle: subtitle,
-      leading: EchoIconButton(
-        icon: AppIcons.back,
-        label: '返回',
-        onPressed: () => Navigator.maybePop(context),
-      ),
+      leading: isExpandedDesktop
+          ? null
+          : EchoIconButton(
+              icon: AppIcons.back,
+              label: '返回',
+              onPressed: () => Navigator.maybePop(context),
+            ),
       actions: actions,
     );
   }

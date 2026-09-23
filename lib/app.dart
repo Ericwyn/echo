@@ -18,6 +18,8 @@ import 'features/explore/pages/explore_page.dart';
 import 'features/library/pages/library_page.dart';
 import 'features/library/pages/catalog_page.dart';
 import 'features/library/pages/edit_library_page.dart';
+import 'widgets/echo_app_shell/echo_desktop_window_chrome.dart';
+import 'package:window_manager/window_manager.dart';
 
 /// 应用主入口 Widget
 class App extends ConsumerWidget {
@@ -27,6 +29,10 @@ class App extends ConsumerWidget {
     if (kIsWeb) return false;
     return defaultTargetPlatform == TargetPlatform.windows ||
         defaultTargetPlatform == TargetPlatform.macOS;
+  }
+
+  bool _usesEchoLinuxWindowChrome() {
+    return !kIsWeb && defaultTargetPlatform == TargetPlatform.linux;
   }
 
   double _resolveDesktopTextScale(MediaQueryData mediaQueryData) {
@@ -117,6 +123,11 @@ class App extends ConsumerWidget {
               ).copyWith(visualDensity: desktopVisualDensity),
               child: content,
             ),
+          );
+        }
+        if (_usesEchoLinuxWindowChrome()) {
+          content = VirtualWindowFrame(
+            child: EchoDesktopWindowChrome(child: content),
           );
         }
 

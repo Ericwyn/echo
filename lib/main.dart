@@ -11,6 +11,7 @@ import 'package:window_manager/window_manager.dart';
 import 'app.dart';
 import 'core/services/background_playback_advisor.dart';
 import 'core/services/desktop_lifecycle_service.dart';
+import 'core/design/layout/echo_desktop_metrics.dart';
 import 'providers/player_provider.dart';
 
 void main() {
@@ -25,6 +26,21 @@ void main() {
               defaultTargetPlatform == TargetPlatform.windows);
       if (isDesktopMediaKitPlatform) {
         await windowManager.ensureInitialized();
+        await windowManager.setMinimumSize(
+          const Size(
+            echoDesktopMinimumWindowWidth,
+            echoDesktopMinimumWindowHeight,
+          ),
+        );
+        if (defaultTargetPlatform == TargetPlatform.linux) {
+          // Echo has no always-on-top mode; clear a stale window-manager hint
+          // before showing the app again.
+          await windowManager.setAlwaysOnTop(false);
+          // GNOME's GTK header bar currently renders its own title strip. Hide
+          // it before Flutter's first frame; Echo draws the Linux window chrome.
+          await windowManager.setTitleBarStyle(TitleBarStyle.hidden);
+          await windowManager.setAsFrameless();
+        }
         JustAudioMediaKit.ensureInitialized();
       }
 

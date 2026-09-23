@@ -53,6 +53,14 @@ static void my_application_activate(GApplication* application) {
   }
 
   gtk_window_set_default_size(window, 1280, 720);
+  // Keep the Linux product shell above Echo's expanded breakpoint so a user
+  // cannot resize the desktop app into the compact/mobile route layout.
+  // Keep this in sync with echoDesktopMinimumWindowWidth/Height in Dart.
+  GdkGeometry minimum_size = {};
+  minimum_size.min_width = 840;
+  minimum_size.min_height = 560;
+  gtk_window_set_geometry_hints(window, nullptr, &minimum_size,
+                                GDK_HINT_MIN_SIZE);
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(
