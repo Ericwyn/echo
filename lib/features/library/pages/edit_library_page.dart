@@ -533,7 +533,10 @@ class _EditLibraryPageState extends ConsumerState<EditLibraryPage> {
     if (!confirmed) return;
 
     final repository = ref.read(libraryRepositoryProvider);
-    final player = library.isActive ? ref.read(playerProvider.notifier) : null;
+    final deletingActiveLibrary = library.isActive;
+    final player = deletingActiveLibrary
+        ? ref.read(playerProvider.notifier)
+        : null;
     await player?.prepareForLibrarySwitch();
     var libraryDeleted = false;
     try {
@@ -544,6 +547,11 @@ class _EditLibraryPageState extends ConsumerState<EditLibraryPage> {
       await repository.deleteLibrary(library.id);
       libraryDeleted = true;
       await LocalStorage.clearPlaybackSession(libraryId: library.id);
+
+      if (!deletingActiveLibrary && remaining.isNotEmpty) {
+        if (mounted) _returnFromEditor();
+        return;
+      }
 
       if (remaining.isEmpty) {
         await ref.read(authStateProvider.notifier).logout();
@@ -560,6 +568,13 @@ class _EditLibraryPageState extends ConsumerState<EditLibraryPage> {
     } catch (_) {
       if (libraryDeleted) {
         ref.invalidate(playerProvider);
+        if (deletingActiveLibrary) {
+          // The active row is already gone. If selecting its replacement or
+          // clearing its session failed, do not leave AuthState pointing at a
+          // library that no longer exists.
+          await ref.read(authStateProvider.notifier).logout();
+          if (mounted) context.go('/login');
+        }
       } else {
         await player?.cancelLibrarySwitchPreparation();
       }
