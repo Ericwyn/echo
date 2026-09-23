@@ -122,6 +122,56 @@ void main() {
     }
   });
 
+  test('normal position jumps do not publish Seeked', () async {
+    final commands = _RecordingPlaybackCommands();
+    final service = LinuxMprisService(commands: commands);
+    final client = DBusClient.session();
+    await service.updateSnapshot(_snapshot());
+    await service.start();
+    final seeked = <Duration>[];
+    final explicitSeek = Completer<Duration>();
+    final subscription =
+        DBusSignalStream(
+          client,
+          sender: _busName,
+          interface: _playerInterface,
+          name: 'Seeked',
+          path: const DBusObjectPath(_objectPath),
+          signature: const DBusSignature('x'),
+        ).listen((signal) {
+          final position = Duration(
+            microseconds: signal.values.single.asInt64(),
+          );
+          seeked.add(position);
+          if (!explicitSeek.isCompleted) explicitSeek.complete(position);
+        });
+
+    try {
+      await pumpEventQueue();
+      await service.updateSnapshot(
+        _snapshot(position: const Duration(seconds: 25)),
+      );
+      await pumpEventQueue();
+      expect(seeked, isEmpty);
+
+      await service.updateSnapshot(
+        _snapshot(
+          position: const Duration(seconds: 90),
+          positionSeekRevision: 1,
+        ),
+      );
+      expect(
+        await explicitSeek.future.timeout(const Duration(seconds: 2)),
+        const Duration(seconds: 90),
+      );
+      expect(seeked, <Duration>[const Duration(seconds: 90)]);
+    } finally {
+      await subscription.cancel();
+      await client.close();
+      await service.dispose();
+    }
+  });
+
   test(
     'remote command errors return a D-Bus failure and keep service alive',
     () async {
@@ -255,6 +305,8 @@ PlaybackSnapshot _snapshot({
   String? artworkReference = 'https://example.invalid/cover.jpg',
   String songId = 'song-1',
   String entryId = 'entry-1',
+  Duration position = const Duration(seconds: 20),
+  int positionSeekRevision = 0,
 }) => PlaybackSnapshot(
   songId: songId,
   entryId: entryId,
@@ -262,7 +314,8 @@ PlaybackSnapshot _snapshot({
   artist: 'Echo Artist',
   album: 'Echo Album',
   artworkReference: artworkReference,
-  position: const Duration(seconds: 20),
+  position: position,
+  positionSeekRevision: positionSeekRevision,
   duration: const Duration(minutes: 3),
   isPlaying: isPlaying,
   playbackRequested: isPlaying,

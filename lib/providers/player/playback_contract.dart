@@ -36,6 +36,7 @@ class PlaybackSnapshot {
     required this.album,
     required this.artworkReference,
     required this.position,
+    this.positionSeekRevision = 0,
     required this.duration,
     required this.isPlaying,
     required this.playbackRequested,
@@ -56,6 +57,7 @@ class PlaybackSnapshot {
   factory PlaybackSnapshot.fromState(
     PlayerState state, {
     bool? playbackRequested,
+    int positionSeekRevision = 0,
   }) {
     final song = state.currentSong;
     final requested = playbackRequested ?? state.isPlaying;
@@ -72,6 +74,7 @@ class PlaybackSnapshot {
       album: metadata?.album ?? '',
       artworkReference: metadata?.artworkReference,
       position: state.position,
+      positionSeekRevision: positionSeekRevision,
       duration: duration,
       isPlaying: state.isPlaying,
       playbackRequested: requested,
@@ -99,6 +102,10 @@ class PlaybackSnapshot {
   final String album;
   final String? artworkReference;
   final Duration position;
+
+  /// Increments after a seek completes, distinguishing seeks from normal
+  /// position updates even when snapshots arrive late.
+  final int positionSeekRevision;
   final Duration duration;
   final bool isPlaying;
   final bool playbackRequested;

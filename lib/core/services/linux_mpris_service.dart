@@ -143,6 +143,7 @@ class LinuxMprisService {
     album: '',
     artworkReference: null,
     position: Duration.zero,
+    positionSeekRevision: 0,
     duration: Duration.zero,
     isPlaying: false,
     playbackRequested: false,
@@ -296,6 +297,10 @@ class _MprisObject extends DBusObject {
     final oldLoop = service._loopStatus;
     final oldTrack = service._currentTrackPath;
     final oldShuffle = old.shuffleEnabled;
+    final positionSeeked =
+        old.positionSeekRevision != next.positionSeekRevision &&
+        old.songId == next.songId &&
+        old.entryId == next.entryId;
     final oldCapabilities = _capabilityValues(old);
     service._snapshot = next;
 
@@ -323,11 +328,10 @@ class _MprisObject extends DBusObject {
       if (positionDelta >= Duration(seconds: 1).inMicroseconds) {
         changed['Position'] = DBusInt64(next.position.inMicroseconds);
       }
-      if (positionDelta >= Duration(seconds: 2).inMicroseconds &&
-          !service.remoteSeekPending &&
-          next.entryId == old.entryId) {
-        await emitSeeked(next.position);
-      }
+    }
+    if (positionSeeked) {
+      changed['Position'] = DBusInt64(next.position.inMicroseconds);
+      if (!service.remoteSeekPending) await emitSeeked(next.position);
     }
     if (oldCapabilities['CanGoNext'] != next.canGoNext) {
       changed['CanGoNext'] = DBusBoolean(next.canGoNext);

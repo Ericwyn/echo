@@ -140,6 +140,7 @@ class PlayerNotifier extends StateNotifier<PlayerState>
   String? _activePlaybackEntryId;
   int _sourceGeneration = 0;
   int _seekRequestGeneration = 0;
+  int _positionSeekRevision = 0;
   int _transportRequestGeneration = 0;
   int? _activeSeekGeneration;
   String? _activeSeekSongId;
@@ -205,8 +206,14 @@ class PlayerNotifier extends StateNotifier<PlayerState>
 
   late final Future<void> initialized;
 
-  PlaybackSnapshot get snapshot =>
-      PlaybackSnapshot.fromState(state, playbackRequested: _playbackRequested);
+  PlaybackSnapshot get snapshot => _snapshotFor(state);
+
+  PlaybackSnapshot _snapshotFor(PlayerState snapshotState) =>
+      PlaybackSnapshot.fromState(
+        snapshotState,
+        playbackRequested: _playbackRequested,
+        positionSeekRevision: _positionSeekRevision,
+      );
 
   PlayerNotifier(
     this._ref, {
@@ -601,10 +608,7 @@ class PlayerNotifier extends StateNotifier<PlayerState>
 
   Future<void> _startWindowsSmtcService() async {
     if (!mounted || _windowsSmtcService != null) return;
-    final initialSnapshot = PlaybackSnapshot.fromState(
-      state,
-      playbackRequested: _playbackRequested,
-    );
+    final initialSnapshot = _snapshotFor(state);
     final service = WindowsSmtcService(
       commands: this,
       artworkResolver: _resolveMediaArtwork,
@@ -612,16 +616,9 @@ class PlayerNotifier extends StateNotifier<PlayerState>
     _windowsSmtcService = service;
     _removeWindowsSmtcStateListener = addListener((next) {
       unawaited(
-        service
-            .updateSnapshot(
-              PlaybackSnapshot.fromState(
-                next,
-                playbackRequested: _playbackRequested,
-              ),
-            )
-            .catchError((Object error) {
-              Logger.warnWithTag('SMTC', 'failed to publish state', error);
-            }),
+        service.updateSnapshot(_snapshotFor(next)).catchError((Object error) {
+          Logger.warnWithTag('SMTC', 'failed to publish state', error);
+        }),
       );
     });
 
@@ -641,10 +638,7 @@ class PlayerNotifier extends StateNotifier<PlayerState>
 
   Future<void> _startLinuxMprisService() async {
     if (!mounted || _linuxMprisService != null) return;
-    final initialSnapshot = PlaybackSnapshot.fromState(
-      state,
-      playbackRequested: _playbackRequested,
-    );
+    final initialSnapshot = _snapshotFor(state);
     final service = LinuxMprisService(
       commands: this,
       onRaise: DesktopLifecycleService.instance.showWindow,
@@ -654,16 +648,9 @@ class PlayerNotifier extends StateNotifier<PlayerState>
     _linuxMprisService = service;
     _removeLinuxMprisStateListener = addListener((next) {
       unawaited(
-        service
-            .updateSnapshot(
-              PlaybackSnapshot.fromState(
-                next,
-                playbackRequested: _playbackRequested,
-              ),
-            )
-            .catchError((Object error) {
-              Logger.warnWithTag('MPRIS', 'failed to publish state', error);
-            }),
+        service.updateSnapshot(_snapshotFor(next)).catchError((Object error) {
+          Logger.warnWithTag('MPRIS', 'failed to publish state', error);
+        }),
       );
     });
 
@@ -2767,6 +2754,7 @@ class PlayerNotifier extends StateNotifier<PlayerState>
         ownsSource: ownsSource,
       );
       if (isCurrentSeek() && mounted) {
+        _positionSeekRevision += 1;
         state = state.copyWith(position: target);
         if (_playbackRequested && !player.playing) {
           _startPlayback(fadeIn: false);
@@ -3613,6 +3601,7 @@ class PlayerNotifier extends StateNotifier<PlayerState>
         ownsSource: ownsSource,
       );
       if (isCurrentSeek() && mounted) {
+        _positionSeekRevision += 1;
         state = state.copyWith(position: target);
         if (_playbackRequested && !player.playing) {
           _startPlayback(fadeIn: false);
