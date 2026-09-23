@@ -1,5 +1,7 @@
 # Compact desktop playback controls
 
+This `1.1.0+2055` build was superseded by the accessible `MenuAnchor` correction. Use [the 2056 build evidence](../260924-compact-playback-menu/README.md) as the current package and implementation record.
+
 ## Change
 
 - Source commit: `b0bc5800`.

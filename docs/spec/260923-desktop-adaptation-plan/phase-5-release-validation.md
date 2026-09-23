@@ -2,7 +2,7 @@
 
 [返回 spec](README.md) · [验收矩阵](acceptance.md) · [决策](decisions.md)
 
-状态：桌面紧凑播放控制提交 `b0bc5800` 在全新 `build/linux-lldtmp-2066` 构建 `.deb` 与完整 bundle ZIP；DEB `1.1.0+2055`/amd64，`dpkg` 确认其高于先前的 2054。Android 本机签名 ARM64-only APK versionCode `2054`，高于用户设备报告的 `2026`；本机签名脚本与版本状态留在开发机并由 `.git/info/exclude` 忽略，下次构建将生成 2055。Linux 产物未安装或启动；紧凑播放栏、P0–P4 系统操作/恢复、性能和安装场景仍待用户验收。当前优先 Ubuntu/Linux；Windows CI 暂缓。详情见[紧凑播放控制构建证据](evidence/260924-compact-playback-controls/README.md)。
+状态：桌面紧凑播放菜单提交 `5f0f429d` 在全新 `build/linux-lldtmp-2067` 构建 `.deb` 与完整 bundle ZIP；DEB `1.1.0+2056`/amd64，`dpkg` 确认其高于先前的 2055。Android 本机签名 ARM64-only APK versionCode `2054`，高于用户设备报告的 `2026`；本机签名脚本与版本状态留在开发机并由 `.git/info/exclude` 忽略，下次构建将生成 2055。Linux 产物未安装或启动；紧凑播放菜单、P0–P4 系统操作/恢复、性能和安装场景仍待用户验收。当前优先 Ubuntu/Linux；Windows CI 暂缓。详情见[紧凑播放菜单构建证据](evidence/260924-compact-playback-menu/README.md)。
 
 ## 目标与交付范围
 
@@ -30,7 +30,7 @@ Ubuntu 交付可安装 `.deb` 与完整 bundle 压缩包；Windows 交付 releas
 - `scripts/package_linux_deb.sh` 从 `build/linux/x64/release/bundle` 组装 Debian 包，依赖声明面向当前 Ubuntu 22.04 基线：`libgtk-3-0`、`libayatana-appindicator3-1`、`libmpv1`。MPV 是运行时动态加载项，不会出现在主 ELF 的 `DT_NEEDED` 中，因此显式声明。
 - `.github/workflows/build_linux.yml` 在 release bundle 外再上传 `.deb`；`.github/workflows/pr_checks.yml` 加入包组装步骤。Windows workflow 未改。
 - 仓库 `README.md` 已增加 Linux `.deb` 安装命令、运行依赖、自绘窗口与托盘/MPRIS 说明，并明确 22.04/GNOME/X11 的验证范围；最新 Linux 桌面截图需待用户手动视觉验收后再刷新，避免把旧版界面图当作当前 release 证据。
-- 最新 DEB 为 `build/linux-lldtmp-2066/packages/echoes_1.1.0+2055_amd64.deb`，SHA-256 `74d9feab40b44be90a6ed55da5d86af9055962726cba3811b757bca4469f2bab`；standalone bundle ZIP 为 `build/linux-lldtmp-2066/packages/echoes_1.1.0+2055_linux-x64-bundle.zip`，SHA-256 `9ac20a4b0262ea9ed6ac3d7315fa94cb6f904d77204939f0cb25c818cde31399`，所有条目通过 `unzip -t`。构建源代码包含 `b0bc5800` 的紧凑播放控制；DEB 元数据/依赖、x86-64 ELF 架构和 `dpkg` 版本顺序核对通过。尚未安装验证。
+- 最新 DEB 为 `build/linux-lldtmp-2067/packages/echoes_1.1.0+2056_amd64.deb`，SHA-256 `fc9a06eaa2bc093a10afbf725fc0585c92fce1899b47af61c4ed314d7369ecdb`；standalone bundle ZIP 为 `build/linux-lldtmp-2067/packages/echoes_1.1.0+2056_linux-x64-bundle.zip`，SHA-256 `c125bb72c9708ea3aaf79e9167236c30d2312f6bdc7692f5dd4e9d5f24902fc0`，所有条目通过 `unzip -t`。构建源代码包含 `b0bc5800` 的紧凑控制和 `5f0f429d` 的可交互菜单；DEB 元数据/依赖、x86-64 ELF 架构和 `dpkg` 版本顺序核对通过。尚未安装验证。
 
 本机 Android 签名快捷脚本位于 `scripts/local/build_android_release_arm64.sh`，只存在本机并由 `.git/info/exclude` 忽略。它从本机 keystore 签名，只构建 `arm64-v8a`，在发布前检查包名、证书、ABI 和 versionCode；版本状态单独保存在用户目录，当前 APK 为 2054，下一次默认产生 2055。当前 APK SHA-256 为 `26ce4001832b034a515392661eafa0ddda4c80b08b2774c9c85f0b475f4d1380`。脚本和签名资料不进入仓库。
 
