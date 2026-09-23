@@ -30,6 +30,7 @@ class DesktopWindowStateService with WindowListener {
   Timer? _writeTimer;
   bool _initialized = false;
   bool _isMaximized = false;
+  bool _isFullScreen = false;
 
   /// Applies the last size before Flutter's first frame makes the window
   /// visible, avoiding a resize jump after startup.
@@ -65,6 +66,7 @@ class DesktopWindowStateService with WindowListener {
     try {
       _preferences = await SharedPreferences.getInstance();
       _isMaximized = await windowManager.isMaximized();
+      _isFullScreen = await windowManager.isFullScreen();
       windowManager.addListener(this);
     } catch (error) {
       _initialized = false;
@@ -78,7 +80,7 @@ class DesktopWindowStateService with WindowListener {
 
   @override
   void onWindowResize() {
-    if (!_isMaximized) _scheduleWrite();
+    if (!_isMaximized && !_isFullScreen) _scheduleWrite();
   }
 
   @override
@@ -96,6 +98,19 @@ class DesktopWindowStateService with WindowListener {
   @override
   void onWindowRestore() {
     _isMaximized = false;
+    _scheduleWrite();
+  }
+
+  @override
+  void onWindowEnterFullScreen() {
+    _isFullScreen = true;
+    _writeTimer?.cancel();
+    _writeTimer = null;
+  }
+
+  @override
+  void onWindowLeaveFullScreen() {
+    _isFullScreen = false;
     _scheduleWrite();
   }
 
@@ -119,6 +134,7 @@ class DesktopWindowStateService with WindowListener {
     _writeTimer?.cancel();
     _writeTimer = null;
     try {
+      if (_isFullScreen || await windowManager.isFullScreen()) return;
       final maximized = await windowManager.isMaximized();
       _isMaximized = maximized;
       await preferences.setBool(_windowMaximizedKey, maximized);

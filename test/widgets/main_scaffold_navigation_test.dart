@@ -6,6 +6,7 @@ import 'package:echoes/providers/player_provider.dart';
 import 'package:echoes/widgets/main_scaffold.dart';
 import 'package:echoes/widgets/echo_app_shell/echo_network_status_bar.dart';
 import 'package:echoes/widgets/song_list_item.dart';
+import 'package:flutter/foundation.dart' show TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -402,6 +403,90 @@ void main() {
         expect(tester.takeException(), isNull);
       },
     );
+
+    testWidgets(
+      'wide Android shell does not expose native fullscreen controls',
+      (tester) async {
+        debugDefaultTargetPlatformOverride = TargetPlatform.android;
+        addTearDown(() => debugDefaultTargetPlatformOverride = null);
+        final song = Song(id: 'wide-android-song', title: 'Wide Android song');
+        await _pumpMainScaffold(
+          tester,
+          size: const Size(1440, 900),
+          showDesktopPlayer: true,
+          playerState: PlayerState(
+            currentSong: song,
+            queue: <Song>[song],
+            currentIndex: 0,
+          ),
+        );
+
+        await tester.tap(find.bySemanticsLabel('打开歌词'));
+        await tester.pumpAndSettle();
+
+        expect(find.bySemanticsLabel('进入全屏'), findsNothing);
+        expect(find.bySemanticsLabel('退出全屏'), findsNothing);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets('Escape exits fullscreen before closing the player workspace', (
+      tester,
+    ) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+      const channel = MethodChannel('window_manager');
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      final fullScreenRequests = <bool>[];
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        if (call.method == 'setFullScreen') {
+          fullScreenRequests.add(
+            (call.arguments! as Map<Object?, Object?>)['isFullScreen']! as bool,
+          );
+        }
+        return null;
+      });
+      addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+
+      final song = Song(id: 'fullscreen-escape-song', title: 'Escape song');
+      await _pumpMainScaffold(
+        tester,
+        size: const Size(1440, 900),
+        showDesktopPlayer: true,
+        playerState: PlayerState(
+          currentSong: song,
+          queue: <Song>[song],
+          currentIndex: 0,
+        ),
+      );
+      await tester.tap(find.bySemanticsLabel('打开歌词'));
+      await tester.pumpAndSettle();
+
+      final enterFullScreen = const StandardMethodCodec().encodeMethodCall(
+        const MethodCall('onEvent', <String, Object>{
+          'eventName': 'enter-full-screen',
+        }),
+      );
+      await messenger.handlePlatformMessage(
+        channel.name,
+        enterFullScreen,
+        (_) {},
+      );
+      await tester.pumpAndSettle();
+      expect(find.bySemanticsLabel('退出全屏'), findsOneWidget);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+
+      expect(fullScreenRequests, <bool>[false]);
+      expect(
+        find.byKey(const ValueKey<String>('echo-desktop-player-workspace')),
+        findsOneWidget,
+      );
+      expect(find.bySemanticsLabel('进入全屏'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
 
     testWidgets('desktop forward restores a detail page scroll position', (
       tester,

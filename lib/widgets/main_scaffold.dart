@@ -1,9 +1,12 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:window_manager/window_manager.dart';
 
 import '../core/design/echo_design.dart';
 import '../core/network/connectivity_monitor.dart';
@@ -206,7 +209,8 @@ class MainScaffold extends ConsumerStatefulWidget {
   ConsumerState<MainScaffold> createState() => _MainScaffoldState();
 }
 
-class _MainScaffoldState extends ConsumerState<MainScaffold> {
+class _MainScaffoldState extends ConsumerState<MainScaffold>
+    with WindowListener {
   static const _logTag = 'BACK';
   static const MethodChannel _appLifecycleChannel = MethodChannel(
     'com.az1n.echoes/app_lifecycle',
@@ -225,6 +229,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
   int _desktopRouteSelectionRevision = 0;
   bool _desktopCanGoBack = false;
   bool _desktopCanGoForward = false;
+  bool _desktopIsFullScreen = false;
   late final DesktopNavigationStrategy _desktopNavigationStrategy;
 
   @override
@@ -233,6 +238,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     _desktopNavigationStrategy = DesktopNavigationStrategy(
       onChanged: _handleDesktopRouteChanged,
     );
+    if (_supportsDesktopWindowControls) windowManager.addListener(this);
     _scheduleVisibleBranchSync();
     if (widget.networkStatusOverride == null) {
       _startNetworkObservation();
@@ -271,7 +277,35 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
   @override
   void dispose() {
     _stopNetworkObservation();
+    if (_supportsDesktopWindowControls) windowManager.removeListener(this);
     super.dispose();
+  }
+
+  bool get _supportsDesktopWindowControls =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.linux ||
+          defaultTargetPlatform == TargetPlatform.windows);
+
+  @override
+  void onWindowEnterFullScreen() {
+    if (mounted && !_desktopIsFullScreen) {
+      setState(() => _desktopIsFullScreen = true);
+    }
+  }
+
+  @override
+  void onWindowLeaveFullScreen() {
+    if (mounted && _desktopIsFullScreen) {
+      setState(() => _desktopIsFullScreen = false);
+    }
+  }
+
+  Future<void> _setDesktopFullScreen(bool isFullScreen) async {
+    try {
+      await windowManager.setFullScreen(isFullScreen);
+    } catch (error) {
+      Logger.warnWithTag('DESKTOP', 'fullscreen change failed', error);
+    }
   }
 
   void _startNetworkObservation() {
@@ -424,6 +458,10 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     final scaffold = scaffoldKey.currentState;
     if (scaffold?.isDrawerOpen ?? false) {
       scaffold?.closeDrawer();
+      return;
+    }
+    if (_desktopIsFullScreen) {
+      await _setDesktopFullScreen(false);
       return;
     }
     if (_showDesktopPlayerWorkspace) {
@@ -684,6 +722,14 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
                           ignoring: !desktopWorkspaceVisible,
                           child: DesktopPlayerWorkspace(
                             panel: _desktopPlayerPanel,
+                            isFullScreen: _desktopIsFullScreen,
+                            onToggleFullScreen: _supportsDesktopWindowControls
+                                ? () => unawaited(
+                                    _setDesktopFullScreen(
+                                      !_desktopIsFullScreen,
+                                    ),
+                                  )
+                                : null,
                             onPanelChanged: (panel) => setState(() {
                               _desktopPlayerPanel = panel;
                             }),

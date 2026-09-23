@@ -25,11 +25,15 @@ class DesktopPlayerWorkspace extends ConsumerStatefulWidget {
     required this.panel,
     required this.onPanelChanged,
     required this.onClose,
+    this.isFullScreen = false,
+    this.onToggleFullScreen,
   });
 
   final DesktopPlayerPanel panel;
   final ValueChanged<DesktopPlayerPanel> onPanelChanged;
   final VoidCallback onClose;
+  final bool isFullScreen;
+  final VoidCallback? onToggleFullScreen;
 
   @override
   ConsumerState<DesktopPlayerWorkspace> createState() =>
@@ -106,6 +110,8 @@ class _DesktopPlayerWorkspaceState
                           _DesktopWorkspaceHeader(
                             song: song,
                             panel: widget.panel,
+                            isFullScreen: widget.isFullScreen,
+                            onToggleFullScreen: widget.onToggleFullScreen,
                             onPanelChanged: widget.onPanelChanged,
                             onClose: widget.onClose,
                             compact: true,
@@ -148,6 +154,8 @@ class _DesktopPlayerWorkspaceState
                               _DesktopWorkspaceHeader(
                                 song: song,
                                 panel: widget.panel,
+                                isFullScreen: widget.isFullScreen,
+                                onToggleFullScreen: widget.onToggleFullScreen,
                                 onPanelChanged: widget.onPanelChanged,
                                 onClose: widget.onClose,
                               ),
@@ -262,6 +270,8 @@ class _DesktopWorkspaceHeader extends StatelessWidget {
   const _DesktopWorkspaceHeader({
     required this.song,
     required this.panel,
+    required this.isFullScreen,
+    required this.onToggleFullScreen,
     required this.onPanelChanged,
     required this.onClose,
     this.compact = false,
@@ -269,6 +279,8 @@ class _DesktopWorkspaceHeader extends StatelessWidget {
 
   final Song song;
   final DesktopPlayerPanel panel;
+  final bool isFullScreen;
+  final VoidCallback? onToggleFullScreen;
   final ValueChanged<DesktopPlayerPanel> onPanelChanged;
   final VoidCallback onClose;
   final bool compact;
@@ -339,6 +351,14 @@ class _DesktopWorkspaceHeader extends StatelessWidget {
           onPressed: () => onPanelChanged(DesktopPlayerPanel.queue),
         ),
         SizedBox(width: spacing.xs),
+        if (onToggleFullScreen != null) ...<Widget>[
+          EchoIconButton(
+            icon: isFullScreen ? Icons.fullscreen_exit : Icons.fullscreen,
+            label: isFullScreen ? '退出全屏' : '进入全屏',
+            onPressed: onToggleFullScreen,
+          ),
+          SizedBox(width: spacing.xs),
+        ],
         EchoIconButton(
           icon: AppIcons.chevronDown,
           label: '返回浏览',

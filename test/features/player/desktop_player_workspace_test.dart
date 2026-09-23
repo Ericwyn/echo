@@ -179,6 +179,59 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('desktop workspace toggles native fullscreen from its header', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1280, 800);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    final song = Song(id: 'fullscreen-current', title: 'Fullscreen song');
+    var isFullScreen = false;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          playerProvider.overrideWith(
+            (ref) => TestPlayerNotifier(
+              PlayerState(
+                currentSong: song,
+                queue: <Song>[song],
+                currentIndex: 0,
+              ),
+            ),
+          ),
+          currentLyricsProvider.overrideWith((ref) async => null),
+          currentSongPaletteProvider.overrideWith((ref) async => null),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: StatefulBuilder(
+            builder: (context, setState) => Scaffold(
+              body: DesktopPlayerWorkspace(
+                panel: DesktopPlayerPanel.lyrics,
+                isFullScreen: isFullScreen,
+                onToggleFullScreen: () =>
+                    setState(() => isFullScreen = !isFullScreen),
+                onPanelChanged: (_) {},
+                onClose: () {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.bySemanticsLabel('进入全屏'));
+    await tester.pumpAndSettle();
+    expect(find.bySemanticsLabel('退出全屏'), findsOneWidget);
+
+    await tester.tap(find.bySemanticsLabel('退出全屏'));
+    await tester.pumpAndSettle();
+    expect(find.bySemanticsLabel('进入全屏'), findsOneWidget);
+  });
+
   testWidgets('desktop queue selection survives switching workspace panels', (
     tester,
   ) async {
