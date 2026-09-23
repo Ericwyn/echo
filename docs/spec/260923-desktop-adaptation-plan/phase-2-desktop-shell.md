@@ -57,3 +57,4 @@
 | 2026-09-23 / `7f4ae955` | Linux 在首帧前隐藏 GNOME GTK 标题栏和原生窗口框；根级 Echo 窗口栏提供拖动与窗口按钮；主应用仍有返回/前进/搜索工具栏；桌面最小逻辑尺寸 840×560；新增窗口栏语义和路由策略测试。上一轮全量 437 项、analyze、Linux release 曾通过，但后续 Tooltip/窗口状态修正未重新运行 | 用户报告按钮点击/闪烁、窗口缩放问题；代码修正后待用户运行验收。应用根层窗口操作、拖动/缩放、DPI/滚动状态及 Wayland 未验证；Android 窗口约束不变 |
 | 2026-09-23 / `6c011cb9` | 修复 root `MaterialApp.builder` 中的 Tooltip Overlay 错误；Linux 启动时清除置顶，并显式恢复 resizable/maximizable/minimizable。增加 `MaterialApp.builder` Overlay 回归用例但未运行 | 依用户要求未重新运行 app、build 或 tests；窗口点击、拖动、resize由用户复验 |
 | 2026-09-23 / `4015f879` | expanded 桌面仅保留全局搜索入口；隐藏搜索页局部返回按钮；显式关闭“我的歌单”页面的重复内容标题；窗口栏、历史工具栏、账户底栏、播放条边界使用浅色 `divider` token | 已编译进最新 Linux bundle，尚未启动；由用户检查桌面外观与手机布局未变化 |
+| 2026-09-23 / `19c9fb4e` | 移除 expanded 账户底栏的弹窗入口并保留静态用户名/线路展示；把桌面专用的添加音乐库和切换线路入口放入设置页；线路选择 UI 抽到共享组件，手机抽屉继续使用它。账户入口语义测试更新；未运行测试 | Linux release bundle 与 `.deb` 已重新构建，未启动；用户复测账户区、设置入口、添加库后的返回历史与 Android 不重复显示 |

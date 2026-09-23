@@ -79,5 +79,6 @@ P4-A 不依赖托盘存在；P4-B 的隐藏行为必须等托盘或其他恢复�
 | P4-B Linux lifecycle | 2026-09-23 / `f6100044` | tray_manager/window_manager 菜单及窗口显示/隐藏逻辑已接入，用户确认托盘基础功能正常；StatusNotifier 宿主消失、关窗后恢复、单实例和退出边界尚待验证 |
 | P4-B Linux single instance | 2026-09-23 / `9582436c`，bundle `4015f879` | GtkApplication 使用默认唯一实例；再次启动向已有进程发送 activate，runner 复用并呈现现有窗口。已随最新 bundle 编译；二次启动与隐藏恢复待 Ubuntu 实测 |
 | P4-B Linux window state | 2026-09-23 / `2bbe899e`，bundle `4015f879` | 新增启动首帧前恢复逻辑尺寸与最大化状态，并对窗口 resize/maximize/unmaximize 做去抖持久化；不保存绝对屏幕坐标。源码已编译，恢复窗口、最小尺寸约束和屏幕变化仍待 Ubuntu 实测 |
+| P4-B Linux close/quit | 2026-09-23 / `19c9fb4e` | 设置页可选择关闭时退出或保持托盘/最小化；显式退出检测活跃本地下载，允许取消退出或暂停下载后退出；批量暂停保护队列并处理取消与初始状态写入竞争。Linux release bundle 已编译，窗口关闭、托盘退出、取消和恢复下载流程待用户实测 |
 | P4-C Android/Linux 联调 | 2026-09-23 / 自动测试 | artwork 过期响应和 MPRIS 状态测试在私有 D-Bus 会话中通过；全量 Flutter 测试 431 项通过。睡眠/音频设备和多个异常宿主组合仍待实机测试 |
 | Windows | 暂缓 | 暂不跑 Windows CI；任何 Windows Dart/native SMTC 代码均未获 Windows 编译或实机验证，不列入当前可交付范围 |
