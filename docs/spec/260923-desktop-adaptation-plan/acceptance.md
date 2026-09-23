@@ -2,7 +2,7 @@
 
 [返回 spec](README.md) · [需求/决策编号](decisions.md)
 
-状态：首轮桌面实现正在验收。431 项 Flutter 测试、项目级 `flutter analyze`、Ubuntu 22.04 Linux release 编译及本机 libmpv 0.34.1 HTTP 音频 smoke test 已通过；这些证据不替代 GNOME 完整交互或干净安装。
+状态：首轮桌面实现正在验收。历史工作树有 437 项 Flutter 测试、项目级 `flutter analyze` 和 Ubuntu 22.04 Linux release 编译通过记录；这些验证早于 `7f4ae955` 后新增的窗口栏 Overlay 修正与显式窗口操作启用，最新代码仍待用户运行验证。此前 libmpv 0.34.1 HTTP 音频 smoke test 通过；这些证据不替代 GNOME 完整交互或干净安装。
 
 ## 功能与责任阶段
 
@@ -23,7 +23,7 @@
 | A13 | Android 不退化（R1） | 手机导航/MiniPlayer/歌词/队列和通知栏、锁屏后台、转码 seek、恢复流程通过 | P1–P5 | 待验证（自动回归通过，最终真机回归未完成） |
 | A14 | 可安装可运行（R4） | 干净环境由安装包满足 native 依赖，应用菜单启动并实际播放；升级保留用户状态 | P5 | 待验证（Linux release bundle 编译与本机媒体 smoke test 通过；干净安装未测） |
 | A15 | 桌面性能（R3/R4） | release/profile 记录帧耗时/内存/隐藏 CPU；满足阶段预算，进度不全量重建队列 | P3/P5 | 待验证 |
-| A16 | Linux 自绘窗口顶栏与桌面宽度下限（R9） | GNOME 原生 GTK 标题栏隐藏；Echo 顶栏能拖动、最小化、最大化/还原、关闭；840 逻辑像素以下无法缩窗；Android 尺寸/路由不变 | P2/P5 | 自动 UI 与窗口策略已实现；Ubuntu X11 实机待测，Wayland未测 |
+| A16 | Linux 自绘窗口顶栏与桌面宽度下限（R9） | GNOME 原生 GTK 标题栏隐藏；Echo 顶栏能拖动、最小化、最大化/还原、关闭；840 逻辑像素以下无法缩窗；Android 尺寸/路由不变 | P2/P5 | 用户报告上一版按钮不可点/闪烁且窗口缩放异常；已移除根 Overlay 外的 Tooltip、启动时清除置顶并显式启用窗口缩放/最大化；最新修正未重跑构建/测试，等用户复测；Wayland未测 |
 
 ## 平台与样本
 

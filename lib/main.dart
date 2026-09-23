@@ -36,6 +36,9 @@ void main() {
           // Echo has no always-on-top mode; clear a stale window-manager hint
           // before showing the app again.
           await windowManager.setAlwaysOnTop(false);
+          await windowManager.setResizable(true);
+          await windowManager.setMaximizable(true);
+          await windowManager.setMinimizable(true);
           // GNOME's GTK header bar currently renders its own title strip. Hide
           // it before Flutter's first frame; Echo draws the Linux window chrome.
           await windowManager.setTitleBarStyle(TitleBarStyle.hidden);

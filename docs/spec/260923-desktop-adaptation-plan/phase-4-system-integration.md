@@ -75,7 +75,7 @@ P4-A 不依赖托盘存在；P4-B 的隐藏行为必须等托盘或其他恢复�
 
 | 子阶段 | 日期 / 提交 | 结果 / 遗留 |
 | --- | --- | --- |
-| P4-A Linux | 2026-09-23 / `f6100044` | 自定义 MPRIS/D-Bus adapter 接入共用 playback commands/snapshot；封面使用本地缓存文件；系统播放/暂停/切歌与封面已获用户确认；完整绝对 seek/Seeked 与更多系统能力仍待实测 |
+| P4-A Linux | 2026-09-23 / `f6100044` | 自定义 MPRIS/D-Bus adapter 接入共用 playback commands/snapshot；封面使用本地缓存文件；Seek、SetPosition、Seeked 和 CanSeek 已实现，系统播放/暂停/切歌与封面已获用户确认；绝对 seek 和能力声明仍待用户实机验证 |
 | P4-B Linux lifecycle | 2026-09-23 / `f6100044` | tray_manager/window_manager 菜单及窗口显示/隐藏逻辑已接入，用户确认托盘基础功能正常；StatusNotifier 宿主消失、关窗后恢复、单实例和退出边界尚待验证 |
 | P4-C Android/Linux 联调 | 2026-09-23 / 自动测试 | artwork 过期响应和 MPRIS 状态测试在私有 D-Bus 会话中通过；全量 Flutter 测试 431 项通过。睡眠/音频设备和多个异常宿主组合仍待实机测试 |
 | Windows | 暂缓 | 暂不跑 Windows CI；任何 Windows Dart/native SMTC 代码均未获 Windows 编译或实机验证，不列入当前可交付范围 |

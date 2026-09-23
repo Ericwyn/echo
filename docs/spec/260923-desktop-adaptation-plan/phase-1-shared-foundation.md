@@ -34,7 +34,7 @@
 
 ### 元数据与系统会话的补充边界
 
-当前 `_updateMediaItem` 在 `_audioHandler == null` 时返回。先抽取独立的 metadata builder，使桌面即使不创建 Android handler 也能获得完整 snapshot；Android handler 改为消费这份结果，不复制歌曲/封面解析规则。
+Android 的 `_updateMediaItem` 在 `_audioHandler == null` 时返回，但 Linux/Windows 媒体 adapter 通过 `PlaybackSnapshot.fromState` 独立取得当前元数据，不依赖 Android handler。剩余工作是统一 snapshot 与 Android `MediaItem` 对缺失艺术家/专辑/时长等字段的默认规则，并把纯元数据构建从 notifier 移到平台无关文件。
 
 artwork 使用明确的“待解析网络 URI / 本地文件 URI或路径 / 无封面”状态，由 adapter 转成其原生接口要求的类型。元数据更新不等待封面下载，封面完成后按 library/entry/source generation 补发；无封面是清理旧图的事件，不是忽略更新。
 
