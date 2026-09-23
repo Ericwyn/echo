@@ -61,7 +61,7 @@ class _DesktopPlayerWorkspaceState
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final song = ref.watch(playerProvider.select((state) => state.currentSong));
     final visuals =
         ref.watch(playerSurfaceMediaVisualsProvider) ??
