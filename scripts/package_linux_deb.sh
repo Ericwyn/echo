@@ -9,10 +9,37 @@ icon_file="$project_root/assets/tray_icon.png"
 output_dir="${1:-$project_root/build/linux/packages}"
 
 if [[ ! -x "$bundle_dir/echoes" ]]; then
-  echo "Missing Linux release bundle: $bundle_dir/echoes" >&2
+  echo "Missing Linux release bundle executable: $bundle_dir/echoes" >&2
   echo "Build it first with: flutter build linux --release --no-pub" >&2
   exit 1
 fi
+
+# A Flutter Linux bundle needs its engine, app, native plugins, ICU data and
+# compiled Flutter assets. Checking only `echoes` can produce an installable
+# but unusable Debian package when the caller points at an incomplete bundle.
+required_bundle_files=(
+  "lib/libapp.so"
+  "lib/libflutter_linux_gtk.so"
+  "lib/libmedia_kit_libs_linux_plugin.so"
+  "lib/libscreen_retriever_linux_plugin.so"
+  "lib/libsqlite3_flutter_libs_plugin.so"
+  "lib/libtray_manager_plugin.so"
+  "lib/liburl_launcher_linux_plugin.so"
+  "lib/libwindow_manager_plugin.so"
+  "lib/native_assets.json"
+  "data/icudtl.dat"
+  "data/flutter_assets/AssetManifest.bin"
+  "data/flutter_assets/FontManifest.json"
+  "data/flutter_assets/NOTICES.Z"
+  "data/flutter_assets/version.json"
+  "data/flutter_assets/assets/tray_icon.png"
+)
+for relative_path in "${required_bundle_files[@]}"; do
+  if [[ ! -s "$bundle_dir/$relative_path" ]]; then
+    echo "Incomplete Linux release bundle: missing $relative_path" >&2
+    exit 1
+  fi
+done
 
 version="$(sed -n 's/^version:[[:space:]]*//p' "$project_root/pubspec.yaml" | head -n1)"
 if [[ -z "$version" || ! "$version" =~ ^[0-9A-Za-z.+:~_-]+$ ]]; then
