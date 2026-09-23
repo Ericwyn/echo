@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 
+import 'package:crypto/crypto.dart';
 import 'package:dbus/dbus.dart';
 import 'package:just_audio/just_audio.dart' show LoopMode;
 
@@ -171,7 +173,6 @@ class LinuxMprisService {
   }
 
   String get _loopStatus {
-    if (_snapshot.shuffleEnabled) return 'None';
     return switch (_snapshot.loopMode) {
       LoopMode.one => 'Track',
       LoopMode.all => 'Playlist',
@@ -182,10 +183,11 @@ class LinuxMprisService {
   String? get _currentTrackPath {
     final identity = _snapshot.entryId ?? _snapshot.songId;
     if (identity == null) return null;
-    final libraryId = _snapshot.libraryId;
-    return _trackObjectPath(
-      libraryId == null ? identity : '$libraryId:$identity',
-    );
+    final compositeIdentity = jsonEncode(<String?>[
+      _snapshot.libraryId,
+      identity,
+    ]);
+    return _trackObjectPath(compositeIdentity);
   }
 
   Map<String, DBusValue> _rootProperties() => <String, DBusValue>{
@@ -581,11 +583,8 @@ class _MprisObject extends DBusObject {
 }
 
 String _trackObjectPath(String entryId) {
-  var hash = 0x811c9dc5;
-  for (final unit in entryId.codeUnits) {
-    hash = ((hash ^ unit) * 0x01000193) & 0xffffffff;
-  }
-  return '$_mprisObjectPath/Track/${hash.toRadixString(16)}';
+  final hash = sha256.convert(utf8.encode(entryId));
+  return '$_mprisObjectPath/Track/$hash';
 }
 
 final _rootIntrospection = DBusIntrospectInterface(

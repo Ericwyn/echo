@@ -63,6 +63,63 @@ void main() {
     },
   );
 
+  test('reports repeat mode independently from shuffle', () async {
+    final service = LinuxMprisService(commands: _RecordingPlaybackCommands());
+    final client = DBusClient.session();
+    await service.updateSnapshot(
+      _snapshot(loopMode: LoopMode.all, shuffleEnabled: true),
+    );
+    await service.start();
+
+    try {
+      final properties = await _getPlayerProperties(client);
+      expect(properties['Shuffle']!.asBoolean(), isTrue);
+      expect(properties['LoopStatus']!.asString(), 'Playlist');
+    } finally {
+      await client.close();
+      await service.dispose();
+    }
+  });
+
+  test('track IDs distinguish ambiguous library and entry ID pairs', () async {
+    final commands = _RecordingPlaybackCommands();
+    final service = LinuxMprisService(commands: commands);
+    final client = DBusClient.session();
+    await service.updateSnapshot(
+      _snapshot(libraryId: 'library:part', entryId: 'entry'),
+    );
+    await service.start();
+
+    try {
+      final firstProperties = await _getPlayerProperties(client);
+      final firstTrackId = firstProperties['Metadata']!
+          .asStringVariantDict()['mpris:trackid']!
+          .asObjectPath();
+
+      await service.updateSnapshot(
+        _snapshot(libraryId: 'library', entryId: 'part:entry'),
+      );
+      final secondProperties = await _getPlayerProperties(client);
+      final secondTrackId = secondProperties['Metadata']!
+          .asStringVariantDict()['mpris:trackid']!
+          .asObjectPath();
+      expect(secondTrackId, isNot(firstTrackId));
+
+      await client.callMethod(
+        destination: _busName,
+        path: DBusObjectPath(_objectPath),
+        interface: _playerInterface,
+        name: 'SetPosition',
+        values: <DBusValue>[firstTrackId, const DBusInt64(60000000)],
+        replySignature: DBusSignature(''),
+      );
+      expect(commands.seeks, isEmpty);
+    } finally {
+      await client.close();
+      await service.dispose();
+    }
+  });
+
   test('SetPosition validates track identity and publishes Seeked', () async {
     final commands = _RecordingPlaybackCommands();
     final service = LinuxMprisService(commands: commands);
@@ -349,6 +406,8 @@ Future<Map<String, DBusValue>> _getPlayerProperties(DBusClient client) async {
 PlaybackSnapshot _snapshot({
   bool isPlaying = false,
   String? libraryId,
+  LoopMode loopMode = LoopMode.all,
+  bool shuffleEnabled = false,
   String? artworkReference = 'https://example.invalid/cover.jpg',
   String songId = 'song-1',
   String entryId = 'entry-1',
@@ -377,8 +436,8 @@ PlaybackSnapshot _snapshot({
   canSeek: true,
   volume: 0.75,
   isMuted: false,
-  loopMode: LoopMode.all,
-  shuffleEnabled: false,
+  loopMode: loopMode,
+  shuffleEnabled: shuffleEnabled,
 );
 
 class _RecordingPlaybackCommands implements PlaybackCommands {
