@@ -4,7 +4,7 @@
 
 状态：首轮桌面实现正在验收。历史工作树有 437 项 Flutter 测试、项目级 `flutter analyze` 和 Ubuntu 22.04 Linux release 编译通过记录；近期新增的桌面导航、播放器工作区状态恢复、右键队列、动态背景和窗口几何测试未运行。
 
-当前应用代码 `cf131727` 已在全新 `build/linux-lldtmp-2035` CMake build-dir 构建，使用系统 Clang 与从 Ubuntu 包解压至 `/tmp` 的真实 LLD 14；当前 `.deb` 版本为 `1.1.0+2035`、架构 amd64，SHA-256：`3d328502812a9763d70c6f9f5afe3f34525c587640b2616bf3830622294a67c3`，包元数据/入口文件/图标已核对。Android arm64 release APK 使用本机 `echo-release` keystore 构建并签名校验通过；APK version name/code 为 `1.1.0` / `4035`（`pubspec.yaml` 为 `1.1.0+2035`），SHA-256：`a6e98c83d52bf9516f53e212ca3a78c32da1a82bfcbb1f99558e9c58f896353c`。两端产物未安装或启动；Android/Ubuntu 实机交互由用户验收。环境和产物证据见 [Linux build baseline](evidence/260923-linux-build-baseline/README.md) 与 [Android release build](evidence/260923-android-release-build/README.md)。此前 libmpv 0.34.1 HTTP 音频 smoke test 通过；这些证据不替代 GNOME 完整交互、Android 真机回归或干净安装。
+当前应用代码 `16add6b6` 已在全新 `build/linux-lldtmp-2036` CMake build-dir 构建，使用系统 Clang 与从 Ubuntu 包解压至 `/tmp` 的真实 LLD 14；当前 `.deb` 版本为 `1.1.0+2036`、架构 amd64，SHA-256：`2fd3587139e6b22544cf19e370406d119d5699466ad83884d4cfb4d1f478397d`，包元数据/入口文件/图标已核对。Android arm64 release APK 使用本机 `echo-release` keystore 构建并签名校验通过；APK version name/code 为 `1.1.0` / `4036`（`pubspec.yaml` 为 `1.1.0+2036`），SHA-256：`17f5079e1785920c3ba71e678db6fe912dd23f7684e3d21fdaa28a862faae8a5`。两端产物未安装或启动；Android/Ubuntu 实机交互由用户验收。环境和产物证据见 [Linux build baseline](evidence/260923-linux-build-baseline/README.md) 与 [Android release build](evidence/260923-android-release-build/README.md)。此前 libmpv 0.34.1 HTTP 音频 smoke test 通过；这些证据不替代 GNOME 完整交互、Android 真机回归或干净安装。
 
 ## 功能与责任阶段
 
@@ -14,7 +14,7 @@
 | A02 | 连贯浏览（R1/R3） | 列表→详情→设置→返回/前进保持目的地/筛选/滚动；切换播放工作区后恢复 | P2/P3 | 部分实现（`27913d3f` 保存滚动偏移；`859745a6` 恢复搜索草稿/提交值；`eaa77d13` 恢复专辑/歌单详情排序；`52463122` 恢复收藏页签与歌手详情选择；`c9db7c96` 恢复曲库歌单排序；`801f2bcc` 恢复音乐流随心听展开状态；`c2a9e159` 恢复 Explore 搜索草稿、已提交查询、结果滚动，并在远端请求状态释放后重发；`a9cb6989` 隔离收藏标签列表滚动 key；`f2828730` 隔离歌曲/专辑/歌手列表和全部歌曲两种排序模式滚动 key；`b5df9f96` 保留工作区队列 state；相关新增用例均未运行，其他页面状态及 Ubuntu 实机仍待验证） |
 | A03 | 常驻完整控制（R3） | 播放/暂停、切歌、随机循环、进度、音量、歌词/队列可用；加载/失败/空状态正确 | P2 | 待验证（桌面 bar 已实现，需按窗口尺寸复验） |
 | A04 | 音量正确（R1） | 20% 经淡入淡出、暂停恢复、切歌、seek 换源和断网恢复后仍保持；静音不被旧 timer 解除 | P1/P4 | 部分实现（AudioService 兜底播放移除了 setVolume(1)；`1b597ed0` 扩展 `player_recovery_test.dart`，在淡出中把 userVolume 从 0.23 调到 0.35，并检查即时有效音量、淡出终点、持久化值和恢复音量；测试未运行；用户确认音量条外观，切歌/seek/Android 竞争场景待验） |
-| A05 | 宽队列（R3） | 1654/5000 首、重复歌曲、当前在队尾、拖拽中修改等场景按 entry ID 操作正确；定位/滚动可用 | P1/P3 | 部分实现（桌面单击选择、显式播放、可见拖动把手和右键播放/移除/更多操作菜单均按稳定 entry ID 处理；拖动期间队列 revision/随机模式变化会取消排序并提示重试；新增 5000 首滚到远端后切换当前曲目并重新定位用例，用于验证离屏锚点回收；长队列与右键/冲突回归均未运行；release/profile 性能仍待测） |
+| A05 | 宽队列（R3） | 1654/5000 首、重复歌曲、当前在队尾、拖拽中修改等场景按 entry ID 操作正确；定位/滚动可用 | P1/P3 | 部分实现（桌面单击选择、显式播放、可见拖动把手、右键操作和标题栏“定位当前”入口均按稳定 entry ID/当前索引工作；拖动期间队列 revision/随机模式变化会取消排序并提示重试；已添加离屏锚点回收后重新定位及桌面浏览远端后手动定位用例；相关用例未运行；release/profile 性能仍待测） |
 | A06 | 封面与歌词/队列（R3） | 切换只改变右侧内容；封面/底栏稳定，播放不中断；背景可切换为主题色并记住选择；无歌词/重试/手动浏览均有明确状态 | P3 | 部分实现（设置页“封面动态背景”开关默认开启并持久化；关闭后回退至当前主题色；桌面工作区首次打开后保留挂载，歌词/队列面板各自状态可跨切换恢复；新增用例未运行，Ubuntu/Android 视觉与重启持久化待用户验收） |
 | A07 | 输入与信息（R1/R3） | 鼠标选择/播放、右键、焦点与快捷键不冲突；触控可用；未知位深不显示 0bit | P1/P3 | 部分实现（右键菜单与 Enter/Delete、Space、Ctrl+F、Ctrl+方向键、Esc 已落代码；新增用例未运行，Ubuntu 键盘/焦点与 Android 触控回归待验） |
 | A08 | Linux 媒体控制（R4） | GNOME 媒体卡片与媒体键和实际播放器一致；所有公开 MPRIS 能力真实可用，逻辑进度正确 | P0-A/P4-A | 部分实现（SetPosition/Seeked、旧 track ID 忽略、远程命令失败隔离及显式 seek revision 已实现；新增自然进度跳变不发 Seeked 的用例未运行；Ubuntu 绝对 seek、能力字段仍待用户实测） |
@@ -22,10 +22,10 @@
 | A10 | 单实例与恢复（R4） | 第二次启动只恢复同一窗口；多屏变化不丢窗，休眠唤醒后行为明确，用户暂停不被取消 | P0/P4 | 部分实现（Linux GTK runner 已改为唯一实例；窗口逻辑尺寸/最大化状态代码已随 `4015f879` 编译，但未实机验证；多屏/休眠/播放意图恢复未验） |
 | A11 | 尺寸与系统缩放（R3/R4） | 指定窗口/DPI/大字体/明暗组合无关键遮挡和重复 UI，连续重排不重建播放器 | P2/P3/P5 | 部分实现（工作区按宽/高空间切入紧凑布局，720×460 回归用例已添加但未运行；实际 840×560 app 窗口和 DPI 等待用户验收） |
 | A12 | Windows 等效能力（R1） | 在实际 Windows 桌面会话验证 SMTC/媒体键/托盘/退出/单实例，不只依赖 CI | P0-B/P4/P5 | 未测（当前 Linux 优先，Windows CI 暂缓） |
-| A13 | Android 不退化（R1） | 手机导航/MiniPlayer/歌词/队列和通知栏、锁屏后台、转码 seek、恢复流程通过 | P1–P5 | arm64-only release APK 已用本机 `echo-release` keystore 签名；version name/code 为 `1.1.0` / `4035`，高于此前 `4034` 候选和用户现装的 `2026`；签名证书和 package metadata 校验通过。尚未安装/启动，通知栏、锁屏、共享播放器与数据恢复仍待用户真机回归；密钥说明提示这把个人证书可能不能覆盖原版 release，卸载原版会清空本地数据。 |
-| A14 | 可安装可运行（R4） | 干净环境由安装包满足 native 依赖，应用菜单启动并实际播放；升级保留用户状态 | P5 | 部分实现（当前 `1.1.0+2035` bundle 与 `.deb` 已从全新 `build/linux-lldtmp-2035` 构建；ELF、amd64、desktop entry、图标和依赖元数据检查通过；干净安装/实际播放/升级保留状态未测） |
+| A13 | Android 不退化（R1） | 手机导航/MiniPlayer/歌词/队列和通知栏、锁屏后台、转码 seek、恢复流程通过 | P1–P5 | arm64-only release APK 已用本机 `echo-release` keystore 签名；version name/code 为 `1.1.0` / `4036`，高于此前 `4035` 候选和用户现装的 `2026`；签名证书和 package metadata 校验通过。尚未安装/启动，通知栏、锁屏、共享播放器与数据恢复仍待用户真机回归；密钥说明提示这把个人证书可能不能覆盖原版 release，卸载原版会清空本地数据。 |
+| A14 | 可安装可运行（R4） | 干净环境由安装包满足 native 依赖，应用菜单启动并实际播放；升级保留用户状态 | P5 | 部分实现（当前 `1.1.0+2036` bundle 与 `.deb` 已从全新 `build/linux-lldtmp-2036` 构建；ELF、amd64、desktop entry、图标和依赖元数据检查通过；干净安装/实际播放/升级保留状态未测） |
 | A15 | 桌面性能（R3/R4） | release/profile 记录帧耗时/内存/隐藏 CPU；满足阶段预算，进度不全量重建队列 | P3/P5 | 代码优化部分实现（PlaybackQueueContent 只订阅低频队列字段；SongListPage 滚动时重用歌曲签名；队列定位用锚点缓存可见 index/revision，离屏后清理 GlobalKey，避免每个样本线性扫描和锚点随滚动历史积累；1654/5000 首 release/profile 帧耗时、内存和隐藏 CPU 仍待用户采样） |
-| A16 | Linux 自绘窗口顶栏与桌面宽度下限（R9） | GNOME 原生 GTK 标题栏隐藏；Echo 顶栏能拖动、最小化、最大化/还原、关闭；840 逻辑像素以下无法缩窗；Android 尺寸/路由不变 | P2/P5 | 用户曾报告上一版按钮不可点/闪烁且窗口缩放异常；已移除根 Overlay 外的 Tooltip、启动时清除置顶并显式恢复窗口缩放/最大化。当前 `cf131727` app 已构建但未启动，等用户复测；Wayland 未测 |
+| A16 | Linux 自绘窗口顶栏与桌面宽度下限（R9） | GNOME 原生 GTK 标题栏隐藏；Echo 顶栏能拖动、最小化、最大化/还原、关闭；840 逻辑像素以下无法缩窗；Android 尺寸/路由不变 | P2/P5 | 用户曾报告上一版按钮不可点/闪烁且窗口缩放异常；已移除根 Overlay 外的 Tooltip、启动时清除置顶并显式恢复窗口缩放/最大化。当前 `16add6b6` app 已构建但未启动，等用户复测；Wayland 未测 |
 | A17 | 桌面导航层级与分隔线（R9） | expanded 桌面音乐流仅有一个搜索入口；搜索页仅用全局历史返回；我的歌单只显示一个页面标题；窗口栏/历史工具栏/播放条分隔线使用弱化颜色，侧栏不显示账户底栏；手机页面仍保留自己的搜索/返回 | P2 | 搜索/返回/重复标题在 `4015f879` 修正；`88ecf672` 移除桌面账户底栏和离线状态入口，并对齐标题区、弱化分隔线。当前 Linux 包已包含这些代码，尚未由用户实机检查 |
 | A18 | 账户操作入口与桌面历史 | 桌面无账户/服务器信息底栏或重复菜单；线路选择、音乐库新增/切换/编辑都能从设置页到达；添加流程退出后回到设置/桌面导航历史 | P2 | 账户底栏已移除；新设置返回回归用例已添加但未运行，添加流程和桌面历史仍待用户实机验证 |
 | A19 | 桌面壳层边界对齐 | 品牌区与主工具栏上下边界一致；桌面播放栏贴齐主面板左右与底边，Android/窄屏间距保持原样 | P2 | `88ecf672` 让品牌栏和导航工具栏共用 53px token，并让 expanded 播放栏贴齐主面板边缘；当前 Linux 包包含这些改动。布局回归用例未运行，Ubuntu 截图待验 |
