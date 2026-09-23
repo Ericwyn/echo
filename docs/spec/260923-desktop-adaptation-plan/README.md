@@ -48,7 +48,7 @@ flowchart LR
 | P2 | 桌面统一返回/前进栈及主要浏览状态恢复已实现，等待用户复测 | 手机保留分支路由，桌面使用单 Navigator；无账户/服务器底栏与离线任务状态页；品牌区/主工具栏对齐、播放条贴边；前进复用 PageStorageBucket，搜索、详情排序、收藏页签和歌手内容区可恢复；其他页面状态与新增回归仍待验证 |
 | P3 | 首轮实现中 | 宽屏/紧凑工作区、歌词/队列切换与关闭重开后的状态保留、队列右键、可关闭的封面动态背景已实现；5000 首定位和本轮用例未运行；长队列性能采样和真实窗口验收待补 |
 | P4 | Linux 基础可用 | 用户确认 MPRIS 控制/封面与托盘基础功能；单实例、关窗选择、下载退出提示及 SetPosition/Seeked/error 隔离已编译；watcher 别名、查询竞态和重新注册已修正，相关测试与宿主重启仍待验收 |
-| P5 | `1cf593f6` 的 Linux app 从全新 `build/linux-noshim` 目录构建，并由 `c25e22aa` 打包脚本生成 `.deb` | ELF、CMake 系统编译器/链接器、包入口和依赖已核对；尚未安装 `.deb` 或在干净 Ubuntu 播放，之后做 Android 回归；Windows CI 和 Windows 实机验收暂缓 |
+| P5 | `1cf593f6` Linux bundle/.deb 与 Android release APK 均已构建 | Linux 使用系统 Clang/GNU ld，无临时 linker shim；Android APK 已用本机 release keystore 签名并校验证书/包信息。两端均未安装或启动，Android 真机回归和干净 Ubuntu 播放待验；Windows CI 和 Windows 实机验收暂缓 |
 
 - **M1 可试用版**：P1、P2 加 P4 的基础 Linux 媒体会话；旧完整播放器可暂作过渡。托盘恢复尚未通过时，不开放关闭后隐藏窗口。
 - **M2 Ubuntu 桌面候选版**：P3、P4-Linux 和 P5-Linux 完成，并通过共享代码的 Android 回归。
