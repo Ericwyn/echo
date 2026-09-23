@@ -64,6 +64,7 @@
 ## 产出与实施记录
 
 - `evidence/<日期>-linux-platform-spike/`：版本清单、命令/结果、精简日志、系统媒体卡片和托盘截图。
+- 当前构建环境清单：[Linux build baseline](evidence/260923-linux-build-baseline/README.md)。该记录只证明工具链和产物元数据；不代表安装、应用运行或 GNOME 交互验收。
 - Windows 对应独立证据目录；未实际产生的记录不创建占位成功截图。
 - 更新 `decisions.md` 的 K1–K6，注明已确定项和仍待验证项；更新 `acceptance.md` 的 A08–A12 状态。
 
@@ -71,3 +72,4 @@
 | --- | --- | --- |
 | 2026-09-23 / `f6100044` | 确认 Ubuntu 22.04 上系统 libmpv 0.34.1；选择薄 D-Bus MPRIS 与 `tray_manager`/`window_manager`；本机 HTTP 音频 smoke test 覆盖 MPRIS host adapter 之外的 MPV 初始化/网络加载，未再出现未知 `subs-fallback` 与 lavf cache-dir 错误；431 项 Flutter 测试、`flutter analyze`、Linux x64 release 构建通过 | 用户确认基本 MPRIS 控制、系统封面与托盘。仍需真实 MPRIS seek、关闭/恢复、StatusNotifier 宿主消失、单实例和干净安装实测；Windows 路径未测 |
 | 2026-09-23 / `9582436c`，bundle `4015f879` | Linux runner 移除 `G_APPLICATION_NON_UNIQUE`；收到 activate 时若窗口已存在则 `gtk_window_present`，否则创建首个窗口 | 最新 release bundle 已编译这段 GTK 代码但未启动；二次启动、隐藏后恢复与进程数仍待 Ubuntu 手动验收；Windows 未测 |
+| 2026-09-23 / `1cf593f6`，build baseline evidence | 记录 Ubuntu 22.04.5/GNOME/X11、Flutter 3.41.7/Dart 3.11.5、GTK 3.24.33、D-Bus 1.12.20、libmpv 0.34.1 与 appindicator 版本；检查 bundle ELF 和 `.deb` 的架构、桌面入口、图标、依赖与 SHA-256 | Linux release 编译和打包成功；未安装、未启动、未测试；dconf 缩放值未作证据，临时构建 shim 仍需消除/确认必要性；Windows 暂缓 |
