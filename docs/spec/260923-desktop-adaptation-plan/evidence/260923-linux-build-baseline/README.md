@@ -23,7 +23,7 @@
 
 ## 当前 release bundle 与 `.deb`
 
-应用代码与版本基线：`a9cb6989`；Debian 打包脚本：`c25e22aa`。`pubspec.yaml` 版本为 `1.1.0+2032`。本轮为收藏夹三个标签页分配独立 PageStorageKey，隔离歌曲、专辑、歌手的滚动位置；队列拖动期间发生队列变更/随机模式变更时会取消并提示。Explore 搜索草稿/查询和本地/远端结果滚动也纳入路由状态恢复，远端请求状态自动释放后按保存的查询重发。MPRIS `Seeked` 由成功 seek 显式触发，普通延迟进度采样不会伪装成 seek；音乐流“随心听”的展开状态同样纳入路由状态恢复。
+应用代码与版本基线：`f2828730`；Debian 打包脚本：`c25e22aa`。`pubspec.yaml` 版本为 `1.1.0+2033`。本轮为全部歌曲 A-Z 与普通排序视图隔离 PageStorageKey，并为歌曲/专辑/歌手曲库列表显式标注 route-local 滚动 key；收藏夹三个标签页同样分别保存滚动位置。队列拖动期间发生队列变更/随机模式变更时会取消并提示。Explore 搜索草稿/查询和本地/远端结果滚动也纳入路由状态恢复，远端请求状态自动释放后按保存的查询重发。MPRIS `Seeked` 由成功 seek 显式触发，普通延迟进度采样不会伪装成 seek；音乐流“随心听”的展开状态同样纳入路由状态恢复。
 
 为了完成全新 Linux 构建，从 Ubuntu 22.04 官方仓库下载 `lld-14`，只解压至 `/tmp/echo-lld-root`，没有安装到系统。`/tmp/echo-toolchain/clang` 与 `clang++` 是调用系统 Clang 的临时 wrapper；同目录的 `ld.lld` 指向解压出的真实 Ubuntu LLD 二进制，不是伪造 linker shim。使用隔离 Flutter 配置和全新的 CMake build-dir `build/linux-lldtmp`：
 
@@ -38,10 +38,10 @@ ECHO_LINUX_BUNDLE_DIR="$PWD/build/linux-lldtmp/linux/x64/release/bundle" \
 ```
 
 - CMake compiler entries point to the temporary wrappers; they delegate to `/usr/bin/clang` and `/usr/bin/clang++`. Linker is the actual Ubuntu LLD 14 binary extracted under `/tmp`.
-- Bundle: `build/linux-lldtmp-2032/linux/x64/release/bundle/echoes`; ELF x86-64; SHA-256 `30632d7f5dd4cbcb69344c48252592b909c2a914fee321f4407c7cf46b615d66`.
-- `libapp.so` SHA-256: `16df342dfe0a896be9f3d65bb5ab22b5469b092172c450a6480681d091a4c902`.
-- Flutter asset version: `1.1.0`, build number `2032`.
-- Debian package: `build/linux-lldtmp-2032/packages/echoes_1.1.0+2032_amd64.deb`; Architecture `amd64`; SHA-256 `c76747666544603d0acc6e1bab4f67a7bf630d57344bd11f505a601a4a544713`.
+- Bundle: `build/linux-lldtmp-2033/linux/x64/release/bundle/echoes`; ELF x86-64; SHA-256 `9c30a659a333daa4d3b86e6e0e18d38a5d98dc451943d5be80bf09842cbda58a`.
+- `libapp.so` SHA-256: `112ac9d18019b7eb93d9f9a4bc201f7879cf5df9026e14c4f4cdee37990e3abb`.
+- Flutter asset version: `1.1.0`, build number `2033`.
+- Debian package: `build/linux-lldtmp-2033/packages/echoes_1.1.0+2033_amd64.deb`; Architecture `amd64`; SHA-256 `d678d419528ce257b910b35b39a4c96eb64d89b8c64a9084e3b0fd517987c6de`.
 - Package dependencies: `libgtk-3-0`, `libayatana-appindicator3-1`, `libmpv1`.
 - `dpkg-deb` checks confirmed package metadata, bundle executable, desktop entry and 192×192 icon. `libmpv` remains a runtime-loaded dependency and is declared explicitly.
 
