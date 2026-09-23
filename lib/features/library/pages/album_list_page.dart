@@ -136,7 +136,7 @@ class _AlbumListPageState extends ConsumerState<AlbumListPage> {
                 constraints: const BoxConstraints(maxWidth: 1400),
                 child: EchoAzIndexReveal(
                   builder: (context, opacity, _) => AzListView(
-                    key: const ValueKey<String>('album-list-scroll'),
+                    key: const PageStorageKey<String>('echo-album-list-scroll'),
                     data: rows,
                     itemCount: rows.length,
                     padding: EdgeInsets.only(

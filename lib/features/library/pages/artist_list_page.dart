@@ -101,7 +101,9 @@ class _ArtistListPageState extends ConsumerState<ArtistListPage> {
                 constraints: const BoxConstraints(maxWidth: 1400),
                 child: EchoAzIndexReveal(
                   builder: (context, opacity, _) => AzListView(
-                    key: const ValueKey<String>('artist-list-scroll'),
+                    key: const PageStorageKey<String>(
+                      'echo-artist-list-scroll',
+                    ),
                     data: _azArtists,
                     itemCount: _azArtists.length,
                     padding: EdgeInsets.only(

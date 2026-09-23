@@ -272,7 +272,9 @@ class _SongListPageState extends ConsumerState<SongListPage> {
         child: _sortOption.usesAlphabeticalIndexBar
             ? EchoAzIndexReveal(
                 builder: (context, opacity, _) => AzListView(
-                  key: const ValueKey<String>('song-list-alphabetical-scroll'),
+                  key: const PageStorageKey<String>(
+                    'echo-all-songs-alphabetical-scroll',
+                  ),
                   data: _azSongs,
                   itemCount: _azSongs.length,
                   padding: EdgeInsets.only(
@@ -294,7 +296,9 @@ class _SongListPageState extends ConsumerState<SongListPage> {
                 ),
               )
             : ScrollablePositionedList.builder(
-                key: const ValueKey<String>('song-list-sorted-scroll'),
+                key: const PageStorageKey<String>(
+                  'echo-all-songs-sorted-scroll',
+                ),
                 itemCount: _displaySongs.length,
                 padding: EdgeInsets.only(
                   bottom:

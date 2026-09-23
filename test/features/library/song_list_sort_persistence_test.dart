@@ -66,7 +66,27 @@ void main() {
 
     expect(find.bySemanticsLabel('歌曲排序：时长从长到短'), findsOneWidget);
     expect(
-      find.byKey(const ValueKey('song-list-sorted-scroll')),
+      find.byKey(const PageStorageKey<String>('echo-all-songs-sorted-scroll')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.bySemanticsLabel('歌曲排序：时长从长到短'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('字母 A-Z'));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(
+        const PageStorageKey<String>('echo-all-songs-alphabetical-scroll'),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.bySemanticsLabel('歌曲排序：字母 A-Z'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('时长从长到短'));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const PageStorageKey<String>('echo-all-songs-sorted-scroll')),
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);

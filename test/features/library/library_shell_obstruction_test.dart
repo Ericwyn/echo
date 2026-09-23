@@ -91,7 +91,9 @@ void _expectSpacer(WidgetTester tester, String key) {
 }
 
 void _expectAzCollection(WidgetTester tester, String key) {
-  final list = tester.widget<AzListView>(find.byKey(ValueKey<String>(key)));
+  final list = tester.widget<AzListView>(
+    find.byKey(PageStorageKey<String>(key)),
+  );
   final decoration = list.indexBarOptions.decoration! as BoxDecoration;
   expect(list.padding, EdgeInsets.only(bottom: _expectedBottomSpace));
   expect(list.indexBarWidth, 24);
@@ -170,7 +172,7 @@ void main() {
       ],
     );
 
-    _expectAzCollection(tester, 'album-list-scroll');
+    _expectAzCollection(tester, 'echo-album-list-scroll');
   });
 
   testWidgets('artist collection uses the shared auto-hiding A-Z rail', (
@@ -184,7 +186,7 @@ void main() {
       ],
     );
 
-    _expectAzCollection(tester, 'artist-list-scroll');
+    _expectAzCollection(tester, 'echo-artist-list-scroll');
   });
 
   testWidgets('song collection uses the shared auto-hiding A-Z rail', (
@@ -198,6 +200,6 @@ void main() {
       ],
     );
 
-    _expectAzCollection(tester, 'song-list-alphabetical-scroll');
+    _expectAzCollection(tester, 'echo-all-songs-alphabetical-scroll');
   });
 }
