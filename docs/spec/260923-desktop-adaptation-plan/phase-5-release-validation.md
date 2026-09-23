@@ -2,7 +2,7 @@
 
 [返回 spec](README.md) · [验收矩阵](acceptance.md) · [决策](decisions.md)
 
-状态：Linux lifecycle recovery 代码 `9abb3e09` 已在 `build/linux-lldtmp-2064` 构建，`.deb` 为 `1.1.0+2053`/amd64，完整 bundle ZIP 已由同一份构建输出生成并通过完整性校验。Android 本机签名 ARM64-only APK versionCode `2054`，高于用户设备报告的 `2026`。本机脚本与版本状态均留在开发机，签名文件路径不进 Git。产物未安装或启动；P0–P4 系统操作、恢复、性能和安装场景仍待验证。当前优先 Ubuntu/Linux；Windows CI 暂缓。详情见[生命周期恢复构建证据](evidence/260924-linux-lifecycle-recovery/README.md)。
+状态：Linux lifecycle recovery 代码 `9abb3e09` 后，版本提交 `5f3ed83b` 将 build number 推进到 2054，并在全新 `build/linux-lldtmp-2065` 构建 `.deb` 与完整 bundle ZIP；DEB `1.1.0+2054`/amd64，`dpkg` 确认其高于先前的 2053。Android 本机签名 ARM64-only APK versionCode `2054`，高于用户设备报告的 `2026`。本机签名脚本与版本状态留在开发机，脚本由 `.git/info/exclude` 忽略。产物未安装或启动；P0–P4 系统操作、恢复、性能和安装场景仍待验证。当前优先 Ubuntu/Linux；Windows CI 暂缓。详情见[可升级 Linux 构建证据](evidence/260924-linux-upgradeable-release/README.md)。
 
 ## 目标与交付范围
 
@@ -30,7 +30,9 @@ Ubuntu 交付可安装 `.deb` 与完整 bundle 压缩包；Windows 交付 releas
 - `scripts/package_linux_deb.sh` 从 `build/linux/x64/release/bundle` 组装 Debian 包，依赖声明面向当前 Ubuntu 22.04 基线：`libgtk-3-0`、`libayatana-appindicator3-1`、`libmpv1`。MPV 是运行时动态加载项，不会出现在主 ELF 的 `DT_NEEDED` 中，因此显式声明。
 - `.github/workflows/build_linux.yml` 在 release bundle 外再上传 `.deb`；`.github/workflows/pr_checks.yml` 加入包组装步骤。Windows workflow 未改。
 - 仓库 `README.md` 已增加 Linux `.deb` 安装命令、运行依赖、自绘窗口与托盘/MPRIS 说明，并明确 22.04/GNOME/X11 的验证范围；最新 Linux 桌面截图需待用户手动视觉验收后再刷新，避免把旧版界面图当作当前 release 证据。
-- 最新 DEB 为 `build/linux-lldtmp-2064/packages/echoes_1.1.0+2053_amd64.deb`，SHA-256 `ab02302777cf8d9b94b9baebbb2ff053441be3e57978cb3bee3022dfbc6fc349`；standalone bundle ZIP 为 `build/linux-lldtmp-2064/packages/echoes_1.1.0+2053_linux-x64-bundle.zip`，SHA-256 `69417c0ef87a1f4630328a95a1b06ad8694d5b4ec19ee8327ecd42e72232f4b2`，所有条目通过 `unzip -t`。两者由 commit `9abb3e09` 构建；DEB 包元数据核对通过，尚未安装验证。
+- 最新 DEB 为 `build/linux-lldtmp-2065/packages/echoes_1.1.0+2054_amd64.deb`，SHA-256 `74906068a616b764dc939f6594ed218e00309addb21c39cc57cee8bfe24adb9e`；standalone bundle ZIP 为 `build/linux-lldtmp-2065/packages/echoes_1.1.0+2054_linux-x64-bundle.zip`，SHA-256 `cafaa42f48442e8660ad692ef6a942ba99dfbc1cd0fa5311d202f2c36ccc0993`，所有条目通过 `unzip -t`。构建源代码包含 `9abb3e09` 的 Linux 生命周期恢复；版本提交 `5f3ed83b` 将包版本升为 `1.1.0+2054`。DEB 元数据/依赖、直接 ELF 依赖、bundle 内容核对通过；`dpkg` 确认 2054 高于上一包 2053，尚未安装验证。
+
+本机 Android 签名快捷脚本位于 `scripts/local/build_android_release_arm64.sh`，只存在本机并由 `.git/info/exclude` 忽略。它从本机 keystore 签名，只构建 `arm64-v8a`，在发布前检查包名、证书、ABI 和 versionCode；版本状态单独保存在用户目录，当前 APK 为 2054，下一次默认产生 2055。当前 APK SHA-256 为 `26ce4001832b034a515392661eafa0ddda4c80b08b2774c9c85f0b475f4d1380`。脚本和签名资料不进入仓库。
 
 ### 原生分发与网络通路的补充检查
 
