@@ -21,6 +21,7 @@ void main() {
         isPlaying: true,
         processingState: ProcessingState.ready,
         position: const Duration(seconds: 42),
+        bufferedPosition: const Duration(seconds: 68),
         duration: const Duration(minutes: 3),
         loopMode: LoopMode.off,
         userVolume: 0.2,
@@ -29,13 +30,18 @@ void main() {
 
       final snapshot = PlaybackSnapshot.fromState(
         state,
+        libraryId: 'library-a',
+        sourceGeneration: 11,
         positionSeekRevision: 7,
       );
 
+      expect(snapshot.libraryId, 'library-a');
+      expect(snapshot.sourceGeneration, 11);
       expect(snapshot.songId, first.id);
       expect(snapshot.entryId, state.currentEntryId);
       expect(snapshot.title, first.title);
       expect(snapshot.position, const Duration(seconds: 42));
+      expect(snapshot.bufferedPosition, const Duration(seconds: 68));
       expect(snapshot.positionSeekRevision, 7);
       expect(snapshot.duration, const Duration(minutes: 3));
       expect(snapshot.isPlaying, isTrue);

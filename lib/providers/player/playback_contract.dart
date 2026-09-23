@@ -31,6 +31,8 @@ abstract interface class PlaybackCommands {
 @immutable
 class PlaybackSnapshot {
   const PlaybackSnapshot({
+    this.libraryId,
+    this.sourceGeneration = 0,
     required this.songId,
     required this.entryId,
     required this.title,
@@ -38,6 +40,7 @@ class PlaybackSnapshot {
     required this.album,
     required this.artworkReference,
     required this.position,
+    this.bufferedPosition = Duration.zero,
     this.positionSeekRevision = 0,
     required this.duration,
     required this.isPlaying,
@@ -58,6 +61,8 @@ class PlaybackSnapshot {
 
   factory PlaybackSnapshot.fromState(
     PlayerState state, {
+    String? libraryId,
+    int sourceGeneration = 0,
     bool? playbackRequested,
     int positionSeekRevision = 0,
   }) {
@@ -69,6 +74,8 @@ class PlaybackSnapshot {
         : metadata?.duration ?? Duration.zero;
     final hasSong = song != null;
     return PlaybackSnapshot(
+      libraryId: libraryId,
+      sourceGeneration: sourceGeneration,
       songId: song?.id,
       entryId: state.currentEntryId,
       title: metadata?.title ?? '',
@@ -76,6 +83,7 @@ class PlaybackSnapshot {
       album: metadata?.album ?? '',
       artworkReference: metadata?.artworkReference,
       position: state.position,
+      bufferedPosition: state.bufferedPosition,
       positionSeekRevision: positionSeekRevision,
       duration: duration,
       isPlaying: state.isPlaying,
@@ -97,6 +105,13 @@ class PlaybackSnapshot {
     );
   }
 
+  /// Library owning the currently loaded playback source, when known.
+  final String? libraryId;
+
+  /// Monotonic source revision used to reject asynchronous results from an
+  /// earlier load, even when the same song and queue entry are reused.
+  final int sourceGeneration;
+
   final String? songId;
   final String? entryId;
   final String title;
@@ -104,6 +119,7 @@ class PlaybackSnapshot {
   final String album;
   final String? artworkReference;
   final Duration position;
+  final Duration bufferedPosition;
 
   /// Increments after a seek completes, distinguishing seeks from normal
   /// position updates even when snapshots arrive late.

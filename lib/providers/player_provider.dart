@@ -149,6 +149,7 @@ class PlayerNotifier extends StateNotifier<PlayerState>
   String? _loadedSourceSongId;
   String? _loadedSourceEntryId;
   String? _activePlaybackEntryId;
+  String? _currentPlaybackLibraryId;
   int _sourceGeneration = 0;
   int _seekRequestGeneration = 0;
   int _positionSeekRevision = 0;
@@ -222,9 +223,16 @@ class PlayerNotifier extends StateNotifier<PlayerState>
   PlaybackSnapshot _snapshotFor(PlayerState snapshotState) =>
       PlaybackSnapshot.fromState(
         snapshotState,
+        libraryId: _currentPlaybackLibraryId,
+        sourceGeneration: _sourceGeneration,
         playbackRequested: _playbackRequested,
         positionSeekRevision: _positionSeekRevision,
       );
+
+  String? _readActiveLibraryId() {
+    final libraryId = _ref.read(authStateProvider).currentLibrary?.id.trim();
+    return libraryId == null || libraryId.isEmpty ? null : libraryId;
+  }
 
   PlayerNotifier(
     this._ref, {
@@ -959,6 +967,9 @@ class PlayerNotifier extends StateNotifier<PlayerState>
   }) async {
     unawaited(_cacheHandler.cancelPrecache());
     if (!mounted) return;
+    if (!_isRestoringPlaybackSession || _currentPlaybackLibraryId == null) {
+      _currentPlaybackLibraryId = _readActiveLibraryId();
+    }
     _playbackRequested = autoPlay;
     unawaited(_wakeGuard.setActive(autoPlay, reason: 'song_request'));
     Logger.infoWithTag(
@@ -1080,9 +1091,8 @@ class PlayerNotifier extends StateNotifier<PlayerState>
       final downloadService = _ref.read(downloadServiceProvider);
       final cacheService = _ref.read(audioCacheServiceProvider);
 
-      // 获取当前活跃的音乐库 ID
-      final authState = _ref.read(authStateProvider);
-      final libraryId = authState.currentLibrary?.id ?? '';
+      // Use the library identity captured with this playback request.
+      final libraryId = _currentPlaybackLibraryId ?? '';
 
       // ---- 三级优先音源 ----
 
@@ -3028,6 +3038,7 @@ class PlayerNotifier extends StateNotifier<PlayerState>
     return {
       'version': 2,
       'mode': playbackMode.name,
+      'libraryId': _currentPlaybackLibraryId,
       ...state.playbackQueue.toJson(),
       'positionMs': normalizedPosition.inMilliseconds,
       'isPlaying': state.isPlaying,
@@ -3090,6 +3101,7 @@ class PlayerNotifier extends StateNotifier<PlayerState>
     try {
       var session = await LocalStorage.getPlaybackSession();
       if (session == null) return;
+      _currentPlaybackLibraryId = _storedPlaybackLibraryId(session);
 
       final version = _parseStoredInt(session['version']) ?? 1;
       if (version >= 2) {
@@ -3101,6 +3113,8 @@ class PlayerNotifier extends StateNotifier<PlayerState>
             return;
           }
           session = legacySession;
+          _currentPlaybackLibraryId =
+              _storedPlaybackLibraryId(session) ?? _readActiveLibraryId();
         } else {
           final restoredMode = PlaybackMode.values.firstWhere(
             (mode) => mode.name == session!['mode']?.toString(),
@@ -3234,6 +3248,12 @@ class PlayerNotifier extends StateNotifier<PlayerState>
     return null;
   }
 
+  String? _storedPlaybackLibraryId(Map<String, dynamic> session) {
+    final stored = session['libraryId']?.toString().trim();
+    if (stored != null && stored.isNotEmpty) return stored;
+    return _readActiveLibraryId();
+  }
+
   int _resolveRestoredQueueIndex({
     required List<Song> queue,
     required int preferredIndex,
@@ -3312,6 +3332,7 @@ class PlayerNotifier extends StateNotifier<PlayerState>
     await _audioHandler?.stop();
     unawaited(_wakeGuard.setActive(false, reason: 'queue_cleared'));
     _activePlaybackEntryId = null;
+    _currentPlaybackLibraryId = null;
     _invalidateLoadedSource(reason: 'queue_cleared');
     _invalidateSeekRequests();
     state = state.copyWith(

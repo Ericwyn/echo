@@ -286,6 +286,52 @@ void main() {
       }
     },
   );
+
+  test(
+    'library identity separates an otherwise identical track and artwork',
+    () async {
+      final commands = _RecordingPlaybackCommands();
+      final oldArtwork = Completer<Uri?>();
+      final service = LinuxMprisService(
+        commands: commands,
+        artworkResolver: (snapshot) => snapshot.libraryId == 'library-a'
+            ? oldArtwork.future
+            : Future<Uri?>.value(Uri.file('/tmp/library-b-cover.png')),
+      );
+      final client = DBusClient.session();
+      await service.updateSnapshot(_snapshot(libraryId: 'library-a'));
+      await service.start();
+
+      try {
+        await pumpEventQueue();
+        final firstProperties = await _getPlayerProperties(client);
+        final firstMetadata = firstProperties['Metadata']!
+            .asStringVariantDict();
+        final firstTrackId = firstMetadata['mpris:trackid']!.asObjectPath();
+
+        await service.updateSnapshot(_snapshot(libraryId: 'library-b'));
+        await pumpEventQueue();
+        oldArtwork.complete(Uri.file('/tmp/library-a-cover.png'));
+        await pumpEventQueue();
+
+        final secondProperties = await _getPlayerProperties(client);
+        final secondMetadata = secondProperties['Metadata']!
+            .asStringVariantDict();
+        expect(
+          secondMetadata['mpris:trackid']!.asObjectPath(),
+          isNot(firstTrackId),
+        );
+        expect(
+          secondMetadata['mpris:artUrl']!.asString(),
+          'file:///tmp/library-b-cover.png',
+        );
+      } finally {
+        if (!oldArtwork.isCompleted) oldArtwork.complete(null);
+        await client.close();
+        await service.dispose();
+      }
+    },
+  );
 }
 
 Future<Map<String, DBusValue>> _getPlayerProperties(DBusClient client) async {
@@ -302,12 +348,14 @@ Future<Map<String, DBusValue>> _getPlayerProperties(DBusClient client) async {
 
 PlaybackSnapshot _snapshot({
   bool isPlaying = false,
+  String? libraryId,
   String? artworkReference = 'https://example.invalid/cover.jpg',
   String songId = 'song-1',
   String entryId = 'entry-1',
   Duration position = const Duration(seconds: 20),
   int positionSeekRevision = 0,
 }) => PlaybackSnapshot(
+  libraryId: libraryId,
   songId: songId,
   entryId: entryId,
   title: 'Echo Song',

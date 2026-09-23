@@ -68,6 +68,8 @@ class LinuxMprisService {
   Future<void> updateSnapshot(PlaybackSnapshot snapshot) async {
     final previous = _snapshot;
     final artworkChanged =
+        previous.libraryId != snapshot.libraryId ||
+        previous.sourceGeneration != snapshot.sourceGeneration ||
         previous.songId != snapshot.songId ||
         previous.entryId != snapshot.entryId ||
         previous.artworkReference != snapshot.artworkReference;
@@ -92,7 +94,9 @@ class LinuxMprisService {
     try {
       final uri = await resolver(snapshot);
       if (generation != _artworkGeneration ||
+          snapshot.sourceGeneration != _snapshot.sourceGeneration ||
           snapshot.songId != _snapshot.songId ||
+          snapshot.libraryId != _snapshot.libraryId ||
           snapshot.entryId != _snapshot.entryId ||
           snapshot.artworkReference != _snapshot.artworkReference ||
           uri == null ||
@@ -178,7 +182,10 @@ class LinuxMprisService {
   String? get _currentTrackPath {
     final identity = _snapshot.entryId ?? _snapshot.songId;
     if (identity == null) return null;
-    return _trackObjectPath(identity);
+    final libraryId = _snapshot.libraryId;
+    return _trackObjectPath(
+      libraryId == null ? identity : '$libraryId:$identity',
+    );
   }
 
   Map<String, DBusValue> _rootProperties() => <String, DBusValue>{

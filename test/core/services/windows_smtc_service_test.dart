@@ -68,65 +68,60 @@ void main() {
     },
   );
 
-  test(
-    'ignores late artwork and routes SMTC commands to the shared contract',
-    () async {
-      final calls = <MethodCall>[];
-      final messenger =
-          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
-      messenger.setMockMethodCallHandler(_channel, (call) async {
-        calls.add(call);
-        return null;
-      });
-      addTearDown(() => messenger.setMockMethodCallHandler(_channel, null));
+  test('library changes reject late artwork and route SMTC commands', () async {
+    final calls = <MethodCall>[];
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(_channel, (call) async {
+      calls.add(call);
+      return null;
+    });
+    addTearDown(() => messenger.setMockMethodCallHandler(_channel, null));
 
-      final lateArtwork = Completer<Uri?>();
-      final commands = _RecordingPlaybackCommands();
-      final service = WindowsSmtcService(
-        commands: commands,
-        artworkResolver: (snapshot) => snapshot.songId == 'old-song'
-            ? lateArtwork.future
-            : Future<Uri?>.value(Uri.file('/tmp/new-cover.png')),
-        channel: _channel,
-        artworkPathResolver: (uri) => uri.toFilePath(),
-      );
+    final lateArtwork = Completer<Uri?>();
+    final commands = _RecordingPlaybackCommands();
+    final service = WindowsSmtcService(
+      commands: commands,
+      artworkResolver: (snapshot) => snapshot.libraryId == 'library-a'
+          ? lateArtwork.future
+          : Future<Uri?>.value(Uri.file('/tmp/new-cover.png')),
+      channel: _channel,
+      artworkPathResolver: (uri) => uri.toFilePath(),
+    );
 
-      await service.start(_snapshot(songId: 'old-song', entryId: 'old-entry'));
-      await service.updateSnapshot(
-        _snapshot(songId: 'new-song', entryId: 'new-entry'),
-      );
-      await pumpEventQueue();
-      lateArtwork.complete(Uri.file('/tmp/old-cover.png'));
-      await pumpEventQueue();
+    await service.start(_snapshot(libraryId: 'library-a'));
+    await service.updateSnapshot(_snapshot(libraryId: 'library-b'));
+    await pumpEventQueue();
+    lateArtwork.complete(Uri.file('/tmp/old-cover.png'));
+    await pumpEventQueue();
 
-      final artworkPaths = calls
-          .where((call) => call.method == 'updateArtwork')
-          .map((call) => (call.arguments as Map)['artworkPath'])
-          .toList();
-      expect(artworkPaths, <String>['/tmp/new-cover.png']);
+    final artworkPaths = calls
+        .where((call) => call.method == 'updateArtwork')
+        .map((call) => (call.arguments as Map)['artworkPath'])
+        .toList();
+    expect(artworkPaths, <String>['/tmp/new-cover.png']);
 
-      for (final payload in <Map<String, Object>>[
-        <String, Object>{'type': 'play'},
-        <String, Object>{'type': 'pause'},
-        <String, Object>{'type': 'next'},
-        <String, Object>{'type': 'previous'},
-        <String, Object>{'type': 'stop'},
-        <String, Object>{'type': 'seek', 'positionMicroseconds': 75000000},
-      ]) {
-        await _sendNativeCall(payload);
-      }
-      expect(commands.actions, <Object>[
-        'play',
-        'pause',
-        'next',
-        'previous',
-        'stop',
-        const Duration(seconds: 75),
-      ]);
+    for (final payload in <Map<String, Object>>[
+      <String, Object>{'type': 'play'},
+      <String, Object>{'type': 'pause'},
+      <String, Object>{'type': 'next'},
+      <String, Object>{'type': 'previous'},
+      <String, Object>{'type': 'stop'},
+      <String, Object>{'type': 'seek', 'positionMicroseconds': 75000000},
+    ]) {
+      await _sendNativeCall(payload);
+    }
+    expect(commands.actions, <Object>[
+      'play',
+      'pause',
+      'next',
+      'previous',
+      'stop',
+      const Duration(seconds: 75),
+    ]);
 
-      await service.dispose();
-    },
-  );
+    await service.dispose();
+  });
 }
 
 Future<void> _sendNativeCall(Map<String, Object> payload) async {
@@ -137,10 +132,12 @@ Future<void> _sendNativeCall(Map<String, Object> payload) async {
 }
 
 PlaybackSnapshot _snapshot({
+  String? libraryId,
   String? songId = 'song-1',
   String? entryId = 'entry-1',
   String? artworkReference = 'https://example.invalid/cover.jpg?token=secret',
 }) => PlaybackSnapshot(
+  libraryId: libraryId,
   songId: songId,
   entryId: entryId,
   title: 'Echo Song',

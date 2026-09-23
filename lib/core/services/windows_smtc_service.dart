@@ -62,6 +62,8 @@ class WindowsSmtcService {
     final previous = _snapshot;
     final trackChanged =
         previous == null ||
+        previous.libraryId != next.libraryId ||
+        previous.sourceGeneration != next.sourceGeneration ||
         previous.songId != next.songId ||
         previous.entryId != next.entryId ||
         previous.artworkReference != next.artworkReference;
@@ -162,6 +164,8 @@ class WindowsSmtcService {
     return !_disposed &&
         generation == _artworkGeneration &&
         current != null &&
+        current.libraryId == snapshot.libraryId &&
+        current.sourceGeneration == snapshot.sourceGeneration &&
         current.songId == snapshot.songId &&
         current.entryId == snapshot.entryId &&
         current.artworkReference == snapshot.artworkReference;
