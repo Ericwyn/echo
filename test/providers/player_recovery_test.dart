@@ -1094,15 +1094,24 @@ void main() {
     await container.read(crossfadeDurationMsProvider.notifier).setDuration(400);
     volumeWrites.clear();
     final pause = notifier.pause();
-    for (var i = 0; i < 12; i++) {
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    expect(volumeWrites.every((volume) => volume <= 0.23), isTrue);
+
+    await notifier.setUserVolume(0.35);
+    expect(volumeWrites.last, closeTo(0.35 * 0.6, 0.001));
+    for (var i = 0; i < 8; i++) {
       await tester.pump(const Duration(milliseconds: 20));
     }
     await pause;
     expect(volumeWrites, isNotEmpty);
-    expect(volumeWrites.every((volume) => volume <= 0.23), isTrue);
+    expect(volumeWrites.every((volume) => volume <= 0.35), isTrue);
     expect(volumeWrites.last, 0);
 
+    await tester.pump(const Duration(milliseconds: 260));
+    expect(await LocalStorage.getPlaybackVolume(), 0.35);
     await notifier.play();
-    expect(volumeWrites.last, 0.23);
+    expect(volumeWrites.last, 0.35);
   });
 }
