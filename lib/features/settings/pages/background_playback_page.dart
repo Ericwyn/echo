@@ -69,6 +69,9 @@ class _BackgroundPlaybackPageState extends State<BackgroundPlaybackPage>
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 720),
           child: ListView(
+            key: const PageStorageKey<String>(
+              'echo-background-playback-settings-scroll',
+            ),
             padding: EdgeInsets.fromLTRB(
               context.echoSpacing.md,
               context.echoSpacing.sm,

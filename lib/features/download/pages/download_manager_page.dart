@@ -223,6 +223,9 @@ class _DownloadTaskList extends ConsumerWidget {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 840),
               child: ListView.builder(
+                key: const PageStorageKey<String>(
+                  'echo-download-manager-scroll',
+                ),
                 padding: EdgeInsets.fromLTRB(
                   context.echoSpacing.md,
                   context.echoSpacing.sm,

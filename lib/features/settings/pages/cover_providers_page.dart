@@ -52,6 +52,7 @@ class _CoverProvidersPageState extends ConsumerState<CoverProvidersPage> {
     final currentConfigs = List<ProviderConfig>.from(configs);
 
     return ReorderableListView.builder(
+      key: const PageStorageKey<String>('echo-cover-providers-scroll'),
       buildDefaultDragHandles: false,
       padding: EdgeInsets.fromLTRB(
         context.echoSpacing.md,

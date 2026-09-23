@@ -20,6 +20,7 @@ class CacheManagementPage extends StatelessWidget {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 920),
           child: ListView(
+            key: const PageStorageKey<String>('echo-cache-management-scroll'),
             padding: EdgeInsets.fromLTRB(
               context.echoSpacing.md,
               context.echoSpacing.lg,

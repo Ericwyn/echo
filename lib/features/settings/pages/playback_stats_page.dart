@@ -57,6 +57,9 @@ class PlaybackStatsPage extends ConsumerWidget {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 1040),
                 child: ListView(
+                  key: const PageStorageKey<String>(
+                    'echo-playback-stats-scroll',
+                  ),
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: EdgeInsets.fromLTRB(
                     context.echoSpacing.md,

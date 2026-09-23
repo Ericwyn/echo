@@ -25,6 +25,9 @@ class AudioQualityPage extends ConsumerWidget {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 720),
           child: ListView(
+            key: const PageStorageKey<String>(
+              'echo-audio-quality-settings-scroll',
+            ),
             padding: EdgeInsets.fromLTRB(
               context.echoSpacing.md,
               context.echoSpacing.sm,

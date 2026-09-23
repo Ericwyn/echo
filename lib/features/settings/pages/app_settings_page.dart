@@ -289,6 +289,7 @@ class _AppSettingsPageState extends ConsumerState<AppSettingsPage> {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 920),
           child: ListView(
+            key: const PageStorageKey<String>('echo-app-settings-scroll'),
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: EdgeInsets.fromLTRB(
               context.echoSpacing.md,

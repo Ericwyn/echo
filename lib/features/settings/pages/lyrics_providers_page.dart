@@ -53,6 +53,7 @@ class _LyricsProvidersPageState extends ConsumerState<LyricsProvidersPage> {
     final currentConfigs = List<ProviderConfig>.from(configs);
 
     return ReorderableListView.builder(
+      key: const PageStorageKey<String>('echo-lyrics-providers-scroll'),
       buildDefaultDragHandles: false,
       padding: EdgeInsets.fromLTRB(
         context.echoSpacing.md,

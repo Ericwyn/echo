@@ -286,7 +286,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 1000),
             child: ListView(
-              key: const ValueKey<String>('search_results_list'),
+              key: const PageStorageKey<String>('echo-search-results-scroll'),
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: EdgeInsets.fromLTRB(
                 context.echoPageHorizontalPadding,
@@ -494,6 +494,7 @@ class _SearchResultsLoading extends StatelessWidget {
       liveRegion: true,
       label: '正在搜索“$query”',
       child: ListView(
+        key: const PageStorageKey<String>('echo-search-results-scroll'),
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: EdgeInsets.fromLTRB(
           context.echoPageHorizontalPadding,
