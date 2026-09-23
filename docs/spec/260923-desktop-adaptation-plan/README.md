@@ -48,7 +48,7 @@ flowchart LR
 | P2 | 桌面统一返回/前进栈及主要浏览状态恢复已实现，等待用户复测 | 手机保留分支路由，桌面使用单 Navigator；无账户/服务器底栏与离线任务状态页；品牌区/主工具栏对齐、播放条贴边；前进复用 PageStorageBucket，搜索、音乐流展开、曲库列表、全部歌曲两种排序模式、详情排序、收藏页签和各自滚动位置、歌手内容区及 Explore 查询/草稿/滚动位置可恢复；新增回归未运行，窗口与页面状态仍待用户验证 |
 | P3 | 首轮实现中 | 宽屏/紧凑工作区、歌词/队列切换与关闭重开后的状态保留、队列右键、可关闭的封面动态背景、拖动冲突提示、“定位当前”、桌面单击选中/双击播放及可选系统全屏已实现；Esc 先退出全屏，普通窗口尺寸不会被全屏分辨率覆盖，Android 不显示该系统窗口入口；相关用例未运行，Ubuntu 全屏操作、release/profile 性能采样和真实窗口验收待补 |
 | P4 | Linux 基础可用 | 用户确认 MPRIS 控制/封面与托盘基础功能；单实例、关窗选择、下载退出提示及 SetPosition/Seeked/error 隔离已编译；Seeked 现依据成功 seek revision 发送，新增测试未运行；watcher 别名、查询竞态和重新注册已修正，宿主仍待验收 |
-| P5 | 当前 Linux `1.1.0+2046` bundle/.deb 与 Android arm64 APK 均已构建 | Linux 使用系统 Clang 与从 Ubuntu 包解压至 `/tmp` 的真实 LLD 14，在全新 `build/linux-lldtmp-2047` 构建；Debian 包版本 `1.1.0+2046`、amd64，元数据已核对。Android arm64 APK 使用本机签名文件，version code `2036`，签名和包信息已校验。产物未安装或启动；Ubuntu/Android 实机验收和 Linux 性能采样待完成；Windows CI 与实机验收暂缓。最新产物见 [共享播放器身份构建证据](evidence/260924-player-identity-build/README.md) |
+| P5 | 当前 Linux `1.1.0+2046` bundle/.deb 与 Android arm64 APK 均已构建 | Linux 使用系统 Clang 与从 Ubuntu 包解压至 `/tmp` 的真实 LLD 14，在全新 `build/linux-lldtmp-2047` 构建；Debian 包版本 `1.1.0+2046`、amd64，bundle 完整性与包元数据已核对。Android arm64 APK 使用本机签名文件，version code `2036`，签名和包信息已校验。产物未安装或启动；Ubuntu/Android 实机验收和 Linux 性能采样待完成；Windows CI 与实机验收暂缓。最新产物见 [共享播放器身份构建证据](evidence/260924-player-identity-build/README.md) 和 [Linux bundle 打包检查证据](evidence/260924-linux-bundle-preflight/README.md) |
 
 - **M1 可试用版**：P1、P2 加 P4 的基础 Linux 媒体会话；旧完整播放器可暂作过渡。托盘恢复尚未通过时，不开放关闭后隐藏窗口。
 - **M2 Ubuntu 桌面候选版**：P3、P4-Linux 和 P5-Linux 完成，并通过共享代码的 Android 回归。

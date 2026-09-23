@@ -2,7 +2,7 @@
 
 [返回 spec](README.md) · [验收矩阵](acceptance.md) · [决策](decisions.md)
 
-状态：应用代码 `14f39032` 已在全新 `build/linux-lldtmp-2047` CMake 目录中构建，使用系统 Clang 与从 Ubuntu 包解压到 `/tmp` 的真实 LLD 14；`c25e22aa` 支持从该 bundle 生成 Ubuntu `.deb`。当前 checkout 另已构建并签名 Android arm64-only release APK，versionCode `2036`，签名与 package metadata 已校验；两端产物均未安装或启动。前置：P0–P4 仍有系统操作、恢复、性能和安装场景待验证。当前优先 Ubuntu/Linux；Windows CI 暂缓。
+状态：应用代码 `14f39032` 已在全新 `build/linux-lldtmp-2047` CMake 目录中构建，使用系统 Clang 与从 Ubuntu 包解压到 `/tmp` 的真实 LLD 14；`b8e3cd00` 加固 bundle 完整性检查并在该 bundle 上重新生成 Ubuntu `.deb`。当前 checkout 另已构建并签名 Android arm64-only release APK，versionCode `2036`，签名与 package metadata 已校验；两端产物均未安装或启动。前置：P0–P4 仍有系统操作、恢复、性能和安装场景待验证。当前优先 Ubuntu/Linux；Windows CI 暂缓。
 
 ## 目标与交付范围
 
@@ -30,7 +30,7 @@ Ubuntu 交付可安装 `.deb` 与完整 bundle 压缩包；Windows 交付 releas
 - `scripts/package_linux_deb.sh` 从 `build/linux/x64/release/bundle` 组装 Debian 包，依赖声明面向当前 Ubuntu 22.04 基线：`libgtk-3-0`、`libayatana-appindicator3-1`、`libmpv1`。MPV 是运行时动态加载项，不会出现在主 ELF 的 `DT_NEEDED` 中，因此显式声明。
 - `.github/workflows/build_linux.yml` 在 release bundle 外再上传 `.deb`；`.github/workflows/pr_checks.yml` 加入包组装步骤。Windows workflow 未改。
 - 仓库 `README.md` 已增加 Linux `.deb` 安装命令、运行依赖、自绘窗口与托盘/MPRIS 说明，并明确 22.04/GNOME/X11 的验证范围；最新 Linux 桌面截图需待用户手动视觉验收后再刷新，避免把旧版界面图当作当前 release 证据。
-- 历史包 `build/linux/packages/echoes_1.1.0+26_amd64.deb` 与 `1.1.0+2027` 至 `+2045` 候选均已被后续构建替换。当前最新包为 `build/linux-lldtmp-2047/packages/echoes_1.1.0+2046_amd64.deb`，SHA-256 为 `10690e7f38fbda5c4704ed7f85193c247e732359958d9a18f2e754fb0188ee9f`；`dpkg-deb` 元数据检查通过，仍未安装验证。干净系统播放依赖仍待 Ubuntu 实机记录。
+- 历史包 `build/linux/packages/echoes_1.1.0+26_amd64.deb` 与 `1.1.0+2027` 至 `+2045` 候选均已被后续构建替换。当前最新包为 `build/linux-lldtmp-2047/packages/echoes_1.1.0+2046_amd64.deb`，SHA-256 为 `e85f699013eb962bb4d10e1966413d416eba3b903aacd38a75e897da84ca12f3`；`dpkg-deb` 元数据检查通过，打包前的完整 bundle 校验也通过，仍未安装验证。干净系统播放依赖仍待 Ubuntu 实机记录。
 
 ### 原生分发与网络通路的补充检查
 
@@ -125,8 +125,9 @@ Ubuntu 24.04/Wayland 若仍未验收，只能先发布明确限定 22.04/X11 的
 | Ubuntu 22.04 X11 | `23729951` / `build/linux-lldtmp-2046` | 抽取共享音质格式化并忽略非正位深后，以系统 Clang 和真实 LLD 14 在全新 CMake build-dir 构建 `1.1.0+2045`；`.deb` 元数据为 `echoes`/`amd64`，依赖 `libgtk-3-0`、`libayatana-appindicator3-1`、`libmpv1`。bundle executable SHA-256 `d39c11197d272336e6e6f2327e5497009fa40771056c9a0495a93cbd8f6bee4d`，`libapp.so` SHA-256 `1b222c0916849969648acd7559c861155a8e8375ac89311955581668f91bf1d0`，`.deb` SHA-256 `c31eb505846cd93cdcf99a7158fe169064bd1e0a7ac9fcdd7777d73424f86e54`。未安装、未启动、未运行测试/analyze；实机行为待用户验收 |
 | Android ARM64 APK | `23729951` / Flutter build number override `35` / `app-arm64-v8a-release.apk` | 本机专用脚本以 release 证书签名并验证；APK version name/code 为 `1.1.0` / `2035`，高于设备基线 `2026`，仅含 `arm64-v8a`；证书 SHA-256 `8604465c3ee1282b48a1b2759801f784ace32447d1188e0481fab0fe8ac74c94`；APK SHA-256 `00e10ebea82f4704406663a63f4048649fb6fd6bfdc9c9ac7f36f73f405a3843`。未安装、未启动、未运行测试/analyze；Android 真机回归由用户执行 |
 | 本机 Android 构建脚本 | Git 忽略的 `scripts/local/build_android_release_arm64.sh` | 默认从上一份 ARM64 APK 推进 Flutter build number，并计入 split-per-ABI 的 arm64 `+2000` versionCode 偏移；可用 `ECHO_ANDROID_BUILD_NUMBER` 指定 build number。`bash -n` 与 Git ignore 规则检查通过；该机密钥路径脚本不提交到仓库 |
-| Ubuntu 22.04 X11 | `14f39032` / `build/linux-lldtmp-2047` | MiniPlayer/FullPlayerPage 共用 `PlayerTrackIdentity` 后，以系统 Clang 与真实 LLD 14 在全新 CMake build-dir 构建 `1.1.0+2046`；`.deb` 元数据为 `echoes`/`amd64`，依赖 `libgtk-3-0`、`libayatana-appindicator3-1`、`libmpv1`。bundle executable SHA-256 `22de0110628f205af24bc5fbbf7dd548d9a3b5596d4f75cc4e4e87120afe9ad0`，`libapp.so` SHA-256 `b8d867d5b408b07406462370808c51fdd7f4bf2b1c51ea774b44957370c36777`，`.deb` SHA-256 `10690e7f38fbda5c4704ed7f85193c247e732359958d9a18f2e754fb0188ee9f`。未安装、未启动、未运行测试/analyze；实机行为待用户验收 |
+| Ubuntu 22.04 X11 | `14f39032` / `build/linux-lldtmp-2047` | MiniPlayer/FullPlayerPage 共用 `PlayerTrackIdentity` 后，以系统 Clang 与真实 LLD 14 在全新 CMake build-dir 构建 `1.1.0+2046`；`.deb` 元数据为 `echoes`/`amd64`，依赖 `libgtk-3-0`、`libayatana-appindicator3-1`、`libmpv1`。bundle executable SHA-256 `22de0110628f205af24bc5fbbf7dd548d9a3b5596d4f75cc4e4e87120afe9ad0`，`libapp.so` SHA-256 `b8d867d5b408b07406462370808c51fdd7f4bf2b1c51ea774b44957370c36777`，初版 `.deb` SHA-256 `10690e7f38fbda5c4704ed7f85193c247e732359958d9a18f2e754fb0188ee9f`（已由 `b8e3cd00` 重打包替换）。未安装、未启动、未运行测试/analyze；实机行为待用户验收 |
 | Android ARM64 APK | `14f39032` / auto-incremented Flutter build number `36` / `app-arm64-v8a-release.apk` | 本机专用脚本从前一份 APK versionCode `2035` 自动递增；APK version name/code 为 `1.1.0` / `2036`，仅含 `arm64-v8a`，release 证书 SHA-256 `8604465c3ee1282b48a1b2759801f784ace32447d1188e0481fab0fe8ac74c94`，APK SHA-256 `8ac4bc90759e44ea4a1b557f33c787e50e2d47c61fff03a81c42ef09ddfc045c`。未安装、未启动；Android 真机回归由用户执行 |
+| Linux package preflight | `b8e3cd00` / `build/linux-lldtmp-2047/packages/echoes_1.1.0+2046_amd64.deb` | `scripts/package_linux_deb.sh` 现在逐项要求 Flutter app/engine、项目所需 native plugin libraries、native assets manifest、ICU、Flutter asset/font manifests、license notices、version metadata 和 tray icon。对当前完整 release bundle 打包成功，`dpkg-deb` 元数据为 `echoes`/`1.1.0+2046`/`amd64`，SHA-256 `e85f699013eb962bb4d10e1966413d416eba3b903aacd38a75e897da84ca12f3`。未安装或启动；干净环境验收待用户执行。详见 [Linux bundle 打包检查证据](evidence/260924-linux-bundle-preflight/README.md) |
 | Ubuntu 24.04 / Wayland | — | 待提供环境与结果 |
 | Windows | — | Windows CI 暂缓；未编译/未实机验收 |
 | Android 回归 | 先前检查点曾有 431 项 Flutter 测试通过；本次提交新增用例未运行 | 最新共享控件与歌曲操作改动的自动回归、Android 真机锁屏/通知栏/封面验证仍待完成 |
