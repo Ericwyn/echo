@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Echoes
+Comment=Music player
+Exec=/opt/echoes/echoes
+TryExec=/opt/echoes/echoes
+Icon=echoes
+Terminal=false
+StartupNotify=true
+StartupWMClass=com.az1n.echoes
+Categories=AudioVideo;Audio;Player;
+DBusActivatable=false

@@ -48,7 +48,7 @@ flowchart LR
 | P2 | 桌面统一返回/前进栈和 Linux 自绘窗口栏已实现，等待用户复测 | 手机保留分支路由，桌面使用单 Navigator；Linux 隐藏 GTK 标题栏并绘制全局窗口栏，主页面保留应用导航工具栏，最小宽度锁定 840；用户报告过按钮点击/闪烁问题，Overlay 依赖已移除，修正后的窗口操作由用户验收 |
 | P3 | 首轮实现中 | 宽屏/紧凑工作区、桌面队列鼠标选择/播放/拖动，以及 Enter/Delete 与全局快捷键已实现；补键盘测试执行、长队列和真实窗口尺寸验收 |
 | P4 | Linux 基础可用 | 用户确认 MPRIS 控制/封面与托盘基础功能；单实例激活、窗口尺寸/最大化恢复代码已落但未验证；补完整 seek、托盘宿主失效、关窗恢复和退出边界 |
-| P5 | `eb2edfa9` 的 Linux release bundle 已编译 | 新增窗口状态恢复后重新构建当前提交；做干净 Ubuntu 安装/播放与 Android 回归；Windows CI 和 Windows 实机验收暂缓 |
+| P5 | Linux bundle 曾成功编译；`.deb` 构建脚本和 Linux CI 产物步骤已加入 | 当前窗口恢复代码尚未重新编译；尚未生成/安装 `.deb`。之后做干净 Ubuntu 安装/播放与 Android 回归；Windows CI 和 Windows 实机验收暂缓 |
 
 - **M1 可试用版**：P1、P2 加 P4 的基础 Linux 媒体会话；旧完整播放器可暂作过渡。托盘恢复尚未通过时，不开放关闭后隐藏窗口。
 - **M2 Ubuntu 桌面候选版**：P3、P4-Linux 和 P5-Linux 完成，并通过共享代码的 Android 回归。

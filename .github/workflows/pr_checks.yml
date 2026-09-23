@@ -29,7 +29,7 @@ jobs:
       - name: Install Linux desktop build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang lld llvm cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libayatana-appindicator3-dev dbus
+          sudo apt-get install -y clang lld llvm cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libayatana-appindicator3-dev dbus desktop-file-utils
 
       - uses: subosito/flutter-action@v2
         id: flutter-action
@@ -80,3 +80,6 @@ jobs:
 
       - name: Build Linux desktop release
         run: flutter build linux --release --no-pub
+
+      - name: Assemble Ubuntu deb
+        run: bash scripts/package_linux_deb.sh

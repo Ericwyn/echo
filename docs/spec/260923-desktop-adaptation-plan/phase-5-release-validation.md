@@ -2,7 +2,7 @@
 
 [返回 spec](README.md) · [验收矩阵](acceptance.md) · [决策](decisions.md)
 
-状态：Linux 首轮 release 编译与自动验证通过，发布验收仍未完成。前置：P0–P4 仍有完整系统操作、恢复和安装场景待验证。当前优先 Ubuntu/Linux；Windows CI 暂缓，不能据此宣称 Windows 发布支持。
+状态：Linux bundle 曾完成首轮 release 编译；Ubuntu `.deb` 框架与 CI 产物步骤已加入，尚未用最新源码重建、安装或实播。前置：P0–P4 仍有完整系统操作、恢复和安装场景待验证。当前优先 Ubuntu/Linux；Windows CI 暂缓，不能据此宣称 Windows 发布支持。
 
 ## 目标与交付范围
 
@@ -16,13 +16,20 @@ Ubuntu 交付可安装 `.deb` 与完整 bundle 压缩包；Windows 交付 releas
 2. 固定 pub 依赖锁文件和 native 依赖，补齐 clang/lld、GTK、CMake、Ninja 与选定托盘实现要求。构建过程不依赖开发者机器绝对路径、手工 symlink 或旧缓存。
 3. Linux bundle 检查 `echoes`、`lib/`、`data/` 和插件资源完整；不能只分发可执行文件。扫描直接动态依赖，同时确认运行时动态加载的 libmpv 与编解码依赖。
 4. `.deb` 与 bundle 仍需明确系统 libmpv 运行依赖；本地 smoke test 已在 Ubuntu 22.04/libmpv 0.34.1 上通过，但还需在干净环境验证包依赖、实际播放和 ABI。
-5. 添加 `.desktop`、图标、分类、应用名称和身份；安装后从应用列表、Dock 和命令行启动指向同一应用，重复启动能恢复窗口。按实际设计申明 D-Bus 激活能力，不能只加 DesktopEntry 字段就当激活实现完成。
+5. 添加 `.desktop`、图标、分类、应用名称和身份；安装后从应用列表、Dock 和命令行启动指向同一应用，重复启动能恢复窗口。按实际设计申明 D-Bus 激活能力，不能只加 DesktopEntry 字段就当激活实现完成。当前 `scripts/package_linux_deb.sh` 将完整 bundle 安装到 `/opt/echoes`，安装 `.desktop` 与 hicolor 图标；明确 `DBusActivatable=false`，因为首版没有桌面文件 D-Bus 激活服务。
 6. Windows 包与 SMTC 验证暂缓，不纳入当前 Linux 交付门槛。
 7. 在没有 Flutter/开发 SDK、没有预装开发版 libmpv 的干净目标环境安装并真实播放：登录、浏览、直连/转码、seek、系统控制、托盘和退出。依赖由安装流程满足，禁止先在测试机手工补齐再宣称开箱可用。
 8. 验证升级保留音乐库配置、用户音量和队列恢复信息；普通卸载的用户数据策略明确，不静默清理用户下载。不要为本次布局变化修改数据库或会话格式，确需变更时单独记录迁移测试。
 9. 运行矩阵要求的尺寸/DPI、输入方式、长队列和生命周期场景，记录 commit、环境、步骤、结果和截图/日志。共享播放器变化执行相关 Android 自动测试与真机后台回归。
 10. 完成仓库规定的静态分析、测试和生成文件检查；仅在生成器输入变化时更新产物。Linux/Windows 构建使用最终锁定提交，不能拿 earlier commit 的截图或实验包作为验收证据。
 11. 更新 README 的下载、运行依赖、平台限制及新桌面截图；保留 Android 现有说明，避免把桌面关闭策略写成手机行为。
+
+## 当前 Linux 打包实现记录
+
+- `packaging/linux/echoes.desktop` 使用 `echoes` desktop-file basename，与 Linux MPRIS 的 `DesktopEntry=echoes` 对齐；图标安装到 hicolor `192x192/apps`。
+- `scripts/package_linux_deb.sh` 从 `build/linux/x64/release/bundle` 组装 Debian 包，依赖声明面向当前 Ubuntu 22.04 基线：`libgtk-3-0`、`libayatana-appindicator3-1`、`libmpv1`。MPV 是运行时动态加载项，不会出现在主 ELF 的 `DT_NEEDED` 中，因此显式声明。
+- `.github/workflows/build_linux.yml` 在 release bundle 外再上传 `.deb`；`.github/workflows/pr_checks.yml` 加入包组装步骤。Windows workflow 未改。
+- 这些改动尚未在本地执行 package script，也尚未对 `.deb` 做安装验证；构建产物和干净系统播放依赖仍待 CI/Ubuntu 实机记录。
 
 ### 原生分发与网络通路的补充检查
 
