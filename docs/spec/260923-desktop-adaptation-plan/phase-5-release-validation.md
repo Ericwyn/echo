@@ -2,7 +2,7 @@
 
 [返回 spec](README.md) · [验收矩阵](acceptance.md) · [决策](decisions.md)
 
-状态：`4015f879` 的 Linux release bundle 与 Ubuntu `.deb` 已构建，包内容与 control 元数据已检查；尚未安装或实播。前置：P0–P4 仍有完整系统操作、恢复和安装场景待验证。当前优先 Ubuntu/Linux；Windows CI 暂缓，不能据此宣称 Windows 发布支持。
+状态：`0f06bc0d` 的 Linux release bundle 与 Ubuntu `.deb` 已构建；尚未安装或实播。前置：P0–P4 仍有完整系统操作、恢复和安装场景待验证。当前优先 Ubuntu/Linux；Windows CI 暂缓，不能据此宣称 Windows 发布支持。
 
 ## 目标与交付范围
 
@@ -68,6 +68,7 @@ Ubuntu 24.04/Wayland 若仍未验收，只能先发布明确限定 22.04/X11 的
 | --- | --- | --- |
 | Ubuntu 22.04 X11 | `f6100044` / 2026-09-23 本地 release bundle | 编译成功；本机 libmpv 0.34.1 HTTP 音频 smoke test 无 MPV 选项/cache-dir 错误；用户先前确认 MPRIS 封面/基本控制和托盘。干净安装、绝对 seek、关闭恢复与最终最新 bundle 人工复测未完成 |
 | Ubuntu 22.04 X11 | `7f4ae955` / 2026-09-23 release bundle（最终窗口栏修正前） | 构建和 437 项 Flutter 测试曾通过；此后为修复顶栏点击/闪烁和重置置顶状态所做的变更没有重跑构建/测试。用户接手最终启动和窗口操作验收 |
+| Ubuntu 22.04 X11 | `0f06bc0d` / 2026-09-23 release bundle 与 `.deb` | Linux release build 与包组装成功；包元数据依赖为 GTK、Ayatana AppIndicator、libmpv。未启动、未安装、未运行测试；由用户检查主导航、侧栏共享模型及添加库后的返回历史 |
 | Ubuntu 24.04 / Wayland | — | 待提供环境与结果 |
 | Windows | — | Windows CI 暂缓；未编译/未实机验收 |
 | Android 回归 | 本任务 Flutter 测试 431 项通过 | artwork/shared player 自动回归通过；最终 Android 真机锁屏/通知栏/封面验证待完成 |
