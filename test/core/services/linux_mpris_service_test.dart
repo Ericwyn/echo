@@ -63,6 +63,101 @@ void main() {
     },
   );
 
+  test('SetPosition validates track identity and publishes Seeked', () async {
+    final commands = _RecordingPlaybackCommands();
+    final service = LinuxMprisService(commands: commands);
+    final client = DBusClient.session();
+    await service.updateSnapshot(_snapshot());
+    await service.start();
+    final seeked = Completer<DBusSignal>();
+    final subscription =
+        DBusSignalStream(
+          client,
+          sender: _busName,
+          interface: _playerInterface,
+          name: 'Seeked',
+          path: const DBusObjectPath(_objectPath),
+          signature: const DBusSignature('x'),
+        ).listen((signal) {
+          if (!seeked.isCompleted) seeked.complete(signal);
+        });
+
+    try {
+      await pumpEventQueue();
+      final initial = await _getPlayerProperties(client);
+      final metadata = initial['Metadata']!.asStringVariantDict();
+      final trackPath = metadata['mpris:trackid']!.asObjectPath();
+
+      await client.callMethod(
+        destination: _busName,
+        path: DBusObjectPath(_objectPath),
+        interface: _playerInterface,
+        name: 'SetPosition',
+        values: <DBusValue>[
+          const DBusObjectPath('$_objectPath/Track/stale'),
+          const DBusInt64(60000000),
+        ],
+        replySignature: DBusSignature(''),
+      );
+      expect(commands.seeks, isEmpty);
+
+      await client.callMethod(
+        destination: _busName,
+        path: DBusObjectPath(_objectPath),
+        interface: _playerInterface,
+        name: 'SetPosition',
+        values: <DBusValue>[trackPath, const DBusInt64(240000000)],
+        replySignature: DBusSignature(''),
+      );
+      expect(commands.seeks, <Duration>[const Duration(minutes: 3)]);
+
+      final seekSignal = await seeked.future.timeout(
+        const Duration(seconds: 2),
+      );
+      expect(seekSignal.values.single.asInt64(), 180000000);
+    } finally {
+      await subscription.cancel();
+      await client.close();
+      await service.dispose();
+    }
+  });
+
+  test(
+    'remote command errors return a D-Bus failure and keep service alive',
+    () async {
+      final commands = _RecordingPlaybackCommands()..failNext = true;
+      final service = LinuxMprisService(commands: commands);
+      final client = DBusClient.session();
+      await service.updateSnapshot(_snapshot());
+      await service.start();
+
+      try {
+        await expectLater(
+          client.callMethod(
+            destination: _busName,
+            path: DBusObjectPath(_objectPath),
+            interface: _playerInterface,
+            name: 'Next',
+            replySignature: DBusSignature(''),
+          ),
+          throwsA(isA<DBusFailedException>()),
+        );
+
+        await client.callMethod(
+          destination: _busName,
+          path: DBusObjectPath(_objectPath),
+          interface: _playerInterface,
+          name: 'Next',
+          replySignature: DBusSignature(''),
+        );
+        expect(commands.nextCount, 1);
+      } finally {
+        await client.close();
+        await service.dispose();
+      }
+    },
+  );
+
   test(
     'publishes only a resolved local artwork URI and clears stale art',
     () async {
@@ -188,9 +283,16 @@ PlaybackSnapshot _snapshot({
 class _RecordingPlaybackCommands implements PlaybackCommands {
   int nextCount = 0;
   final List<Duration> seeks = <Duration>[];
+  bool failNext = false;
 
   @override
-  Future<void> next() async => nextCount++;
+  Future<void> next() async {
+    if (failNext) {
+      failNext = false;
+      throw StateError('Simulated playback command failure');
+    }
+    nextCount++;
+  }
 
   @override
   Future<void> seek(Duration position) async => seeks.add(position);

@@ -5,6 +5,7 @@ import 'package:just_audio/just_audio.dart' show LoopMode;
 
 import '../../providers/player/playback_contract.dart';
 import '../../providers/player/player_state.dart' show PlaybackMode;
+import '../utils/logger.dart';
 
 const _mprisRootInterface = 'org.mpris.MediaPlayer2';
 const _mprisPlayerInterface = 'org.mpris.MediaPlayer2.Player';
@@ -31,12 +32,12 @@ class LinuxMprisService {
   final LinuxMprisArtworkResolver? artworkResolver;
   DBusClient? _client;
   _MprisObject? _object;
-  var _remoteSeekPending = false;
+  var _remoteSeekCount = 0;
   Uri? _artworkUri;
   int _artworkGeneration = 0;
 
   bool get isStarted => _client != null && _object != null;
-  bool get remoteSeekPending => _remoteSeekPending;
+  bool get remoteSeekPending => _remoteSeekCount > 0;
 
   Future<void> start() async {
     if (isStarted) return;
@@ -113,11 +114,25 @@ class LinuxMprisService {
     _client = null;
     _object = null;
     if (client == null) return;
-    if (object != null) {
-      await client.unregisterObject(object);
+    try {
+      if (object != null) await client.unregisterObject(object);
+    } catch (error, stackTrace) {
+      Logger.warnWithTag('MPRIS', 'failed to unregister media object', error);
+      Logger.debugWithTag('MPRIS', 'unregister stack', stackTrace);
     }
-    await client.releaseName(_mprisBusName);
-    await client.close();
+    try {
+      await client.releaseName(_mprisBusName);
+    } catch (error, stackTrace) {
+      Logger.warnWithTag('MPRIS', 'failed to release media bus name', error);
+      Logger.debugWithTag('MPRIS', 'release name stack', stackTrace);
+    } finally {
+      try {
+        await client.close();
+      } catch (error, stackTrace) {
+        Logger.warnWithTag('MPRIS', 'failed to close session bus', error);
+        Logger.debugWithTag('MPRIS', 'session bus close stack', stackTrace);
+      }
+    }
   }
 
   PlaybackSnapshot _snapshot = const PlaybackSnapshot(
@@ -242,13 +257,13 @@ class LinuxMprisService {
 
   Future<void> _seek(Duration target) async {
     if (!_snapshot.canSeek) return;
-    _remoteSeekPending = true;
+    _remoteSeekCount += 1;
     final position = _clampPosition(target);
     try {
       await commands.seek(position);
       await _object?.emitSeeked(position);
     } finally {
-      _remoteSeekPending = false;
+      if (_remoteSeekCount > 0) _remoteSeekCount -= 1;
     }
   }
 }
@@ -429,19 +444,45 @@ class _MprisObject extends DBusObject {
       return DBusMethodErrorResponse.invalidArgs(error.message);
     } on TypeError {
       return DBusMethodErrorResponse.invalidArgs();
+    } catch (error, stackTrace) {
+      Logger.warnWithTag(
+        'MPRIS',
+        'remote property update failed: $name',
+        error,
+      );
+      Logger.debugWithTag('MPRIS', 'property update stack', stackTrace);
+      return DBusMethodErrorResponse.failed(
+        'Echoes could not apply the requested media property.',
+      );
     }
   }
 
   @override
   Future<DBusMethodResponse> handleMethodCall(DBusMethodCall methodCall) async {
-    final interface = methodCall.interface;
-    if (interface == _mprisRootInterface) {
-      return _handleRootCall(methodCall);
+    try {
+      final interface = methodCall.interface;
+      if (interface == _mprisRootInterface) {
+        return await _handleRootCall(methodCall);
+      }
+      if (interface == _mprisPlayerInterface) {
+        return await _handlePlayerCall(methodCall);
+      }
+      return DBusMethodErrorResponse.unknownInterface();
+    } on FormatException catch (error) {
+      return DBusMethodErrorResponse.invalidArgs(error.message);
+    } on TypeError {
+      return DBusMethodErrorResponse.invalidArgs();
+    } catch (error, stackTrace) {
+      Logger.warnWithTag(
+        'MPRIS',
+        'remote method failed: ${methodCall.interface}.${methodCall.name}',
+        error,
+      );
+      Logger.debugWithTag('MPRIS', 'remote method stack', stackTrace);
+      return DBusMethodErrorResponse.failed(
+        'Echoes could not complete the requested media action.',
+      );
     }
-    if (interface == _mprisPlayerInterface) {
-      return _handlePlayerCall(methodCall);
-    }
-    return DBusMethodErrorResponse.unknownInterface();
   }
 
   Future<DBusMethodResponse> _handleRootCall(DBusMethodCall call) async {
@@ -456,7 +497,12 @@ class _MprisObject extends DBusObject {
       case 'Quit':
         final onQuit = service.onQuit;
         if (onQuit != null) {
-          unawaited(onQuit());
+          unawaited(
+            onQuit().catchError((Object error, StackTrace stackTrace) {
+              Logger.warnWithTag('MPRIS', 'remote quit failed', error);
+              Logger.debugWithTag('MPRIS', 'remote quit stack', stackTrace);
+            }),
+          );
           return DBusMethodSuccessResponse();
         }
         return DBusMethodErrorResponse.notSupported();
