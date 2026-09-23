@@ -23,7 +23,7 @@
 
 ## 当前 release bundle 与 `.deb`
 
-应用代码基线：`c9db7c96`；版本号与 Android build evidence：`31fa34c0`；Debian 打包脚本：`c25e22aa`。`pubspec.yaml` 版本为 `1.1.0+2027`。
+应用代码与版本基线：`bcf9993e`；Debian 打包脚本：`c25e22aa`。`pubspec.yaml` 版本为 `1.1.0+2028`。本轮还将 MPRIS `Seeked` 改为由成功 seek 显式触发，普通延迟进度更新不会伪装成 seek。
 
 为了完成全新 Linux 构建，从 Ubuntu 22.04 官方仓库下载 `lld-14`，只解压至 `/tmp/echo-lld-root`，没有安装到系统。`/tmp/echo-toolchain/clang` 与 `clang++` 是调用系统 Clang 的临时 wrapper；同目录的 `ld.lld` 指向解压出的真实 Ubuntu LLD 二进制，不是伪造 linker shim。使用隔离 Flutter 配置和全新的 CMake build-dir `build/linux-lldtmp`：
 
@@ -39,8 +39,9 @@ ECHO_LINUX_BUNDLE_DIR="$PWD/build/linux-lldtmp/linux/x64/release/bundle" \
 
 - CMake compiler entries point to the temporary wrappers; they delegate to `/usr/bin/clang` and `/usr/bin/clang++`. Linker is the actual Ubuntu LLD 14 binary extracted under `/tmp`.
 - Bundle: `build/linux-lldtmp/linux/x64/release/bundle/echoes`; ELF x86-64; SHA-256 `8de3aca4fb8cd7263b6a5dbf6924f0e03f4df66860ff0c57c0416eb627592b1a`.
-- Flutter asset version: `1.1.0`, build number `2027`.
-- Debian package: `build/linux-lldtmp/packages/echoes_1.1.0+2027_amd64.deb`; Architecture `amd64`; SHA-256 `d3727112fa40f4ee65b14f0f5a0fb0562d622efa16565c846de512b30a0c6551`.
+- `libapp.so` SHA-256: `8461fb5da359e5b9993f2ab89d2884af69f40be0d47f3b371302361c8d5e3c29`.
+- Flutter asset version: `1.1.0`, build number `2028`.
+- Debian package: `build/linux-lldtmp/packages/echoes_1.1.0+2028_amd64.deb`; Architecture `amd64`; SHA-256 `44daa1effa8eccb463b57f3bc43412f8980da0a8146fe76c0e076bf81ff6e8e8`.
 - Package dependencies: `libgtk-3-0`, `libayatana-appindicator3-1`, `libmpv1`.
 - `dpkg-deb` checks confirmed package metadata, bundle executable, desktop entry and 192×192 icon. `libmpv` remains a runtime-loaded dependency and is declared explicitly.
 

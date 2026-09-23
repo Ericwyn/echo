@@ -13,7 +13,7 @@
 | 契约 | 必须包含的行为 |
 | --- | --- |
 | `PlaybackCommands` | play/pause/toggle、next/previous、逻辑 seek、userVolume/mute、随机/循环、按 entry ID 选择/移除队列项 |
-| `PlaybackSnapshot` | 当前 library/entry 身份、来源版本、元数据、逻辑 position/duration、播放意图/状态、错误/缓冲、userVolume/muted、可操作能力 |
+| `PlaybackSnapshot` | 当前 library/entry 身份、来源版本、元数据、逻辑 position/duration、显式 seek revision、播放意图/状态、错误/缓冲、userVolume/muted、可操作能力 |
 | `PlaybackQueueContent` | 渲染当前顺序与稳定条目，发出选择/播放/移除/排序意图；不知道自己在 Sheet 还是桌面容器 |
 | `AppNavigationModel` | 稳定 destination ID、路由目标、分组、可见性、当前状态；宽侧栏和手机抽屉消费同一份定义 |
 | `SongAction` | 操作标识、标签、是否可用、业务回调；不同 presenter 呈现相同动作 |
@@ -65,3 +65,4 @@ artwork 使用明确的“待解析网络 URI / 本地文件 URI或路径 / 无�
 | 2026-09-23 / `21feeac1` | 抽出平台无关 `PlaybackMetadata` 和 AudioService `MediaItem` mapper；snapshot 与 Android 系统媒体映射共用标题/艺术家/专辑/时长默认规则。新增 metadata/snapshot/media item 一致性用例；仅格式化与 diff 空白检查，未运行测试、analyze、构建或应用 | 新模型的自动回归待运行；Android 通知栏/锁屏与 Linux MPRIS 仍需最终设备验收；音量竞争场景待补 |
 | 2026-09-23 / `0f06bc0d` | 新增 `AppNavigationModel`，统一桌面侧栏项、手机主导航目的地与抽屉管理项的稳定 ID、分组、图标和页面目标；Explore 可见性只在模型里过滤；加入模型一致性测试。未运行测试或 analyze；release bundle 编译和 `.deb` 打包成功 | 用户需在桌面验证侧栏跳转/返回历史、设置与线路操作；手机 shell/抽屉回归测试仍待执行；P1 其余音量竞争和 Android 实机项未完成 |
 | 2026-09-23 / `c5d2b512` | 移除 `EchoAudioHandler.play` 无回调兜底路径里强制 `setVolume(1)`，避免系统播放命令覆盖用户音量；新增 AudioService fallback 音量回归用例。未运行测试；Linux release build 与 `.deb` 构建通过 | Android 后台播放回归由用户执行；音量淡入淡出竞争用例仍待运行 |
+| 2026-09-23 / `bcf9993e` | `PlaybackSnapshot` 增加 position seek revision，`PlayerNotifier` 在 seek 成功后递增；Linux MPRIS 用它区分用户 seek 与延迟进度快照。新增 D-Bus regression test 未运行；Linux 与 Android release 均编译成功，Android handler 不消费此 revision | 共享契约保持跨端可编译，MPRIS 不再因普通位置跳变误报 Seeked；真机绝对 seek、Android 通知栏/锁屏仍待用户验收 |
