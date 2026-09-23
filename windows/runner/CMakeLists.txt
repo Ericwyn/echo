@@ -16,6 +16,22 @@ add_executable(${BINARY_NAME} WIN32
   "runner.exe.manifest"
 )
 
+# Keep the C++/WinRT bridge in a small target with normal C++ exception support;
+# the generated Flutter runner disables exceptions for its own translation units.
+add_library(echoes_windows_smtc STATIC "windows_smtc_bridge.cpp")
+target_compile_features(echoes_windows_smtc PUBLIC cxx_std_17)
+target_compile_options(echoes_windows_smtc PRIVATE /W4 /EHsc)
+target_compile_definitions(echoes_windows_smtc PRIVATE "NOMINMAX" "UNICODE" "_UNICODE")
+target_include_directories(echoes_windows_smtc PRIVATE
+  "${CMAKE_SOURCE_DIR}"
+  "${FLUTTER_MANAGED_DIR}/ephemeral/cpp_client_wrapper/include"
+)
+target_link_libraries(echoes_windows_smtc PRIVATE
+  flutter
+  flutter_wrapper_plugin
+  windowsapp
+)
+
 # Apply the standard set of build settings. This can be removed for applications
 # that need different build settings.
 apply_standard_settings(${BINARY_NAME})
@@ -34,6 +50,7 @@ target_compile_definitions(${BINARY_NAME} PRIVATE "NOMINMAX")
 # dependencies here.
 target_link_libraries(${BINARY_NAME} PRIVATE flutter flutter_wrapper_app)
 target_link_libraries(${BINARY_NAME} PRIVATE "dwmapi.lib")
+target_link_libraries(${BINARY_NAME} PRIVATE echoes_windows_smtc)
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
 # Run the Flutter tool portions of the build. This must not be removed.

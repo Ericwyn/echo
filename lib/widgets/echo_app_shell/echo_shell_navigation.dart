@@ -166,6 +166,7 @@ class EchoExpandedNavigationSidebar extends StatelessWidget {
     this.actions = const <EchoDesktopSidebarAction>[],
     this.accountLabel = '账户',
     this.accountSubtitle = '',
+    this.playbackSlotHeight,
   });
 
   final List<EchoShellDestination> destinations;
@@ -175,6 +176,7 @@ class EchoExpandedNavigationSidebar extends StatelessWidget {
   final List<EchoDesktopSidebarAction> actions;
   final String accountLabel;
   final String accountSubtitle;
+  final double? playbackSlotHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -240,18 +242,22 @@ class EchoExpandedNavigationSidebar extends StatelessWidget {
                       vertical: spacing.md,
                     ),
                     children: <Widget>[
-                      _SidebarSectionLabel(label: '浏览'),
-                      for (final destination in destinations)
-                        Padding(
-                          padding: EdgeInsets.only(bottom: spacing.xxs),
-                          child: _SidebarDestination(
-                            destination: destination,
-                            selected:
-                                destination.branchIndex == selectedBranchIndex,
-                            onPressed: () =>
-                                onDestinationSelected(destination.branchIndex),
+                      if (actions.isEmpty) ...<Widget>[
+                        _SidebarSectionLabel(label: '浏览'),
+                        for (final destination in destinations)
+                          Padding(
+                            padding: EdgeInsets.only(bottom: spacing.xxs),
+                            child: _SidebarDestination(
+                              destination: destination,
+                              selected:
+                                  destination.branchIndex ==
+                                  selectedBranchIndex,
+                              onPressed: () => onDestinationSelected(
+                                destination.branchIndex,
+                              ),
+                            ),
                           ),
-                        ),
+                      ],
                       for (
                         var index = 0;
                         index < actions.length;
@@ -274,66 +280,52 @@ class EchoExpandedNavigationSidebar extends StatelessWidget {
                     ],
                   ),
                 ),
-                EchoDivider(inset: spacing.md, endInset: spacing.md),
-                Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    spacing.sm,
-                    spacing.xs,
-                    spacing.sm,
-                    spacing.xs,
+                if (playbackSlotHeight == null) ...<Widget>[
+                  EchoDivider(inset: spacing.md, endInset: spacing.md),
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      spacing.sm,
+                      spacing.xs,
+                      spacing.sm,
+                      spacing.xs,
+                    ),
+                    child: _DesktopAccountButton(
+                      accountLabel: accountLabel,
+                      accountSubtitle: accountSubtitle,
+                      onPressed: onOpenDrawer,
+                    ),
                   ),
-                  child: EchoPressable(
-                    semanticLabel: '账户、线路和设置',
-                    onPressed: onOpenDrawer,
-                    minimumSize: const Size(double.infinity, 60),
-                    borderRadius: context.echoRadii.control,
+                ] else
+                  SizedBox(
+                    key: const ValueKey<String>('echo-desktop-account-footer'),
+                    height: playbackSlotHeight,
                     child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: spacing.xs),
-                      child: Row(
-                        children: <Widget>[
-                          Icon(
-                            AppIcons.profile,
-                            size: context.echoInteraction.iconSize,
-                            color: context.echoColors.accent,
-                          ),
-                          SizedBox(width: spacing.sm),
-                          Expanded(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: <Widget>[
-                                Text(
-                                  accountLabel,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: context.echoTypography.label.copyWith(
-                                    color: context.echoColors.ink,
-                                  ),
-                                ),
-                                if (accountSubtitle.isNotEmpty)
-                                  Text(
-                                    accountSubtitle,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: context.echoTypography.metadata
-                                        .copyWith(
-                                          color: context.echoColors.muted,
-                                        ),
-                                  ),
-                              ],
+                      padding: EdgeInsets.only(
+                        top: spacing.xs,
+                        bottom: spacing.xxs,
+                      ),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border(
+                            top: BorderSide(
+                              color: context.echoColors.controlBoundary,
                             ),
                           ),
-                          SizedBox(width: spacing.xs),
-                          Icon(
-                            AppIcons.more,
-                            size: context.echoInteraction.smallIconSize,
-                            color: context.echoColors.muted,
-                          ),
-                        ],
+                        ),
+                        padding: EdgeInsets.fromLTRB(
+                          spacing.sm,
+                          spacing.xs,
+                          spacing.sm,
+                          spacing.xs,
+                        ),
+                        child: _DesktopAccountButton(
+                          accountLabel: accountLabel,
+                          accountSubtitle: accountSubtitle,
+                          onPressed: onOpenDrawer,
+                        ),
                       ),
                     ),
                   ),
-                ),
               ],
             ),
           ),
@@ -360,7 +352,8 @@ class _SidebarSectionLabel extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: context.echoTypography.metadata.copyWith(
+        style: context.echoTypography.label.copyWith(
+          fontSize: 14,
           color: context.echoColors.muted,
           fontWeight: FontWeight.w600,
         ),
@@ -411,7 +404,8 @@ class _DesktopSidebarActionRow extends StatelessWidget {
                   action.label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: context.echoTypography.label.copyWith(
+                  style: context.echoTypography.body.copyWith(
+                    fontSize: 15,
                     color: foreground,
                     fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                   ),
@@ -625,9 +619,78 @@ class _SidebarDestination extends StatelessWidget {
                 label: destination.label,
                 color: foreground,
                 selected: selected,
-                style: context.echoTypography.title,
+                style: context.echoTypography.body.copyWith(fontSize: 15),
                 maxLines: 2,
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DesktopAccountButton extends StatelessWidget {
+  const _DesktopAccountButton({
+    required this.accountLabel,
+    required this.accountSubtitle,
+    required this.onPressed,
+  });
+
+  final String accountLabel;
+  final String accountSubtitle;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final spacing = context.echoSpacing;
+    return EchoPressable(
+      semanticLabel: '账户、线路和设置',
+      onPressed: onPressed,
+      minimumSize: const Size(double.infinity, 60),
+      borderRadius: context.echoRadii.control,
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: spacing.xs),
+        child: Row(
+          children: <Widget>[
+            Icon(
+              AppIcons.profile,
+              size: context.echoInteraction.iconSize,
+              color: context.echoColors.accent,
+            ),
+            SizedBox(width: spacing.sm),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    accountLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.echoTypography.label.copyWith(
+                      fontSize: 14,
+                      color: context.echoColors.ink,
+                    ),
+                  ),
+                  if (accountSubtitle.isNotEmpty)
+                    Text(
+                      accountSubtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.echoTypography.metadata.copyWith(
+                        fontSize: 13,
+                        color: context.echoColors.muted,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            SizedBox(width: spacing.xs),
+            Icon(
+              AppIcons.more,
+              size: context.echoInteraction.smallIconSize,
+              color: context.echoColors.muted,
             ),
           ],
         ),

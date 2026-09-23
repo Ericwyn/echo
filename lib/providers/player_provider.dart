@@ -20,6 +20,11 @@ import '../core/utils/network_error_notifier.dart';
 import '../core/services/audio_handler_service.dart';
 import '../core/services/playback_wake_guard.dart';
 import '../core/services/background_playback_advisor.dart';
+import '../core/services/linux_mpris_service.dart';
+import '../core/services/artwork_file_cache.dart';
+import '../core/services/windows_smtc_service.dart';
+import '../core/services/desktop_lifecycle_service.dart';
+import '../core/utils/cover_ref_security.dart';
 
 import 'music_provider.dart';
 import 'api_provider.dart';
@@ -178,6 +183,12 @@ class PlayerNotifier extends StateNotifier<PlayerState>
   DateTime? _healthySince;
   final List<StreamSubscription<dynamic>> _playerSubscriptions = [];
   ProviderSubscription<ServerAddress?>? _routeSubscription;
+  LinuxMprisService? _linuxMprisService;
+  void Function()? _removeLinuxMprisStateListener;
+  WindowsSmtcService? _windowsSmtcService;
+  void Function()? _removeWindowsSmtcStateListener;
+  late final ArtworkFileCache _artworkFileCache = ArtworkFileCache();
+  int _mediaArtworkGeneration = 0;
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   late final FavoriteScrobbleHandler _favoriteHandler;
@@ -192,7 +203,8 @@ class PlayerNotifier extends StateNotifier<PlayerState>
 
   late final Future<void> initialized;
 
-  PlaybackSnapshot get snapshot => PlaybackSnapshot.fromState(state);
+  PlaybackSnapshot get snapshot =>
+      PlaybackSnapshot.fromState(state, playbackRequested: _playbackRequested);
 
   PlayerNotifier(
     this._ref, {
@@ -235,10 +247,16 @@ class PlayerNotifier extends StateNotifier<PlayerState>
 
     if (injectedPlayer != null) {
       player = injectedPlayer;
+    } else if (_isDesktopPlatform) {
+      // AudioService's notification/background session is mobile-only. Desktop
+      // integrations use Linux MPRIS or Windows SMTC below.
+      Logger.infoWithTag(
+        'PLAYBACK',
+        'audio_service_skipped platform=${defaultTargetPlatform.name}',
+      );
+      player = _createAudioPlayer();
     } else {
-      // 初始化 AudioService（仅在移动平台，桌面端不支持且可能干扰播放）
       try {
-        if (_isDesktopPlatform) throw UnsupportedError('Desktop platform');
         _audioHandler = await initAudioService();
         player = _audioHandler!.audioPlayer;
         Logger.info('AudioService initialized');
@@ -256,19 +274,7 @@ class PlayerNotifier extends StateNotifier<PlayerState>
           'PLAYBACK',
           'background_service_unavailable type=${e.runtimeType}',
         );
-        player = AudioPlayer(
-          audioLoadConfiguration: const AudioLoadConfiguration(
-            androidLoadControl: AndroidLoadControl(
-              minBufferDuration: Duration(minutes: 10),
-              maxBufferDuration: Duration(minutes: 15),
-              bufferForPlaybackDuration: Duration(seconds: 5),
-              bufferForPlaybackAfterRebufferDuration: Duration(seconds: 10),
-            ),
-            darwinLoadControl: DarwinLoadControl(
-              preferredForwardBufferDuration: Duration(minutes: 10),
-            ),
-          ),
-        );
+        player = _createAudioPlayer();
       }
     }
     if (!mounted) {
@@ -565,6 +571,136 @@ class PlayerNotifier extends StateNotifier<PlayerState>
       await _restorePlaybackMode();
       await _restorePlaybackSession();
     }
+    if (injectedPlayer == null &&
+        !kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.linux) {
+      unawaited(_startLinuxMprisService());
+    }
+    if (injectedPlayer == null &&
+        !kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.windows) {
+      unawaited(_startWindowsSmtcService());
+    }
+  }
+
+  AudioPlayer _createAudioPlayer() => AudioPlayer(
+    audioLoadConfiguration: const AudioLoadConfiguration(
+      androidLoadControl: AndroidLoadControl(
+        minBufferDuration: Duration(minutes: 10),
+        maxBufferDuration: Duration(minutes: 15),
+        bufferForPlaybackDuration: Duration(seconds: 5),
+        bufferForPlaybackAfterRebufferDuration: Duration(seconds: 10),
+      ),
+      darwinLoadControl: DarwinLoadControl(
+        preferredForwardBufferDuration: Duration(minutes: 10),
+      ),
+    ),
+  );
+
+  Future<void> _startWindowsSmtcService() async {
+    if (!mounted || _windowsSmtcService != null) return;
+    final initialSnapshot = PlaybackSnapshot.fromState(
+      state,
+      playbackRequested: _playbackRequested,
+    );
+    final service = WindowsSmtcService(
+      commands: this,
+      artworkResolver: _resolveMediaArtwork,
+    );
+    _windowsSmtcService = service;
+    _removeWindowsSmtcStateListener = addListener((next) {
+      unawaited(
+        service
+            .updateSnapshot(
+              PlaybackSnapshot.fromState(
+                next,
+                playbackRequested: _playbackRequested,
+              ),
+            )
+            .catchError((Object error) {
+              Logger.warnWithTag('SMTC', 'failed to publish state', error);
+            }),
+      );
+    });
+
+    try {
+      await service.start(initialSnapshot);
+      if (!mounted) await service.dispose();
+    } catch (error) {
+      Logger.warnWithTag('SMTC', 'Windows media session unavailable', error);
+      if (identical(_windowsSmtcService, service)) {
+        _removeWindowsSmtcStateListener?.call();
+        _removeWindowsSmtcStateListener = null;
+        _windowsSmtcService = null;
+      }
+      await service.dispose();
+    }
+  }
+
+  Future<void> _startLinuxMprisService() async {
+    if (!mounted || _linuxMprisService != null) return;
+    final initialSnapshot = PlaybackSnapshot.fromState(
+      state,
+      playbackRequested: _playbackRequested,
+    );
+    final service = LinuxMprisService(
+      commands: this,
+      onRaise: DesktopLifecycleService.instance.showWindow,
+      onQuit: DesktopLifecycleService.instance.requestExit,
+      artworkResolver: _resolveMediaArtwork,
+    );
+    _linuxMprisService = service;
+    _removeLinuxMprisStateListener = addListener((next) {
+      unawaited(
+        service
+            .updateSnapshot(
+              PlaybackSnapshot.fromState(
+                next,
+                playbackRequested: _playbackRequested,
+              ),
+            )
+            .catchError((Object error) {
+              Logger.warnWithTag('MPRIS', 'failed to publish state', error);
+            }),
+      );
+    });
+
+    try {
+      await service.updateSnapshot(initialSnapshot);
+      await service.start();
+      if (!mounted) await service.dispose();
+    } catch (error) {
+      Logger.warnWithTag('MPRIS', 'session bus adapter unavailable', error);
+      if (identical(_linuxMprisService, service)) {
+        _removeLinuxMprisStateListener?.call();
+        _removeLinuxMprisStateListener = null;
+        _linuxMprisService = null;
+      }
+      await service.dispose();
+    }
+  }
+
+  Future<Uri?> _resolveMediaArtwork(PlaybackSnapshot snapshot) async {
+    return _artworkFileCache.resolve(
+      _remoteArtworkUrl(snapshot.artworkReference),
+    );
+  }
+
+  String? _remoteArtworkUrl(String? artworkReference) {
+    final reference = artworkReference?.trim() ?? '';
+    if (reference.isEmpty) return null;
+
+    final directUrl = extractTrustedCoverUrl(reference) ?? reference;
+    final directUri = Uri.tryParse(directUrl);
+    if (directUri != null &&
+        directUri.host.isNotEmpty &&
+        (directUri.scheme == 'http' || directUri.scheme == 'https')) {
+      return directUrl;
+    }
+
+    final coverArtId = sanitizeServerCoverArtId(reference);
+    if (coverArtId == null) return null;
+    return _apiClient.getCoverArtUrl(coverArtId, size: 512);
   }
 
   void _initConnectivityRetryHandling() {
@@ -1841,31 +1977,65 @@ class PlayerNotifier extends StateNotifier<PlayerState>
 
   /// 更新通知栏媒体信息
   void _updateMediaItem(Song song) {
-    if (_audioHandler == null) return;
+    final handler = _audioHandler;
+    if (handler == null) return;
 
-    final previewCover = song.previewCoverUrl?.trim();
-    final coverArtUrl =
-        song.isPreview && previewCover != null && previewCover.isNotEmpty
-        ? previewCover
-        : (song.coverArt != null
-              ? _apiClient.getCoverArtUrl(song.coverArt!, size: 300)
-              : null);
-    final safeCoverArtUrl = coverArtUrl?.trim();
+    final artworkReference = song.artworkReference;
+    final artworkUrl = _remoteArtworkUrl(artworkReference);
+    final generation = ++_mediaArtworkGeneration;
+    final session = _playDebugSession;
+    final entryId = state.currentEntryId;
 
-    final mediaItem = MediaItem(
-      id: song.id,
-      title: song.title,
-      artist: song.artist ?? 'Unknown Artist',
-      album: song.album ?? 'Unknown Album',
-      duration: song.duration != null
-          ? Duration(seconds: song.duration!)
-          : null,
-      artUri: safeCoverArtUrl != null && safeCoverArtUrl.isNotEmpty
-          ? Uri.parse(safeCoverArtUrl)
-          : null,
+    // Publish track identity immediately. The OS then clears the previous
+    // song's thumbnail while the shared cache resolves the new local file.
+    unawaited(handler.updateMediaItem(_buildAudioMediaItem(song)));
+    if (artworkUrl == null) return;
+
+    unawaited(
+      _publishCachedMediaArtwork(
+        song: song,
+        artworkReference: artworkReference,
+        artworkUrl: artworkUrl,
+        generation: generation,
+        session: session,
+        entryId: entryId,
+      ),
     );
+  }
 
-    _audioHandler?.updateMediaItem(mediaItem);
+  MediaItem _buildAudioMediaItem(Song song, {Uri? artworkUri}) => MediaItem(
+    id: song.id,
+    title: song.title,
+    artist: song.artist ?? 'Unknown Artist',
+    album: song.album ?? 'Unknown Album',
+    duration: song.duration != null ? Duration(seconds: song.duration!) : null,
+    artUri: artworkUri,
+  );
+
+  Future<void> _publishCachedMediaArtwork({
+    required Song song,
+    required String? artworkReference,
+    required String artworkUrl,
+    required int generation,
+    required int session,
+    required String? entryId,
+  }) async {
+    final artworkUri = await _artworkFileCache.resolve(artworkUrl);
+    if (artworkUri == null ||
+        !mounted ||
+        generation != _mediaArtworkGeneration ||
+        session != _playDebugSession ||
+        state.currentSong?.id != song.id ||
+        state.currentEntryId != entryId ||
+        state.currentSong?.artworkReference != artworkReference) {
+      return;
+    }
+
+    final handler = _audioHandler;
+    if (handler == null) return;
+    await handler.updateMediaItem(
+      _buildAudioMediaItem(song, artworkUri: artworkUri),
+    );
   }
 
   /// 异步补充歌曲元数据（格式/码率/位深/采样率/声道数），不阻塞播放流程。
@@ -2691,6 +2861,7 @@ class PlayerNotifier extends StateNotifier<PlayerState>
   }
 
   /// 设置播放模式
+  @override
   Future<void> setPlaybackMode(PlaybackMode mode, {bool persist = true}) async {
     switch (mode) {
       case PlaybackMode.sequential:
@@ -4276,6 +4447,18 @@ class PlayerNotifier extends StateNotifier<PlayerState>
     unawaited(LocalStorage.setPlaybackVolume(state.userVolume));
     unawaited(_persistPlaybackSession());
     _positionPollTimer?.cancel();
+    _removeLinuxMprisStateListener?.call();
+    _removeLinuxMprisStateListener = null;
+    final mprisService = _linuxMprisService;
+    _linuxMprisService = null;
+    if (mprisService != null) unawaited(mprisService.dispose());
+    _removeWindowsSmtcStateListener?.call();
+    _removeWindowsSmtcStateListener = null;
+    final windowsSmtcService = _windowsSmtcService;
+    _windowsSmtcService = null;
+    if (windowsSmtcService != null) {
+      unawaited(windowsSmtcService.dispose());
+    }
     unawaited(_wakeGuard.dispose());
     _cancelFade();
     _downloadProgressSubscription?.cancel();

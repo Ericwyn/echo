@@ -8,11 +8,14 @@ import '../../../providers/player_provider.dart';
 import '../../../widgets/echo_artwork.dart';
 import '../pages/desktop_player_workspace.dart';
 import '../pages/full_player_page.dart' show PlaybackControls, ProgressBar;
+import 'player_scrubber.dart';
 
 /// Persistent desktop controls. Phone and tablet layouts continue to use the
 /// gesture-oriented MiniPlayer.
 class DesktopPlaybackBar extends ConsumerWidget {
   const DesktopPlaybackBar({super.key, required this.onOpenWorkspace});
+
+  static const double height = echoDesktopPlaybackBarHeight;
 
   final ValueChanged<DesktopPlayerPanel> onOpenWorkspace;
 
@@ -57,7 +60,7 @@ class DesktopPlaybackBar extends ConsumerWidget {
           final spacing = context.echoSpacing;
           return Container(
             key: const ValueKey<String>('echo-desktop-playback-bar'),
-            height: 96,
+            height: height,
             decoration: BoxDecoration(
               border: Border(
                 top: BorderSide(color: context.echoColors.controlBoundary),
@@ -204,16 +207,18 @@ class _DesktopVolumeControl extends ConsumerWidget {
         if (showSlider)
           SizedBox(
             width: 112,
-            child: EchoSlider(
+            child: EchoPlayerScrubber(
               value: volume.value,
               min: 0,
               max: 1,
+              semanticStep: 0.05,
+              semanticValueFormatter: (value) => '${(value * 100).round()}%',
               semanticLabel: '播放音量',
               semanticValue: '${(volume.value * 100).round()}%',
               onChanged: (value) =>
                   ref.read(playerProvider.notifier).setUserVolume(value),
-              activeColor: context.echoColors.ink,
-              inactiveColor: context.echoColors.controlBoundary,
+              activeColor: context.echoColors.accent,
+              inactiveColor: context.echoColors.divider,
               thumbColor: context.echoColors.ink,
             ),
           ),

@@ -9,6 +9,7 @@ import '../../../providers/palette_provider.dart';
 import '../../../providers/player_provider.dart';
 import '../../../widgets/echo_artwork.dart';
 import '../widgets/current_lyrics_panel.dart';
+import '../widgets/player_backdrop.dart';
 import '../widgets/play_queue_sheet.dart';
 import '../widgets/song_options_sheet.dart';
 
@@ -32,8 +33,6 @@ class DesktopPlayerWorkspace extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final song = ref.watch(playerProvider.select((state) => state.currentSong));
     final visuals = ref.watch(resolvedCurrentSongMediaVisualsProvider);
-    final colors = context.echoColors;
-    final spacing = context.echoSpacing;
 
     if (song == null) {
       return const EchoEmptyState(
@@ -46,67 +45,87 @@ class DesktopPlayerWorkspace extends ConsumerWidget {
     return EchoMediaColorScope(
       visuals: visuals,
       role: EchoMediaSurfaceRole.stage,
-      child: ColoredBox(
-        key: const ValueKey<String>('echo-desktop-player-workspace'),
-        color: colors.canvas,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final narrow = constraints.maxWidth < 900;
-            final panelPadding = narrow ? spacing.md : spacing.xl;
-            final columnGap = narrow ? spacing.lg : spacing.xxl;
-            final artworkWidth = (constraints.maxWidth * 0.36)
-                .clamp(260.0, 440.0)
-                .toDouble();
-            final coverSize = (artworkWidth - panelPadding * 2)
-                .clamp(220.0, 400.0)
-                .toDouble();
+      child: Builder(
+        builder: (context) {
+          final spacing = context.echoSpacing;
+          return Stack(
+            key: const ValueKey<String>('echo-desktop-player-workspace'),
+            fit: StackFit.expand,
+            children: <Widget>[
+              Positioned.fill(
+                child: EchoPlayerBackdrop(
+                  visuals: visuals,
+                  mode: EchoPlayerBackdropMode.stage,
+                ),
+              ),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final narrow = constraints.maxWidth < 900;
+                  final panelPadding = narrow ? spacing.md : spacing.xl;
+                  final columnGap = narrow ? spacing.lg : spacing.xxl;
+                  final artworkWidth = (constraints.maxWidth * 0.36)
+                      .clamp(260.0, 440.0)
+                      .toDouble();
+                  final coverSize = (artworkWidth - panelPadding * 2)
+                      .clamp(220.0, 400.0)
+                      .toDouble();
 
-            return Padding(
-              padding: EdgeInsets.all(panelPadding),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  SizedBox(
-                    width: artworkWidth,
-                    child: _DesktopArtworkPane(song: song, size: coverSize),
-                  ),
-                  SizedBox(width: columnGap),
-                  Expanded(
-                    child: Column(
+                  return Padding(
+                    padding: EdgeInsets.all(panelPadding),
+                    child: Row(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: <Widget>[
-                        _DesktopWorkspaceHeader(
-                          song: song,
-                          panel: panel,
-                          onPanelChanged: onPanelChanged,
-                          onClose: onClose,
+                        SizedBox(
+                          width: artworkWidth,
+                          child: _DesktopArtworkPane(
+                            song: song,
+                            size: coverSize,
+                          ),
                         ),
-                        SizedBox(height: spacing.md),
-                        const EchoDivider(),
-                        SizedBox(height: spacing.sm),
+                        SizedBox(width: columnGap),
                         Expanded(
-                          child: AnimatedSwitcher(
-                            duration: context.echoMotion.resolve(
-                              context,
-                              context.echoMotion.state,
-                            ),
-                            child: panel == DesktopPlayerPanel.lyrics
-                                ? const CurrentLyricsPanel(
-                                    key: ValueKey<String>('desktop-lyrics'),
-                                  )
-                                : const _DesktopQueuePanel(
-                                    key: ValueKey<String>('desktop-queue'),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: <Widget>[
+                              _DesktopWorkspaceHeader(
+                                song: song,
+                                panel: panel,
+                                onPanelChanged: onPanelChanged,
+                                onClose: onClose,
+                              ),
+                              SizedBox(height: spacing.md),
+                              const EchoDivider(),
+                              SizedBox(height: spacing.sm),
+                              Expanded(
+                                child: AnimatedSwitcher(
+                                  duration: context.echoMotion.resolve(
+                                    context,
+                                    context.echoMotion.state,
                                   ),
+                                  child: panel == DesktopPlayerPanel.lyrics
+                                      ? const CurrentLyricsPanel(
+                                          key: ValueKey<String>(
+                                            'desktop-lyrics',
+                                          ),
+                                        )
+                                      : const _DesktopQueuePanel(
+                                          key: ValueKey<String>(
+                                            'desktop-queue',
+                                          ),
+                                        ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ],
+                  );
+                },
               ),
-            );
-          },
-        ),
+            ],
+          );
+        },
       ),
     );
   }

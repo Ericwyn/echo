@@ -2,22 +2,22 @@
 
 [返回 spec](README.md) · [验收矩阵](acceptance.md) · [决策](decisions.md)
 
-状态：待实施。前置：目标平台的 P0/P4、共享 P1、界面 P2/P3 完成。Ubuntu 和 Windows 分别记录发布状态；一端通过不代表另一端通过。
+状态：Linux 首轮 release 编译与自动验证通过，发布验收仍未完成。前置：P0–P4 仍有完整系统操作、恢复和安装场景待验证。当前优先 Ubuntu/Linux；Windows CI 暂缓，不能据此宣称 Windows 发布支持。
 
 ## 目标与交付范围
 
 Ubuntu 交付可安装 `.deb` 与完整 bundle 压缩包；Windows 交付 release bundle 和在 P0 确认方案下的安装包。安装包包含桌面身份、图标和明确的运行依赖，文档说明支持范围和关闭/退出行为。
 
-首轮验收基线是 Ubuntu 22.04/GNOME/X11，扩展到 Ubuntu 24.04 与 Wayland；Windows 在实际受支持的系统版本上验证。未经测试的环境列为未验证，不扩大支持声明。Flatpak/Snap、自动更新服务和开机启动不列首版范围。
+首轮验收基线是 Ubuntu 22.04/GNOME/X11，扩展到 Ubuntu 24.04 与 Wayland。Ubuntu 22.04 系统 libmpv 0.34.1 由本地 `media_kit` 兼容补丁覆盖：关闭 MPV 临时磁盘缓存并跳过音频场景不用的 `subs-fallback`；封面缓存仍由共享 artwork cache 管理。未经测试的环境列为未验证，不扩大支持声明。Flatpak/Snap、自动更新服务和开机启动不列首版范围。
 
 ## 实施步骤
 
-1. 使用 P0 确认的最低 Ubuntu 构建环境和 Flutter 版本；CI 固定 runner/容器基线，不继续让 `ubuntu-latest` 决定运行时 glibc 下限。Windows SDK 与 C++ 工具链单独配置。
+1. 使用 Ubuntu 22.04 构建环境和 Flutter 3.41.7；PR Linux job 固定 runner 并运行 Linux release build。当前不增加 Windows CI job。
 2. 固定 pub 依赖锁文件和 native 依赖，补齐 clang/lld、GTK、CMake、Ninja 与选定托盘实现要求。构建过程不依赖开发者机器绝对路径、手工 symlink 或旧缓存。
 3. Linux bundle 检查 `echoes`、`lib/`、`data/` 和插件资源完整；不能只分发可执行文件。扫描直接动态依赖，同时确认运行时动态加载的 libmpv 与编解码依赖。
-4. 根据 K6 决定 libmpv 依赖/打包方式，分别验证 22.04、24.04 对应 ABI。`.deb` 声明可满足的运行依赖；分发原生库时随包整理许可证，资源错误明确报告。
+4. `.deb` 与 bundle 仍需明确系统 libmpv 运行依赖；本地 smoke test 已在 Ubuntu 22.04/libmpv 0.34.1 上通过，但还需在干净环境验证包依赖、实际播放和 ABI。
 5. 添加 `.desktop`、图标、分类、应用名称和身份；安装后从应用列表、Dock 和命令行启动指向同一应用，重复启动能恢复窗口。按实际设计申明 D-Bus 激活能力，不能只加 DesktopEntry 字段就当激活实现完成。
-6. Windows 包验证原生 DLL、托盘图标、SMTC 封面路径、含空格/中文用户目录。安装后启动行为与开发目录运行一致。
+6. Windows 包与 SMTC 验证暂缓，不纳入当前 Linux 交付门槛。
 7. 在没有 Flutter/开发 SDK、没有预装开发版 libmpv 的干净目标环境安装并真实播放：登录、浏览、直连/转码、seek、系统控制、托盘和退出。依赖由安装流程满足，禁止先在测试机手工补齐再宣称开箱可用。
 8. 验证升级保留音乐库配置、用户音量和队列恢复信息；普通卸载的用户数据策略明确，不静默清理用户下载。不要为本次布局变化修改数据库或会话格式，确需变更时单独记录迁移测试。
 9. 运行矩阵要求的尺寸/DPI、输入方式、长队列和生命周期场景，记录 commit、环境、步骤、结果和截图/日志。共享播放器变化执行相关 Android 自动测试与真机后台回归。
@@ -59,7 +59,7 @@ Ubuntu 24.04/Wayland 若仍未验收，只能先发布明确限定 22.04/X11 的
 
 | 平台 | 构建提交 / 产物 | 验收 / 遗留 |
 | --- | --- | --- |
-| Ubuntu 22.04 X11 | — | 未开始新版本验收 |
+| Ubuntu 22.04 X11 | 2026-09-23 本地 release bundle | 编译成功；本机 libmpv 0.34.1 HTTP 音频 smoke test 无 MPV 选项/cache-dir 错误；用户先前确认 MPRIS 封面/基本控制和托盘。干净安装、绝对 seek、关闭恢复与最终最新 bundle 人工复测未完成 |
 | Ubuntu 24.04 / Wayland | — | 待提供环境与结果 |
-| Windows | — | 待构建与真实桌面验证 |
-| Android 回归 | — | 新共享改造尚未实施 |
+| Windows | — | Windows CI 暂缓；未编译/未实机验收 |
+| Android 回归 | 本任务 Flutter 测试 431 项通过 | artwork/shared player 自动回归通过；最终 Android 真机锁屏/通知栏/封面验证待完成 |

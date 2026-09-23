@@ -1,4 +1,4 @@
-import 'package:just_audio/just_audio.dart' show LoopMode;
+import 'package:just_audio/just_audio.dart' show LoopMode, ProcessingState;
 import 'package:flutter/foundation.dart' show immutable;
 
 import 'player_state.dart';
@@ -16,6 +16,7 @@ abstract interface class PlaybackCommands {
   Future<void> seek(Duration position);
   Future<void> setUserVolume(double volume);
   Future<void> setMuted(bool muted);
+  Future<void> setPlaybackMode(PlaybackMode mode, {bool persist = true});
   Future<void> setLoopMode(LoopMode mode);
   Future<void> setShuffleEnabled(bool enabled);
   Future<void> skipToQueueEntry(String entryId);
@@ -36,6 +37,8 @@ class PlaybackSnapshot {
     required this.position,
     required this.duration,
     required this.isPlaying,
+    required this.playbackRequested,
+    required this.isStopped,
     required this.isLoading,
     required this.hasError,
     required this.canPlay,
@@ -49,8 +52,12 @@ class PlaybackSnapshot {
     required this.shuffleEnabled,
   });
 
-  factory PlaybackSnapshot.fromState(PlayerState state) {
+  factory PlaybackSnapshot.fromState(
+    PlayerState state, {
+    bool? playbackRequested,
+  }) {
     final song = state.currentSong;
+    final requested = playbackRequested ?? state.isPlaying;
     final duration = state.duration > Duration.zero
         ? state.duration
         : Duration(seconds: song?.duration ?? 0);
@@ -65,6 +72,10 @@ class PlaybackSnapshot {
       position: state.position,
       duration: duration,
       isPlaying: state.isPlaying,
+      playbackRequested: requested,
+      isStopped:
+          song == null ||
+          (state.processingState == ProcessingState.idle && !requested),
       isLoading: state.isLoading,
       hasError: state.hasPlaybackError,
       canPlay: hasSong && !state.isLoading,
@@ -88,6 +99,8 @@ class PlaybackSnapshot {
   final Duration position;
   final Duration duration;
   final bool isPlaying;
+  final bool playbackRequested;
+  final bool isStopped;
   final bool isLoading;
   final bool hasError;
   final bool canPlay;

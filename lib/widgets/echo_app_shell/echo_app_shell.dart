@@ -20,6 +20,7 @@ class EchoAppShell extends StatelessWidget {
     this.desktopActions = const <EchoDesktopSidebarAction>[],
     this.desktopAccountLabel = '账户',
     this.desktopAccountSubtitle = '',
+    this.desktopPlaybackBarHeight = echoDesktopPlaybackBarHeight,
   });
 
   final GlobalKey<ScaffoldState> scaffoldKey;
@@ -35,6 +36,7 @@ class EchoAppShell extends StatelessWidget {
   final List<EchoDesktopSidebarAction> desktopActions;
   final String desktopAccountLabel;
   final String desktopAccountSubtitle;
+  final double desktopPlaybackBarHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -75,6 +77,7 @@ class EchoAppShell extends StatelessWidget {
           desktopActions: desktopActions,
           desktopAccountLabel: desktopAccountLabel,
           desktopAccountSubtitle: desktopAccountSubtitle,
+          desktopPlaybackBarHeight: desktopPlaybackBarHeight,
         ),
       },
       bottomNavigationBar: windowClass == EchoWindowClass.compact
@@ -190,6 +193,7 @@ class _WideShellBody extends StatelessWidget {
     required this.desktopActions,
     required this.desktopAccountLabel,
     required this.desktopAccountSubtitle,
+    required this.desktopPlaybackBarHeight,
   });
 
   final EchoWindowClass windowClass;
@@ -204,9 +208,15 @@ class _WideShellBody extends StatelessWidget {
   final List<EchoDesktopSidebarAction> desktopActions;
   final String desktopAccountLabel;
   final String desktopAccountSubtitle;
+  final double desktopPlaybackBarHeight;
 
   @override
   Widget build(BuildContext context) {
+    final spacing = context.echoSpacing;
+    final playbackSlotHeight = showMiniPlayer
+        ? desktopPlaybackBarHeight + spacing.xs + spacing.xxs
+        : null;
+
     return Row(
       children: <Widget>[
         if (windowClass == EchoWindowClass.medium)
@@ -225,6 +235,7 @@ class _WideShellBody extends StatelessWidget {
             actions: desktopActions,
             accountLabel: desktopAccountLabel,
             accountSubtitle: desktopAccountSubtitle,
+            playbackSlotHeight: playbackSlotHeight,
           ),
         Expanded(
           child: Column(

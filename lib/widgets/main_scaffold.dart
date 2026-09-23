@@ -179,6 +179,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
   NetworkType? _observedNetworkType;
   bool _showDesktopPlayerWorkspace = false;
   DesktopPlayerPanel _desktopPlayerPanel = DesktopPlayerPanel.lyrics;
+  String? _desktopSelectedActionId;
 
   @override
   void initState() {
@@ -387,9 +388,52 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     });
   }
 
-  List<EchoDesktopSidebarAction> _desktopSidebarActions() {
+  List<EchoDesktopSidebarAction> _desktopSidebarActions({
+    required bool showExploreTab,
+  }) {
+    EchoDesktopSidebarAction action({
+      required String id,
+      required String section,
+      required String label,
+      required IconData icon,
+      required VoidCallback onPressed,
+    }) => EchoDesktopSidebarAction(
+      id: id,
+      section: section,
+      label: label,
+      icon: icon,
+      selected: _desktopSelectedActionId == id,
+      onPressed: () {
+        setState(() => _desktopSelectedActionId = id);
+        onPressed();
+      },
+    );
+
     return <EchoDesktopSidebarAction>[
-      EchoDesktopSidebarAction(
+      action(
+        id: 'music-flow',
+        section: '发现',
+        label: '音乐流',
+        icon: AppIcons.musicFlow,
+        onPressed: () => _goToBranch(
+          discoverBranchIndex,
+          initialLocation:
+              widget.navigationShell.currentIndex == discoverBranchIndex,
+        ),
+      ),
+      if (showExploreTab)
+        action(
+          id: 'explore',
+          section: '发现',
+          label: '探索',
+          icon: AppIcons.discover,
+          onPressed: () => _goToBranch(
+            exploreBranchIndex,
+            initialLocation:
+                widget.navigationShell.currentIndex == exploreBranchIndex,
+          ),
+        ),
+      action(
         id: 'search',
         section: '发现',
         label: '搜索',
@@ -397,7 +441,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
         onPressed: () =>
             _pushDesktopBranchPage(discoverBranchIndex, const SearchPage()),
       ),
-      EchoDesktopSidebarAction(
+      action(
         id: 'songs',
         section: '资料库',
         label: '全部歌曲',
@@ -405,7 +449,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
         onPressed: () =>
             _pushDesktopBranchPage(catalogBranchIndex, const SongListPage()),
       ),
-      EchoDesktopSidebarAction(
+      action(
         id: 'artists',
         section: '资料库',
         label: '歌手',
@@ -413,7 +457,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
         onPressed: () =>
             _pushDesktopBranchPage(catalogBranchIndex, const ArtistListPage()),
       ),
-      EchoDesktopSidebarAction(
+      action(
         id: 'albums',
         section: '资料库',
         label: '专辑',
@@ -421,15 +465,42 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
         onPressed: () =>
             _pushDesktopBranchPage(catalogBranchIndex, const AlbumListPage()),
       ),
-      EchoDesktopSidebarAction(
-        id: 'favorites',
+      action(
+        id: 'favorite-songs',
         section: '个人收藏',
         label: '收藏歌曲',
         icon: AppIcons.heartOutline,
         onPressed: () =>
             _pushDesktopBranchPage(libraryBranchIndex, const StarredPage()),
       ),
-      EchoDesktopSidebarAction(
+      action(
+        id: 'favorite-albums',
+        section: '个人收藏',
+        label: '收藏专辑',
+        icon: AppIcons.albumOutline,
+        onPressed: () => _pushDesktopBranchPage(
+          libraryBranchIndex,
+          const StarredPage(initialTab: StarredTab.albums),
+        ),
+      ),
+      action(
+        id: 'favorite-artists',
+        section: '个人收藏',
+        label: '收藏歌手',
+        icon: AppIcons.profile,
+        onPressed: () => _pushDesktopBranchPage(
+          libraryBranchIndex,
+          const StarredPage(initialTab: StarredTab.artists),
+        ),
+      ),
+      action(
+        id: 'my-playlists',
+        section: '个人收藏',
+        label: '我的歌单',
+        icon: AppIcons.queue,
+        onPressed: () => _goToBranch(libraryBranchIndex, initialLocation: true),
+      ),
+      action(
         id: 'downloads',
         section: '管理',
         label: '下载管理',
@@ -439,7 +510,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
           const DownloadManagerPage(),
         ),
       ),
-      EchoDesktopSidebarAction(
+      action(
         id: 'offline',
         section: '管理',
         label: '离线下载',
@@ -449,7 +520,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
           const OfflineDownloadStatusPage(),
         ),
       ),
-      EchoDesktopSidebarAction(
+      action(
         id: 'settings',
         section: '管理',
         label: '设置',
@@ -601,7 +672,9 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
         showMiniPlayer: hasMiniPlayer,
         networkStatus: networkStatus,
         onOpenDrawer: isDesktop ? _showDesktopAppMenu : openEchoAppDrawer,
-        desktopActions: isDesktop ? _desktopSidebarActions() : const [],
+        desktopActions: isDesktop
+            ? _desktopSidebarActions(showExploreTab: showExploreTab)
+            : const [],
         desktopAccountLabel:
             activeLibrary?.username ?? activeLibrary?.name ?? '账户',
         desktopAccountSubtitle: <String>[

@@ -9,6 +9,12 @@
 # packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
+analyzer:
+  # This is a lightly patched upstream runtime dependency; keep its upstream
+  # lint baseline separate from Echoes application code.
+  exclude:
+    - packages/media_kit/**
+
 linter:
   # The lint rules applied to this project can be customized in the
   # section below to disable rules from the `package:flutter_lints/flutter.yaml`

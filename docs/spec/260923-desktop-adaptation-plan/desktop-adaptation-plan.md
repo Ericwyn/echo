@@ -1,6 +1,6 @@
 # Echoes 桌面端适配方案（讨论稿）
 
-状态：设计讨论稿，尚未实施应用改造。创建：2026-09-23。
+状态：设计稿与首轮实现并行维护；Linux 优先。创建：2026-09-23。
 
 [spec 总览与阶段状态](README.md) · [产品/技术决策](decisions.md) · [统一验收矩阵](acceptance.md)
 
@@ -20,28 +20,26 @@
 
 | 现象 | 当前实现与原因 | 影响 |
 | --- | --- | --- |
-| 两个左侧栏 | `EchoAppShell` 宽屏显示导航栏，但 `Scaffold.drawer` 始终存在；侧栏菜单按钮继续打开 `AppDrawer` | 主导航和账号/设置导航割裂，同一侧有两层菜单 |
-| 底部像手机控件拉长 | `MainScaffold` 在所有窗口尺寸都传入 `MiniPlayer` | 桌面下一首、音量、队列等常用操作不够直接 |
-| 播放页分成两段 | `FullPlayerPage` 用宽高比或 840 宽度切换宽屏布局，左边封面与歌词互相替换，右边放控件 | 既丢失浏览导航，也没有充分利用桌面同时看封面和歌词的空间 |
-| 队列浮在中央 | `showPlayQueueSheet` 所有平台调用 bottom sheet，共用容器最大宽度 640 | 手机拖拽把手和遮罩被带到桌面，不能边浏览边整理队列 |
-| 系统媒体控制缺失 | `PlayerNotifier._init` 显式跳过桌面 `AudioService`，桌面仅创建播放器 | 播放声音与向操作系统发布媒体会话是两项能力，当前只具备前者 |
-| 没有托盘与关窗策略 | 没有托盘/窗口管理依赖；Linux runner 使用 `G_APPLICATION_NON_UNIQUE` | 需要补托盘、恢复窗口、单实例、退出与后台播放的协调 |
+| 重复的左侧导航 | 宽屏采用统一的 EchoExpandedNavigationSidebar；宽屏不再通过 drawer 打开第二套菜单 | 桌面侧栏按用户给定的四组入口组织；手机抽屉继续复用对应目的地 |
+| 桌面播放控制 | 增加固定桌面播放条，音量与进度使用同一细 scrubber 风格 | 已实现首轮布局；用户反馈音量条外观可接受，仍需在不同宽度验收 |
+| 播放工作区与队列 | 左侧固定封面/歌曲信息，右侧切换歌词或队列；动态背景取自当前封面 | 已实现首轮；焦点/快捷键、长队列滚动与尺寸适配仍待验收 |
+| 系统媒体控制 | Linux 通过独立 MPRIS/D-Bus adapter 发布状态和转发命令 | 用户确认 Ubuntu 控制播放且可见封面；完整 seek 与生命周期边界尚待验证 |
+| 托盘与关窗策略 | 增加 tray_manager/window_manager 生命周期服务；Linux runner 仍需单实例改造 | 用户确认托盘基础功能正常；宿主消失、关窗恢复、显式退出和单实例未完整验收 |
 | 新增音量容易出错 | `_cancelFade`、`_fadeIn` 等多处 `setVolume(1.0)` | 仅增加滑块会导致切歌/暂停后用户音量被覆盖 |
 | 音质出现 `0bit` | `_buildAudioSpecText` 对位深只检查非空 | 应把非正值视为未知，统一格式化，手机端也受益 |
 
 复用基础已经存在：设计 tokens、`EchoSongRow`、`PlayerScrubber`、`SyncedLyricsView`、队列 entry ID 与 revision、防止拖拽期间队列变化的检查，以及 shell/player/queue 的 widget tests。
 
-本机核查：Ubuntu 22.04.5 LTS、GNOME 42.9、X11；AppIndicator 位于用户扩展目录且列在启用配置中，存在 Ayatana runtime 和 libmpv1。尚未通过新代码验证托盘显示或 MPRIS。上一轮已使用 Flutter 3.41.7 成功构建 Linux x64 release；CI 目前仍配置 3.38.9，并使用 `ubuntu-latest`。
+本机核查：Ubuntu 22.04.5 LTS、GNOME 42.9、X11；系统 libmpv 为 0.34.1。用户已在桌面环境确认 MPRIS 播放控制/封面和托盘基础功能。应用 release 通过本机 HTTP WAV smoke test 验证 MPV 初始化与媒体流加载不再输出 `subs-fallback`/磁盘缓存目录错误；Linux x64 release 已重新编译。CI 的 PR 主任务固定到 Ubuntu 22.04 并构建 Linux；Windows PR CI 暂缓。
 
 ## 3. 桌面交互设计
 
 ### 3.1 一个导航系统
 
 - 左侧顶部：Echoes、当前音乐库/账号选择器、连接状态；点击账号弹出小型菜单，切换线路在锚定弹窗中完成。
-- 中部：首页/音乐流、探索（服务启用时）；“资料库”分组直接提供歌曲、专辑、艺术家、收藏与歌单。用户歌单可展开并支持置顶，数量较多时独立滚动，不将所有歌单挤入固定高度。
-- 桌面可把手机“我的/曲库”的子入口展开在侧栏，底层沿用同一目的地树和页面内容；需要为现有 tab/页面补充可定位的路由状态，而非再写一份歌曲/专辑查询逻辑。
-- 次级分组放下载管理、服务器离线导入与统计。
-- 底部：设置；“下载到本机”和“导入到服务器”明确区分，避免两个下载入口含义不清。
+- 桌面侧栏沿用用户确认的目的地分组：发现（音乐流、搜索）、资料库（全部歌曲、歌手、专辑）、个人收藏（收藏歌曲、收藏专辑、收藏歌手、我的歌单）、管理（下载管理、离线下载、设置）。
+- 侧栏使用统一字号和图标行高，顶部品牌区与底部账户区属于固定 chrome；账户区域高度与桌面播放条对齐。新增页面入口时扩展这份定义，不重新放回重复的“音乐流/我的/曲库”顶层项。
+- 探索入口只在对应服务可用时出现；尚未有明确页面的服务器离线导入/统计入口不放入桌面侧栏。
 - 宽屏不再打开第二个左抽屉。窄屏可折叠成图标栏，全部目的地仍可访问。
 - Android 保留底部主导航与账号抽屉，复用同一份目的地、可见性和操作定义。
 - 设置、下载、详情在桌面 shell 的内容区导航，播放条和主导航保持稳定；登录/重新认证仍可使用独立页面。
@@ -169,7 +167,7 @@ Windows 的 K3 比较范围补充为现成包（`audio_service_win`、`smtc_wind
 
 ### 5.2 托盘与窗口
 
-`tray_manager`、`window_manager` 是候选；优先试验与现有 Flutter 工具链兼容的固定版本。已查阅的 tray_manager 新版页面要求 Flutter 3.47/Dart 3.13，明显高于本机 3.41.7 和 CI 3.38.9；0.5.x 文档提供旧接口及 Ayatana 依赖。版本以解析、原生编译与实机验证结果锁定，不直接追随 latest。[新版要求](https://pub.dev/packages/tray_manager)、[0.5.1 文档](https://pub.dev/packages/tray_manager/versions/0.5.1)、[窗口管理](https://pub.dev/packages/window_manager/versions/0.5.1)
+已锁定 `tray_manager 0.5.3` 与 `window_manager 0.5.2`，使用 Flutter 3.41.7；Ubuntu 22.04 release 编译通过，用户确认托盘基础功能正常。扩展到其他 GNOME/Wayland 组合前仍需复验宿主、恢复行为与 native 依赖。插件页面中的更新版本要求高于本项目当前 Flutter 工具链，因此仍固定版本、不追随 latest。[tray_manager](https://pub.dev/packages/tray_manager/versions/0.5.3)、[window_manager](https://pub.dev/packages/window_manager/versions/0.5.2)
 
 - 托盘菜单：显示主窗口、播放/暂停、上一首、下一首、退出；曲目摘要随切歌更新。
 - Linux 不依赖单击/双击托盘图标才能恢复窗口，菜单中必须有明确的“显示主窗口”。
@@ -185,7 +183,7 @@ GNOME 的托盘显示需要 AppIndicator/StatusNotifier 宿主。你本机已安
 ### 5.3 安装与原生依赖
 
 - Linux 第一交付提供 Ubuntu `.deb` 与完整 bundle 压缩包；安装应用图标、`.desktop`、分类和一致应用 ID/MPRIS DesktopEntry，保持 Dock 中图标归组和单实例激活一致。
-- 在支持的最低 Ubuntu 基线上构建并锁定 Flutter；当前建议以用户的 Ubuntu 22.04 为基线。增加 24.04 与 Wayland 验收任务；不要使用不断变化的 `ubuntu-latest` 代表最低兼容环境。
+- 在 Ubuntu 22.04 基线上固定构建工具链和 CI runner；后续增加 24.04 与 Wayland 验收。当前 PR 主任务使用 `ubuntu-22.04`，不添加 Windows 构建 job，Windows release workflow 不作为此阶段门槛。
 - 构建环境补齐 clang/lld、GTK、CMake、Ninja、pkg-config 等；托盘 native 依赖按最终锁定版本列出。上一轮构建的临时 linker shim 仅用于验证，正式 CI 应配置完整工具链。
 - 运行时单独核查 libmpv、GTK、托盘依赖与字体。`ldd` 主程序正常不代表通过动态加载的 libmpv 可用；必须在干净机器做实际音频播放。
 - `.deb` 声明依赖，bundle 文档说明依赖；打包 libmpv 时明确编解码能力、许可证及分发责任。
@@ -193,7 +191,7 @@ GNOME 的托盘显示需要 AppIndicator/StatusNotifier 宿主。你本机已安
 
 ## 6. 分阶段实施
 
-每个阶段独立成文，包含前置条件、实施步骤、代码入口、针对性检查、完成条件和实施记录。阶段当前全部为待实施。
+每个阶段独立成文，包含前置条件、实施步骤、代码入口、针对性检查、完成条件和实施记录。P1–P4 已进入首轮实现；细分状态见 [spec 总览](README.md) 和各 phase 的实施记录。
 
 | 阶段 | 核心产出 | 执行文档 |
 | --- | --- | --- |

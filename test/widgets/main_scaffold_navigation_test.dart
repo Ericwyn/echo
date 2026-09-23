@@ -136,6 +136,47 @@ void main() {
       expect(find.text('Home root'), findsOneWidget);
     });
 
+    testWidgets('desktop sidebar exposes the requested grouped destinations', (
+      tester,
+    ) async {
+      await _pumpMainScaffold(tester, size: const Size(1440, 900));
+
+      for (final label in <String>[
+        '发现',
+        '音乐流',
+        '搜索',
+        '资料库',
+        '全部歌曲',
+        '歌手',
+        '专辑',
+        '个人收藏',
+        '收藏歌曲',
+        '收藏专辑',
+        '收藏歌手',
+        '我的歌单',
+        '管理',
+        '下载管理',
+        '离线下载',
+      ]) {
+        expect(find.text(label), findsOneWidget, reason: 'missing $label');
+      }
+      await tester.scrollUntilVisible(
+        find.text('设置'),
+        120,
+        scrollable: find
+            .descendant(
+              of: find.byKey(
+                const ValueKey<String>('echo-expanded-navigation'),
+              ),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      expect(find.text('设置'), findsOneWidget);
+      expect(find.bySemanticsLabel('我的'), findsNothing);
+      expect(find.bySemanticsLabel('曲库'), findsNothing);
+    });
+
     testWidgets('preserves branch stacks and resets a reselected branch', (
       tester,
     ) async {
@@ -208,9 +249,12 @@ void main() {
   });
 }
 
-Future<_MainScaffoldHarness> _pumpMainScaffold(WidgetTester tester) async {
+Future<_MainScaffoldHarness> _pumpMainScaffold(
+  WidgetTester tester, {
+  Size size = const Size(390, 800),
+}) async {
   tester.view.devicePixelRatio = 1;
-  tester.view.physicalSize = const Size(390, 800);
+  tester.view.physicalSize = size;
   addTearDown(tester.view.reset);
 
   final container = ProviderContainer();

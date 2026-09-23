@@ -7,9 +7,12 @@ list(APPEND FLUTTER_PLUGIN_LIST
   just_audio_windows
   media_kit_libs_windows_audio
   permission_handler_windows
+  screen_retriever_windows
   share_plus
   sqlite3_flutter_libs
+  tray_manager
   url_launcher_windows
+  window_manager
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST

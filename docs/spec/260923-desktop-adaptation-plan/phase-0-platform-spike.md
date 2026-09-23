@@ -2,13 +2,13 @@
 
 [返回 spec](README.md) · [决策](decisions.md) · [验收](acceptance.md)
 
-状态：待实施。前置：总体方案与阶段范围已阅读。后续：P0-A 通过后可进入 P1；P0-B 是 Windows 系统集成及发布的前置条件。
+状态：Linux 路径部分通过；Windows 暂缓验证。前置：总体方案与阶段范围已阅读。Linux 工作继续推进 P1–P5；Windows 系统集成和发布仍保持未验收。
 
 ## 目标与边界
 
 用最小实验确定系统媒体会话、托盘、窗口和打包依赖的可行路径。实验控制现有播放器，不新建另一套音频引擎。该阶段不改完整桌面布局，也不把实验分支的结果当作正式功能完成。
 
-已知基线：本机 Ubuntu 22.04.5/GNOME 42.9/X11，AppIndicator 已列入启用配置；Flutter 3.41.7 曾成功构建 Linux release。原构建需要临时 linker shim，正式方案应配置匹配的 clang/lld。现有 CI 为 Flutter 3.38.9、Linux `ubuntu-latest`，托盘/媒体插件尚未接入。
+已知基线：本机 Ubuntu 22.04.5/GNOME 42.9/X11，AppIndicator 已列入启用配置；系统 libmpv 是 0.34.1。项目锁定 Flutter 3.41.7，PR Linux job 固定在 Ubuntu 22.04 并构建 release。已接入 `dbus` MPRIS 与 tray/window lifecycle；用户确认系统媒体卡片可控制播放并显示封面，托盘基础功能正常。完整关窗恢复、宿主故障与单实例还未验证。Windows CI 暂不作为当前门槛。
 
 ## 实施步骤
 
@@ -69,4 +69,4 @@
 
 | 日期 / 提交 | 实际修改与检查 | 结果 / 遗留 |
 | --- | --- | --- |
-| — | 尚未实施 | 无新增系统集成证据 |
+| 2026-09-23 / Linux 首轮 | 确认 Ubuntu 22.04 上系统 libmpv 0.34.1；选择薄 D-Bus MPRIS 与 `tray_manager`/`window_manager`；本机 HTTP 音频 smoke test 覆盖 MPRIS host adapter 之外的 MPV 初始化/网络加载，未再出现未知 `subs-fallback` 与 lavf cache-dir 错误；431 项 Flutter 测试、`flutter analyze`、Linux x64 release 构建通过 | 用户确认基本 MPRIS 控制、系统封面与托盘。仍需真实 MPRIS seek、关闭/恢复、StatusNotifier 宿主消失、单实例和干净安装实测；Windows 路径未测 |

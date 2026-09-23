@@ -113,6 +113,8 @@ void main() {
       );
       expect(find.bySemanticsLabel('账户、线路和设置'), findsOneWidget);
       expect(tester.widget<Scaffold>(find.byType(Scaffold)).drawer, isNull);
+      expect(find.bySemanticsLabel('音乐流'), findsNothing);
+      expect(find.bySemanticsLabel('曲库'), findsNothing);
 
       await tester.tap(
         find.byKey(const ValueKey<String>('echo-desktop-sidebar-songs')),
@@ -120,6 +122,24 @@ void main() {
       expect(selected, 'songs');
       await tester.tap(find.bySemanticsLabel('账户、线路和设置'));
       expect(selected, 'account');
+    });
+
+    testWidgets('desktop account footer aligns with the playback slot', (
+      tester,
+    ) async {
+      await _pumpShell(
+        tester,
+        size: const Size(1440, 900),
+        showMiniPlayer: true,
+        desktopPlaybackBarHeight: 72,
+      );
+
+      final footer = tester.getRect(
+        find.byKey(const ValueKey<String>('echo-desktop-account-footer')),
+      );
+      final playbackSlot = tester.getRect(_miniPlayerSlot);
+      expect(footer.top, closeTo(playbackSlot.top, 0.01));
+      expect(footer.bottom, closeTo(playbackSlot.bottom, 0.01));
     });
 
     testWidgets('destinations expose selected semantics and 48dp targets', (
@@ -574,6 +594,7 @@ Future<void> _pumpShell(
   Widget? body,
   ThemeData? theme,
   List<EchoDesktopSidebarAction> desktopActions = const [],
+  double desktopPlaybackBarHeight = echoDesktopPlaybackBarHeight,
   VoidCallback? onOpenDrawer,
 }) async {
   tester.view.devicePixelRatio = 1;
@@ -600,6 +621,7 @@ Future<void> _pumpShell(
             showMiniPlayer: showMiniPlayer,
             networkStatus: networkStatus,
             desktopActions: desktopActions,
+            desktopPlaybackBarHeight: desktopPlaybackBarHeight,
             onOpenDrawer: onOpenDrawer,
             miniPlayer:
                 miniPlayer ??

@@ -7,8 +7,11 @@ import 'package:flutter/foundation.dart'
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
+import 'package:window_manager/window_manager.dart';
 import 'app.dart';
 import 'core/services/background_playback_advisor.dart';
+import 'core/services/desktop_lifecycle_service.dart';
+import 'providers/player_provider.dart';
 
 void main() {
   runZonedGuarded(
@@ -21,6 +24,7 @@ void main() {
           (defaultTargetPlatform == TargetPlatform.linux ||
               defaultTargetPlatform == TargetPlatform.windows);
       if (isDesktopMediaKitPlatform) {
+        await windowManager.ensureInitialized();
         JustAudioMediaKit.ensureInitialized();
       }
 
@@ -39,12 +43,65 @@ void main() {
         return true;
       };
 
-      runApp(const ProviderScope(child: App()));
+      runApp(const ProviderScope(child: _DesktopLifecycleHost(child: App())));
     },
     (error, stackTrace) {
       Logger.errorWithTag('APP', 'Uncaught zone error', error, stackTrace);
     },
   );
+}
+
+class _DesktopLifecycleHost extends ConsumerStatefulWidget {
+  const _DesktopLifecycleHost({required this.child});
+
+  final Widget child;
+
+  @override
+  ConsumerState<_DesktopLifecycleHost> createState() =>
+      _DesktopLifecycleHostState();
+}
+
+class _DesktopLifecycleHostState extends ConsumerState<_DesktopLifecycleHost> {
+  @override
+  void initState() {
+    super.initState();
+    if (kIsWeb ||
+        (defaultTargetPlatform != TargetPlatform.linux &&
+            defaultTargetPlatform != TargetPlatform.windows)) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeDesktopLifecycle();
+    });
+  }
+
+  Future<void> _initializeDesktopLifecycle() async {
+    try {
+      await DesktopLifecycleService.instance.initialize(
+        onTogglePlayPause: () async {
+          final player = ref.read(playerProvider.notifier);
+          await player.initialized;
+          await player.togglePlayPause();
+        },
+        onNext: () async {
+          final player = ref.read(playerProvider.notifier);
+          await player.initialized;
+          await player.next();
+        },
+        onQuit: () async {
+          final player = ref.read(playerProvider.notifier);
+          await player.initialized;
+          await player.stop();
+        },
+      );
+    } catch (error, stackTrace) {
+      Logger.warnWithTag('DESKTOP', 'desktop lifecycle setup failed', error);
+      Logger.debugWithTag('DESKTOP', 'lifecycle stack', stackTrace);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 class _PlaybackLifecycleObserver extends WidgetsBindingObserver {

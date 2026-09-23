@@ -4,6 +4,7 @@ import '../../../core/design/echo_design.dart';
 
 class LibraryDestinationRow extends StatelessWidget {
   const LibraryDestinationRow({
+    super.key,
     required this.icon,
     required this.title,
     required this.detail,
