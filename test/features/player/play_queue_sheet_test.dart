@@ -231,6 +231,74 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('desktop queue context menu acts on its stable entry', (
+    tester,
+  ) async {
+    final state = PlayerState(
+      currentSong: songs.first,
+      queue: songs,
+      currentIndex: 0,
+    );
+    final scrollController = ScrollController();
+    addTearDown(scrollController.dispose);
+    final selected = <String>[];
+    final played = <String>[];
+    final deleted = <String>[];
+    final opened = <(int, String)>[];
+    String? selectedEntryId;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark(),
+        home: StatefulBuilder(
+          builder: (context, setState) => Scaffold(
+            body: PlaybackQueueContent(
+              scrollController: scrollController,
+              playerState: state,
+              desktopInteraction: true,
+              selectedEntryId: selectedEntryId,
+              onEntrySelected: (entryId) {
+                if (entryId != null) selected.add(entryId);
+                setState(() => selectedEntryId = entryId);
+              },
+              onDeleteEntry: deleted.add,
+              onSelect: (index) async => played.add(state.queueEntryIds[index]),
+              onReorder: (_, _) {},
+              onOpenSongActions: (context, index, song, entryId) async {
+                opened.add((index, entryId));
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final targetEntryId = state.queueEntryIds[1];
+    final targetTitle = find.text(songs[1].title);
+
+    await tester.click(targetTitle, buttons: kSecondaryMouseButton);
+    await tester.pumpAndSettle();
+    expect(find.text('播放此曲'), findsOneWidget);
+    await tester.tap(find.text('播放此曲'));
+    await tester.pumpAndSettle();
+    expect(selected, <String>[targetEntryId]);
+    expect(played, <String>[targetEntryId]);
+
+    await tester.click(targetTitle, buttons: kSecondaryMouseButton);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('从队列移除'));
+    await tester.pumpAndSettle();
+    expect(deleted, <String>[targetEntryId]);
+
+    await tester.click(targetTitle, buttons: kSecondaryMouseButton);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('更多操作…'));
+    await tester.pumpAndSettle();
+    expect(opened, <(int, String)>[(1, targetEntryId)]);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('large queue locates a distant current entry lazily', (
     tester,
   ) async {

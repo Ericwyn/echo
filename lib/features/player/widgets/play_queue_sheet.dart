@@ -503,22 +503,93 @@ class _PlaybackQueueContentState extends State<PlaybackQueueContent> {
                   child: songRow,
                 );
 
-          return Padding(
+          return GestureDetector(
             key: _entryKeys.putIfAbsent(entryId, GlobalKey.new),
-            padding: EdgeInsets.only(bottom: context.echoSpacing.xxs),
-            child: Semantics(
-              label: widget.onReorder == null
-                  ? null
-                  : widget.desktopInteraction
-                  ? '使用拖动手柄调整 ${song.title} 的顺序'
-                  : '长按并拖动 ${song.title}，调整播放顺序',
-              customSemanticsActions: semanticsActions,
-              child: rowContent,
+            onSecondaryTapDown: widget.desktopInteraction
+                ? (details) => unawaited(
+                    _showDesktopQueueContextMenu(
+                      context: context,
+                      details: details,
+                      entryId: entryId,
+                    ),
+                  )
+                : null,
+            child: Padding(
+              padding: EdgeInsets.only(bottom: context.echoSpacing.xxs),
+              child: Semantics(
+                label: widget.onReorder == null
+                    ? null
+                    : widget.desktopInteraction
+                    ? '使用拖动手柄调整 ${song.title} 的顺序'
+                    : '长按并拖动 ${song.title}，调整播放顺序',
+                customSemanticsActions: semanticsActions,
+                child: rowContent,
+              ),
             ),
           );
         },
       ),
     );
+  }
+
+  Future<void> _showDesktopQueueContextMenu({
+    required BuildContext context,
+    required TapDownDetails details,
+    required String entryId,
+  }) async {
+    final overlay = Overlay.of(
+      context,
+      rootOverlay: true,
+    ).context.findRenderObject();
+    if (overlay is! RenderBox) return;
+
+    final point = overlay.globalToLocal(details.globalPosition);
+    final menuAction = await showMenu<String>(
+      context: context,
+      useRootNavigator: true,
+      position: RelativeRect.fromLTRB(
+        point.dx,
+        point.dy,
+        overlay.size.width - point.dx,
+        overlay.size.height - point.dy,
+      ),
+      items: const <PopupMenuEntry<String>>[
+        PopupMenuItem<String>(value: 'play', child: Text('播放此曲')),
+        PopupMenuItem<String>(value: 'remove', child: Text('从队列移除')),
+        PopupMenuItem<String>(value: 'more', child: Text('更多操作…')),
+      ],
+    );
+    if (!mounted || menuAction == null) return;
+
+    // Resolve the original stable identity after the menu closes. Queue
+    // mutations may have changed row indices while the menu was open.
+    final currentIndex = widget.playerState.queueEntryIds.indexOf(entryId);
+    if (currentIndex < 0 || currentIndex >= widget.playerState.queue.length) {
+      return;
+    }
+    final currentSong = widget.playerState.queue[currentIndex];
+
+    switch (menuAction) {
+      case 'play':
+        _activateEntry(currentIndex);
+        break;
+      case 'remove':
+        widget.onDeleteEntry?.call(entryId);
+        if (widget.selectedEntryId == entryId) _selectEntry(null);
+        break;
+      case 'more':
+        unawaited(
+          widget.onOpenSongActions(
+            this.context,
+            currentIndex,
+            currentSong,
+            entryId,
+          ),
+        );
+        break;
+      default:
+        break;
+    }
   }
 
   void _scheduleInitialPosition(BuildContext context) {
