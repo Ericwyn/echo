@@ -20,7 +20,6 @@ void main() {
         'favorite-artists',
         'my-playlists',
         'downloads',
-        'offline',
         'settings',
       ]);
       expect(items.every((item) => item.isDesktopDestination), isTrue);
@@ -70,9 +69,12 @@ void main() {
             'settings',
           ]),
         );
-        for (final id in <String>['downloads', 'offline', 'settings']) {
+        expect(desktopById.containsKey('offline'), isFalse);
+        for (final id in <String>['downloads', 'settings']) {
           expect(drawerById[id], same(desktopById[id]));
         }
+        expect(drawerById['offline']!.desktopSection, isNull);
+        expect(drawerById['offline']!.pageBuilder, isNotNull);
         expect(drawerById['route-selection']!.pageBuilder, isNull);
         expect(
           drawerById.values

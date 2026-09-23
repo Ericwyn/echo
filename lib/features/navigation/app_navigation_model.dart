@@ -195,10 +195,10 @@ class AppNavigationModel {
     pageBuilder: () => const DownloadManagerPage(),
   );
 
+  // Compact layouts keep access to remote conversion jobs in the overflow
+  // drawer. The desktop sidebar omits this low-frequency status page.
   static final AppNavigationItem _offlineDownloads = AppNavigationItem(
     id: 'offline',
-    desktopSection: '管理',
-    desktopLabel: '离线下载',
     drawerLabel: '离线下载状态',
     drawerSection: '下载',
     icon: AppIcons.offline,
@@ -229,7 +229,6 @@ class AppNavigationModel {
     _favoriteArtists,
     _myPlaylists,
     _downloads,
-    _offlineDownloads,
     _settings,
   ];
 

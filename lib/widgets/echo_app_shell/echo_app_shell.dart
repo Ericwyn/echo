@@ -19,9 +19,6 @@ class EchoAppShell extends StatelessWidget {
     this.onOpenDrawer,
     this.desktopActions = const <EchoDesktopSidebarAction>[],
     this.desktopNavigationToolbar,
-    this.desktopAccountLabel = '账户',
-    this.desktopAccountSubtitle = '',
-    this.desktopPlaybackBarHeight = echoDesktopPlaybackBarHeight,
   });
 
   final GlobalKey<ScaffoldState> scaffoldKey;
@@ -36,9 +33,6 @@ class EchoAppShell extends StatelessWidget {
   final VoidCallback? onOpenDrawer;
   final List<EchoDesktopSidebarAction> desktopActions;
   final Widget? desktopNavigationToolbar;
-  final String desktopAccountLabel;
-  final String desktopAccountSubtitle;
-  final double desktopPlaybackBarHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -69,9 +63,6 @@ class EchoAppShell extends StatelessWidget {
         networkStatusBar: networkStatusBar,
         desktopActions: desktopActions,
         desktopNavigationToolbar: desktopNavigationToolbar,
-        desktopAccountLabel: desktopAccountLabel,
-        desktopAccountSubtitle: desktopAccountSubtitle,
-        desktopPlaybackBarHeight: desktopPlaybackBarHeight,
       ),
     };
 
@@ -136,11 +127,13 @@ class EchoMiniPlayerSlot extends StatelessWidget {
     required this.visible,
     required this.child,
     this.includeBottomSafeArea = true,
+    this.flush = false,
   });
 
   final bool visible;
   final Widget child;
   final bool includeBottomSafeArea;
+  final bool flush;
 
   @override
   Widget build(BuildContext context) {
@@ -164,14 +157,18 @@ class EchoMiniPlayerSlot extends StatelessWidget {
                   child: SafeArea(
                     top: false,
                     bottom: includeBottomSafeArea,
+                    left: !flush,
+                    right: !flush,
                     child: Padding(
                       key: const ValueKey<String>('echo-mini-player-chrome'),
-                      padding: EdgeInsets.fromLTRB(
-                        spacing.sm,
-                        spacing.xs,
-                        spacing.sm,
-                        spacing.xxs,
-                      ),
+                      padding: flush
+                          ? EdgeInsets.zero
+                          : EdgeInsets.fromLTRB(
+                              spacing.sm,
+                              spacing.xs,
+                              spacing.sm,
+                              spacing.xxs,
+                            ),
                       child: child,
                     ),
                   ),
@@ -196,9 +193,6 @@ class _WideShellBody extends StatelessWidget {
     required this.networkStatusBar,
     required this.desktopActions,
     required this.desktopNavigationToolbar,
-    required this.desktopAccountLabel,
-    required this.desktopAccountSubtitle,
-    required this.desktopPlaybackBarHeight,
   });
 
   final EchoWindowClass windowClass;
@@ -212,17 +206,9 @@ class _WideShellBody extends StatelessWidget {
   final Widget networkStatusBar;
   final List<EchoDesktopSidebarAction> desktopActions;
   final Widget? desktopNavigationToolbar;
-  final String desktopAccountLabel;
-  final String desktopAccountSubtitle;
-  final double desktopPlaybackBarHeight;
 
   @override
   Widget build(BuildContext context) {
-    final spacing = context.echoSpacing;
-    final playbackSlotHeight = showMiniPlayer
-        ? desktopPlaybackBarHeight + spacing.xs + spacing.xxs
-        : null;
-
     return Row(
       children: <Widget>[
         if (windowClass == EchoWindowClass.medium)
@@ -238,9 +224,6 @@ class _WideShellBody extends StatelessWidget {
             selectedBranchIndex: selectedBranchIndex,
             onDestinationSelected: onDestinationSelected,
             actions: desktopActions,
-            accountLabel: desktopAccountLabel,
-            accountSubtitle: desktopAccountSubtitle,
-            playbackSlotHeight: playbackSlotHeight,
           ),
         Expanded(
           child: Column(
@@ -256,7 +239,11 @@ class _WideShellBody extends StatelessWidget {
                 ),
               ),
               networkStatusBar,
-              EchoMiniPlayerSlot(visible: showMiniPlayer, child: miniPlayer),
+              EchoMiniPlayerSlot(
+                visible: showMiniPlayer,
+                child: miniPlayer,
+                flush: windowClass == EchoWindowClass.expanded,
+              ),
             ],
           ),
         ),

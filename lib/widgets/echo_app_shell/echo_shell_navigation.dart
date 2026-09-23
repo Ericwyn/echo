@@ -163,18 +163,12 @@ class EchoExpandedNavigationSidebar extends StatelessWidget {
     required this.selectedBranchIndex,
     required this.onDestinationSelected,
     this.actions = const <EchoDesktopSidebarAction>[],
-    this.accountLabel = '账户',
-    this.accountSubtitle = '',
-    this.playbackSlotHeight,
   });
 
   final List<EchoShellDestination> destinations;
   final int selectedBranchIndex;
   final ValueChanged<int> onDestinationSelected;
   final List<EchoDesktopSidebarAction> actions;
-  final String accountLabel;
-  final String accountSubtitle;
-  final double? playbackSlotHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -194,7 +188,14 @@ class EchoExpandedNavigationSidebar extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                Padding(
+                Container(
+                  key: const ValueKey<String>('echo-desktop-sidebar-brand'),
+                  height: echoDesktopNavigationHeaderHeight,
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(color: context.echoColors.divider),
+                    ),
+                  ),
                   padding: EdgeInsets.fromLTRB(
                     spacing.sm,
                     spacing.xs,
@@ -232,7 +233,6 @@ class EchoExpandedNavigationSidebar extends StatelessWidget {
                     ],
                   ),
                 ),
-                EchoDivider(inset: spacing.md, endInset: spacing.md),
                 Expanded(
                   child: ListView(
                     padding: EdgeInsets.symmetric(
@@ -278,48 +278,6 @@ class EchoExpandedNavigationSidebar extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (playbackSlotHeight == null) ...<Widget>[
-                  EchoDivider(inset: spacing.md, endInset: spacing.md),
-                  Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      spacing.sm,
-                      spacing.xs,
-                      spacing.sm,
-                      spacing.xs,
-                    ),
-                    child: _DesktopAccountIdentity(
-                      accountLabel: accountLabel,
-                      accountSubtitle: accountSubtitle,
-                    ),
-                  ),
-                ] else
-                  SizedBox(
-                    key: const ValueKey<String>('echo-desktop-account-footer'),
-                    height: playbackSlotHeight,
-                    child: Padding(
-                      padding: EdgeInsets.only(
-                        top: spacing.xs,
-                        bottom: spacing.xxs,
-                      ),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          border: Border(
-                            top: BorderSide(color: context.echoColors.divider),
-                          ),
-                        ),
-                        padding: EdgeInsets.fromLTRB(
-                          spacing.sm,
-                          spacing.xs,
-                          spacing.sm,
-                          spacing.xs,
-                        ),
-                        child: _DesktopAccountIdentity(
-                          accountLabel: accountLabel,
-                          accountSubtitle: accountSubtitle,
-                        ),
-                      ),
-                    ),
-                  ),
               ],
             ),
           ),
@@ -618,68 +576,6 @@ class _SidebarDestination extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DesktopAccountIdentity extends StatelessWidget {
-  const _DesktopAccountIdentity({
-    required this.accountLabel,
-    required this.accountSubtitle,
-  });
-
-  final String accountLabel;
-  final String accountSubtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    final spacing = context.echoSpacing;
-    return Semantics(
-      label:
-          '当前账户 $accountLabel${accountSubtitle.isEmpty ? '' : '，$accountSubtitle'}',
-      child: SizedBox(
-        height: 60,
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: spacing.xs),
-          child: Row(
-            children: <Widget>[
-              Icon(
-                AppIcons.profile,
-                size: context.echoInteraction.iconSize,
-                color: context.echoColors.accent,
-              ),
-              SizedBox(width: spacing.sm),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      accountLabel,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.echoTypography.label.copyWith(
-                        fontSize: 14,
-                        color: context.echoColors.ink,
-                      ),
-                    ),
-                    if (accountSubtitle.isNotEmpty)
-                      Text(
-                        accountSubtitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: context.echoTypography.metadata.copyWith(
-                          fontSize: 13,
-                          color: context.echoColors.muted,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );

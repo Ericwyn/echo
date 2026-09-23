@@ -31,7 +31,7 @@ class EchoDesktopNavigationToolbar extends StatelessWidget {
         border: Border(bottom: BorderSide(color: colors.divider)),
       ),
       child: SizedBox(
-        height: 48,
+        height: echoDesktopNavigationHeaderHeight,
         child: Padding(
           padding: EdgeInsets.symmetric(horizontal: spacing.xs),
           child: Row(

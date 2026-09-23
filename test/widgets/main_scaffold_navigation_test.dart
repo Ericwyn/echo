@@ -206,19 +206,7 @@ void main() {
       ]) {
         expect(find.text(label), findsOneWidget, reason: 'missing $label');
       }
-      await tester.scrollUntilVisible(
-        find.text('离线下载'),
-        120,
-        scrollable: find
-            .descendant(
-              of: find.byKey(
-                const ValueKey<String>('echo-expanded-navigation'),
-              ),
-              matching: find.byType(Scrollable),
-            )
-            .first,
-      );
-      expect(find.text('离线下载'), findsOneWidget);
+      expect(find.text('离线下载'), findsNothing);
       await tester.scrollUntilVisible(
         find.text('设置'),
         120,

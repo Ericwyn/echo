@@ -7,6 +7,7 @@ import 'package:echoes/features/player/widgets/mini_player.dart';
 import 'package:echoes/providers/player_provider.dart';
 import 'package:echoes/providers/navigation_provider.dart';
 import 'package:echoes/widgets/echo_app_shell/echo_app_shell.dart';
+import 'package:echoes/widgets/echo_app_shell/echo_desktop_navigation_toolbar.dart';
 import 'package:echoes/widgets/echo_app_shell/echo_shell_navigation.dart';
 import 'package:echoes/widgets/echo_app_shell/echo_network_status_bar.dart';
 import 'package:echoes/widgets/main_scaffold.dart';
@@ -111,7 +112,7 @@ void main() {
         find.byKey(const ValueKey<String>('echo-desktop-sidebar-songs')),
         findsOneWidget,
       );
-      expect(find.bySemanticsLabel('当前账户 账户'), findsOneWidget);
+      expect(find.bySemanticsLabel(RegExp('当前账户')), findsNothing);
       expect(tester.widget<Scaffold>(find.byType(Scaffold)).drawer, isNull);
       expect(find.bySemanticsLabel('音乐流'), findsNothing);
       expect(find.bySemanticsLabel('曲库'), findsNothing);
@@ -120,26 +121,58 @@ void main() {
         find.byKey(const ValueKey<String>('echo-desktop-sidebar-songs')),
       );
       expect(selected, 'songs');
-      await tester.tap(find.bySemanticsLabel('当前账户 账户'));
-      expect(selected, 'songs');
     });
 
-    testWidgets('desktop account footer aligns with the playback slot', (
+    testWidgets('desktop brand and navigation toolbar headers align', (
+      tester,
+    ) async {
+      await _pumpShell(
+        tester,
+        size: const Size(1440, 900),
+        desktopNavigationToolbar: EchoDesktopNavigationToolbar(
+          canGoBack: false,
+          canGoForward: false,
+          onBack: () {},
+          onForward: () {},
+          onSearch: () {},
+        ),
+      );
+
+      final sidebarHeader = tester.getRect(
+        find.byKey(const ValueKey<String>('echo-desktop-sidebar-brand')),
+      );
+      final toolbar = tester.getRect(
+        find.byKey(const ValueKey<String>('echo-desktop-navigation-toolbar')),
+      );
+      expect(sidebarHeader.top, closeTo(toolbar.top, 0.01));
+      expect(sidebarHeader.bottom, closeTo(toolbar.bottom, 0.01));
+    });
+
+    testWidgets('desktop playback chrome is flush and account footer is gone', (
       tester,
     ) async {
       await _pumpShell(
         tester,
         size: const Size(1440, 900),
         showMiniPlayer: true,
-        desktopPlaybackBarHeight: 72,
       );
 
-      final footer = tester.getRect(
+      expect(
         find.byKey(const ValueKey<String>('echo-desktop-account-footer')),
+        findsNothing,
       );
-      final playbackSlot = tester.getRect(_miniPlayerSlot);
-      expect(footer.top, closeTo(playbackSlot.top, 0.01));
-      expect(footer.bottom, closeTo(playbackSlot.bottom, 0.01));
+      expect(find.bySemanticsLabel(RegExp('当前账户')), findsNothing);
+
+      final chrome = tester.widget<Padding>(
+        find.byKey(const ValueKey<String>('echo-mini-player-chrome')),
+      );
+      expect(chrome.padding, EdgeInsets.zero);
+      final chromeRect = tester.getRect(
+        find.byKey(const ValueKey<String>('echo-mini-player-chrome')),
+      );
+      final contentRect = tester.getRect(_shellContent);
+      expect(chromeRect.left, closeTo(contentRect.left, 0.01));
+      expect(chromeRect.right, closeTo(contentRect.right, 0.01));
     });
 
     testWidgets('destinations expose selected semantics and 48dp targets', (
@@ -594,7 +627,7 @@ Future<void> _pumpShell(
   Widget? body,
   ThemeData? theme,
   List<EchoDesktopSidebarAction> desktopActions = const [],
-  double desktopPlaybackBarHeight = echoDesktopPlaybackBarHeight,
+  Widget? desktopNavigationToolbar,
   VoidCallback? onOpenDrawer,
 }) async {
   tester.view.devicePixelRatio = 1;
@@ -621,7 +654,7 @@ Future<void> _pumpShell(
             showMiniPlayer: showMiniPlayer,
             networkStatus: networkStatus,
             desktopActions: desktopActions,
-            desktopPlaybackBarHeight: desktopPlaybackBarHeight,
+            desktopNavigationToolbar: desktopNavigationToolbar,
             onOpenDrawer: onOpenDrawer,
             miniPlayer:
                 miniPlayer ??

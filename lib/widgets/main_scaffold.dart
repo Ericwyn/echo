@@ -16,7 +16,6 @@ import '../features/player/widgets/desktop_playback_bar.dart';
 import '../features/discover/pages/search_page.dart';
 import '../features/navigation/app_navigation_model.dart';
 import '../providers/api_provider.dart';
-import '../providers/auth_provider.dart';
 import '../providers/navigation_provider.dart';
 import '../providers/offline_download_provider.dart';
 import '../providers/player_provider.dart';
@@ -627,10 +626,6 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
         return address?.status == ServerAddressStatus.ok;
       }),
     );
-    final activeLibrary = ref.watch(
-      authStateProvider.select((state) => state.currentLibrary),
-    );
-    final activeAddress = ref.watch(activeAddressProvider);
     final networkStatus =
         widget.networkStatusOverride ??
         _resolveNetworkStatus(activeAddressIsHealthy: activeAddressIsHealthy);
@@ -741,14 +736,6 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
               ),
             )
           : null,
-      desktopAccountLabel:
-          activeLibrary?.username ?? activeLibrary?.name ?? '账户',
-      desktopAccountSubtitle: <String>[
-        if (activeLibrary?.name.trim().isNotEmpty == true)
-          activeLibrary!.name.trim(),
-        if (activeAddress?.label.trim().isNotEmpty == true)
-          activeAddress!.label.trim(),
-      ].join(' · '),
     );
 
     return BackButtonListener(
