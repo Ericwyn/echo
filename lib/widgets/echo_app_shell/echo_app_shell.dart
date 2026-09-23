@@ -18,6 +18,7 @@ class EchoAppShell extends StatelessWidget {
     this.networkStatus = EchoNetworkStatus.online,
     this.onOpenDrawer,
     this.desktopActions = const <EchoDesktopSidebarAction>[],
+    this.desktopNavigationToolbar,
     this.desktopAccountLabel = '账户',
     this.desktopAccountSubtitle = '',
     this.desktopPlaybackBarHeight = echoDesktopPlaybackBarHeight,
@@ -34,6 +35,7 @@ class EchoAppShell extends StatelessWidget {
   final EchoNetworkStatus networkStatus;
   final VoidCallback? onOpenDrawer;
   final List<EchoDesktopSidebarAction> desktopActions;
+  final Widget? desktopNavigationToolbar;
   final String desktopAccountLabel;
   final String desktopAccountSubtitle;
   final double desktopPlaybackBarHeight;
@@ -75,6 +77,7 @@ class EchoAppShell extends StatelessWidget {
           showMiniPlayer: showMiniPlayer,
           networkStatusBar: networkStatusBar,
           desktopActions: desktopActions,
+          desktopNavigationToolbar: desktopNavigationToolbar,
           desktopAccountLabel: desktopAccountLabel,
           desktopAccountSubtitle: desktopAccountSubtitle,
           desktopPlaybackBarHeight: desktopPlaybackBarHeight,
@@ -191,6 +194,7 @@ class _WideShellBody extends StatelessWidget {
     required this.showMiniPlayer,
     required this.networkStatusBar,
     required this.desktopActions,
+    required this.desktopNavigationToolbar,
     required this.desktopAccountLabel,
     required this.desktopAccountSubtitle,
     required this.desktopPlaybackBarHeight,
@@ -206,6 +210,7 @@ class _WideShellBody extends StatelessWidget {
   final bool showMiniPlayer;
   final Widget networkStatusBar;
   final List<EchoDesktopSidebarAction> desktopActions;
+  final Widget? desktopNavigationToolbar;
   final String desktopAccountLabel;
   final String desktopAccountSubtitle;
   final double desktopPlaybackBarHeight;
@@ -240,6 +245,9 @@ class _WideShellBody extends StatelessWidget {
         Expanded(
           child: Column(
             children: <Widget>[
+              if (windowClass == EchoWindowClass.expanded &&
+                  desktopNavigationToolbar != null)
+                desktopNavigationToolbar!,
               Expanded(
                 child: ColoredBox(
                   key: const ValueKey<String>('echo-shell-content'),

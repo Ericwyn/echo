@@ -1,4 +1,5 @@
 import 'package:echoes/core/theme/app_theme.dart';
+import 'package:echoes/core/design/echo_design.dart';
 import 'package:echoes/providers/navigation_provider.dart';
 import 'package:echoes/widgets/main_scaffold.dart';
 import 'package:echoes/widgets/echo_app_shell/echo_network_status_bar.dart';
@@ -232,10 +233,41 @@ void main() {
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       expect(find.text('Desktop songs'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('echo-desktop-navigation-toolbar')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('echo-desktop-forward')),
+        findsOneWidget,
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('echo-desktop-forward')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Desktop detail'), findsOneWidget);
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.text('Desktop songs'), findsOneWidget);
 
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       expect(find.text('Desktop Music Flow'), findsOneWidget);
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('echo-desktop-sidebar-music-flow')),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<EchoIconButton>(
+              find.byKey(const ValueKey<String>('echo-desktop-forward')),
+            )
+            .onPressed,
+        isNull,
+      );
     });
 
     testWidgets('preserves branch stacks and resets a reselected branch', (
@@ -470,7 +502,8 @@ class _DesktopDestinationPage extends StatelessWidget {
             ElevatedButton(
               key: const ValueKey<String>('open-desktop-detail'),
               onPressed: () => Navigator.of(context).push<void>(
-                MaterialPageRoute<void>(
+                EchoPageRoute<void>(
+                  context: context,
                   builder: (_) => const Scaffold(
                     body: Center(child: Text('Desktop detail')),
                   ),

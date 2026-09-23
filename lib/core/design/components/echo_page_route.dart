@@ -14,7 +14,9 @@ class EchoPageRoute<T> extends PageRouteBuilder<T> {
     required WidgetBuilder builder,
     RouteSettings? settings,
     bool fullscreenDialog = false,
-  }) : super(
+  }) : _builder = builder,
+       _fullscreenDialog = fullscreenDialog,
+       super(
          settings: settings,
          fullscreenDialog: fullscreenDialog,
          transitionDuration: context.echoMotion.resolve(
@@ -30,6 +32,19 @@ class EchoPageRoute<T> extends PageRouteBuilder<T> {
          },
          transitionsBuilder: _buildTransitions,
        );
+
+  final WidgetBuilder _builder;
+  final bool _fullscreenDialog;
+
+  /// Rebuilds this route when desktop history moves forward after a pop.
+  EchoPageRoute<T> recreate(BuildContext context) {
+    return EchoPageRoute<T>(
+      context: context,
+      builder: _builder,
+      settings: settings,
+      fullscreenDialog: _fullscreenDialog,
+    );
+  }
 
   static Widget _buildTransitions(
     BuildContext context,
