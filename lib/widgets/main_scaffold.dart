@@ -381,20 +381,20 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
               _DesktopCallbackAction<_ToggleDesktopPlaybackIntent>(
                 enabled: () => !_isTextOrValueControlFocused(),
                 callback: () => unawaited(
-                  ref.read(playerProvider.notifier).togglePlayPause(),
+                  ref.read(playbackCommandsProvider).togglePlayPause(),
                 ),
               ),
           _PreviousDesktopTrackIntent:
               _DesktopCallbackAction<_PreviousDesktopTrackIntent>(
                 enabled: () => !_isTextOrValueControlFocused(),
                 callback: () =>
-                    unawaited(ref.read(playerProvider.notifier).previous()),
+                    unawaited(ref.read(playbackCommandsProvider).previous()),
               ),
           _NextDesktopTrackIntent:
               _DesktopCallbackAction<_NextDesktopTrackIntent>(
                 enabled: () => !_isTextOrValueControlFocused(),
                 callback: () =>
-                    unawaited(ref.read(playerProvider.notifier).next()),
+                    unawaited(ref.read(playbackCommandsProvider).next()),
               ),
           _OpenDesktopSearchIntent:
               _DesktopCallbackAction<_OpenDesktopSearchIntent>(

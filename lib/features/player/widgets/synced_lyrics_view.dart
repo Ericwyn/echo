@@ -46,7 +46,7 @@ class SyncedLyricsView extends ConsumerWidget {
       activeSecondaryColor: activeSecondaryColor,
       inactivePrimaryColor: inactivePrimaryColor,
       inactiveSecondaryColor: inactiveSecondaryColor,
-      onSeek: (target) => ref.read(playerProvider.notifier).seek(target),
+      onSeek: (target) => ref.read(playbackCommandsProvider).seek(target),
     );
   }
 }

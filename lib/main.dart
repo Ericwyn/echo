@@ -107,12 +107,12 @@ class _DesktopLifecycleHostState extends ConsumerState<_DesktopLifecycleHost> {
         onTogglePlayPause: () async {
           final player = ref.read(playerProvider.notifier);
           await player.initialized;
-          await player.togglePlayPause();
+          await ref.read(playbackCommandsProvider).togglePlayPause();
         },
         onNext: () async {
           final player = ref.read(playerProvider.notifier);
           await player.initialized;
-          await player.next();
+          await ref.read(playbackCommandsProvider).next();
         },
         onQuit: () async {
           final player = ref.read(playerProvider.notifier);
