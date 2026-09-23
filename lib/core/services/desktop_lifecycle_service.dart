@@ -461,7 +461,13 @@ class DesktopLifecycleService with WindowListener, TrayListener {
     );
 
     if (defaultTargetPlatform == TargetPlatform.linux) {
-      await _connectToStatusNotifierWatcher(refreshTrayOnSuccess: true);
+      if (_watcherConnectInProgress) {
+        // Exit may race startup's initial owner lookup. Retry after that
+        // invalidated request settles instead of silently losing the monitor.
+        _scheduleWatcherReconnect();
+      } else {
+        await _connectToStatusNotifierWatcher(refreshTrayOnSuccess: true);
+      }
     }
     if (!_trayIconRegistered) {
       await _runRecoveryStep('restore tray icon', _installTrayIcon);
