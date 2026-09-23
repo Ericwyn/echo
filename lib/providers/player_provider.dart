@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:math';
-import 'package:audio_service/audio_service.dart';
 import 'package:flutter/foundation.dart'
     show TargetPlatform, defaultTargetPlatform, kIsWeb, visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,6 +17,7 @@ import '../core/platform/platform_file_bridge.dart';
 import '../core/utils/logger.dart';
 import '../core/utils/network_error_notifier.dart';
 import '../core/services/audio_handler_service.dart';
+import '../core/services/audio_media_item_mapper.dart';
 import '../core/services/playback_wake_guard.dart';
 import '../core/services/background_playback_advisor.dart';
 import '../core/services/linux_mpris_service.dart';
@@ -42,6 +42,7 @@ export 'player/cache_manager_handler.dart';
 import 'player/player_state.dart';
 import 'player/playback_queue_state.dart';
 import 'player/playback_contract.dart';
+import 'player/playback_metadata.dart';
 import 'player/favorite_scrobble_handler.dart';
 import 'player/cache_manager_handler.dart';
 import 'player/player_seek_policy.dart';
@@ -1985,10 +1986,19 @@ class PlayerNotifier extends StateNotifier<PlayerState>
     final generation = ++_mediaArtworkGeneration;
     final session = _playDebugSession;
     final entryId = state.currentEntryId;
+    final durationOverride = state.currentSong?.id == song.id
+        ? state.duration
+        : null;
 
     // Publish track identity immediately. The OS then clears the previous
     // song's thumbnail while the shared cache resolves the new local file.
-    unawaited(handler.updateMediaItem(_buildAudioMediaItem(song)));
+    unawaited(
+      handler.updateMediaItem(
+        buildAudioMediaItem(
+          PlaybackMetadata.fromSong(song, durationOverride: durationOverride),
+        ),
+      ),
+    );
     if (artworkUrl == null) return;
 
     unawaited(
@@ -2002,15 +2012,6 @@ class PlayerNotifier extends StateNotifier<PlayerState>
       ),
     );
   }
-
-  MediaItem _buildAudioMediaItem(Song song, {Uri? artworkUri}) => MediaItem(
-    id: song.id,
-    title: song.title,
-    artist: song.artist ?? 'Unknown Artist',
-    album: song.album ?? 'Unknown Album',
-    duration: song.duration != null ? Duration(seconds: song.duration!) : null,
-    artUri: artworkUri,
-  );
 
   Future<void> _publishCachedMediaArtwork({
     required Song song,
@@ -2033,8 +2034,14 @@ class PlayerNotifier extends StateNotifier<PlayerState>
 
     final handler = _audioHandler;
     if (handler == null) return;
+    final durationOverride = state.currentSong?.id == song.id
+        ? state.duration
+        : null;
     await handler.updateMediaItem(
-      _buildAudioMediaItem(song, artworkUri: artworkUri),
+      buildAudioMediaItem(
+        PlaybackMetadata.fromSong(song, durationOverride: durationOverride),
+        artworkUri: artworkUri,
+      ),
     );
   }
 

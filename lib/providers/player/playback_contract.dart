@@ -2,6 +2,7 @@ import 'package:just_audio/just_audio.dart' show LoopMode, ProcessingState;
 import 'package:flutter/foundation.dart' show immutable;
 
 import 'player_state.dart';
+import 'playback_metadata.dart';
 
 /// Stable playback controls consumed by both the Flutter UI and desktop adapters.
 /// Implementations delegate to the existing player state machine; they must not
@@ -58,17 +59,18 @@ class PlaybackSnapshot {
   }) {
     final song = state.currentSong;
     final requested = playbackRequested ?? state.isPlaying;
+    final metadata = song == null ? null : PlaybackMetadata.fromSong(song);
     final duration = state.duration > Duration.zero
         ? state.duration
-        : Duration(seconds: song?.duration ?? 0);
+        : metadata?.duration ?? Duration.zero;
     final hasSong = song != null;
     return PlaybackSnapshot(
       songId: song?.id,
       entryId: state.currentEntryId,
-      title: song?.title ?? '',
-      artist: song?.artist ?? '',
-      album: song?.album ?? '',
-      artworkReference: song?.artworkReference,
+      title: metadata?.title ?? '',
+      artist: metadata?.artist ?? '',
+      album: metadata?.album ?? '',
+      artworkReference: metadata?.artworkReference,
       position: state.position,
       duration: duration,
       isPlaying: state.isPlaying,
