@@ -2,7 +2,7 @@
 
 [返回 spec](README.md) · [验收矩阵](acceptance.md) · [决策](decisions.md)
 
-状态：应用代码 `a6ee5e65` 已在全新 `build/linux-lldtmp-2053` CMake 目录构建，使用系统 Clang 与 Ubuntu LLD 14；`.deb` 为 `1.1.0+2051`/amd64。Android 签名 ARM64-only APK versionCode `2042`，高于用户设备报告的 `2026`。两端产物均未安装或启动；P0–P4 系统操作、恢复、性能和安装场景仍待验证。当前优先 Ubuntu/Linux；Windows CI 暂缓。详情见 [音乐库返回导航构建证据](evidence/260924-library-flow-navigation-build/README.md)。
+状态：应用代码 `67f62407` 已在全新 `build/linux-lldtmp-2054` CMake 目录构建，使用系统 Clang 与 Ubuntu LLD 14；`.deb` 为 `1.1.0+2052`/amd64。Android 签名 ARM64-only APK versionCode `2043`，高于用户设备报告的 `2026`。两端产物均未安装或启动；P0–P4 系统操作、恢复、性能和安装场景仍待验证。当前优先 Ubuntu/Linux；Windows CI 暂缓。详情见 [添加音乐库播放器交接构建证据](evidence/260924-add-library-player-handoff-build/README.md)。
 
 ## 目标与交付范围
 
@@ -30,7 +30,7 @@ Ubuntu 交付可安装 `.deb` 与完整 bundle 压缩包；Windows 交付 releas
 - `scripts/package_linux_deb.sh` 从 `build/linux/x64/release/bundle` 组装 Debian 包，依赖声明面向当前 Ubuntu 22.04 基线：`libgtk-3-0`、`libayatana-appindicator3-1`、`libmpv1`。MPV 是运行时动态加载项，不会出现在主 ELF 的 `DT_NEEDED` 中，因此显式声明。
 - `.github/workflows/build_linux.yml` 在 release bundle 外再上传 `.deb`；`.github/workflows/pr_checks.yml` 加入包组装步骤。Windows workflow 未改。
 - 仓库 `README.md` 已增加 Linux `.deb` 安装命令、运行依赖、自绘窗口与托盘/MPRIS 说明，并明确 22.04/GNOME/X11 的验证范围；最新 Linux 桌面截图需待用户手动视觉验收后再刷新，避免把旧版界面图当作当前 release 证据。
-- 历史候选包已由后续构建替换。最新包为 `build/linux-lldtmp-2053/packages/echoes_1.1.0+2051_amd64.deb`，SHA-256 `bf507248f6d90ef46212cf10067f751921a9d731372ee9c53b573142be10ae28`；`dpkg-deb` 元数据与完整 bundle preflight 通过，尚未安装验证。
+- 历史候选包已由后续构建替换。最新包为 `build/linux-lldtmp-2054/packages/echoes_1.1.0+2052_amd64.deb`，SHA-256 `29715b8ae81432287418e431af6db55eabb842db8f3048053759fb8ea3bdd05b`；`dpkg-deb` 元数据与完整 bundle preflight 通过，尚未安装验证。
 
 ### 原生分发与网络通路的补充检查
 
@@ -141,6 +141,8 @@ Ubuntu 24.04/Wayland 若仍未验收，只能先发布明确限定 22.04/X11 的
 | 本机 Android ARM64 构建脚本 | Git 忽略的 `scripts/local/build_android_release_arm64.sh` | 本机脚本从已有 versionCode `2040` 自动递增到 `2041`；构建后核验包名、仅 arm64 ABI 与签名证书。本次运行的 state 目录位于临时构建 HOME；用户日常运行默认将递增状态保存在本机 `~/.local/state/echoes/`。脚本含本机签名文件位置，不提交到 Git | `bash -n` 与 Git ignore 检查通过；脚本在本机可快捷重建签名 ARM64 APK |
 | Ubuntu 22.04 X11 | `a6ee5e65` / `build/linux-lldtmp-2053` | 修正音乐库添加/编辑返回路径后，以系统 Clang + Ubuntu LLD 14 全新构建 `1.1.0+2051` amd64 `.deb`。bundle executable SHA-256 `1e914b6f79795659b3e83c3a99e9b5b4ce33b588caf70d86107f7d36ce0a09e2`，`libapp.so` SHA-256 `c3a769a8d67148006a5c9384deb2b2f13521766ce25bbe6072e708f5f26fa0b5`，`.deb` SHA-256 `bf507248f6d90ef46212cf10067f751921a9d731372ee9c53b573142be10ae28`。未安装/启动，测试/analyze 未运行 |
 | Android ARM64 APK | `a6ee5e65` / build number override `42` / `app-arm64-v8a-release.apk` | 本机签名，version name/code `1.1.0` / `2042`，仅含 `arm64-v8a`；证书 SHA-256 `8604465c3ee1282b48a1b2759801f784ace32447d1188e0481fab0fe8ac74c94`，APK SHA-256 `0e9ad83fc5e145fb429bdca1fc19fdf80030701d28ef60a3ff7c0c6b471c67f4`。未安装/启动，Android 真机回归待用户执行 |
+| Ubuntu 22.04 X11 | `67f62407` / `build/linux-lldtmp-2054` | 添加库认证安全交接播放器后，以系统 Clang + Ubuntu LLD 14 全新构建 `1.1.0+2052` amd64 `.deb`。bundle executable SHA-256 `e6b189c5ce1b6f1bd26ec7d114938ed7e077761ce7f58cb96f2bd0b4b090dd34`，`libapp.so` SHA-256 `40e83b250dbc380e979cc3279954d77f8cda07ea84940b716a73339777e07139`，`.deb` SHA-256 `29715b8ae81432287418e431af6db55eabb842db8f3048053759fb8ea3bdd05b`。未安装/启动，测试/analyze 未运行 |
+| Android ARM64 APK | `67f62407` / build number override `43` / `app-arm64-v8a-release.apk` | 本机签名，version name/code `1.1.0` / `2043`，仅含 `arm64-v8a`；证书 SHA-256 `8604465c3ee1282b48a1b2759801f784ace32447d1188e0481fab0fe8ac74c94`，APK SHA-256 `007e78cbd0139aaebfd8e034c7aa981859500a1a646a4223f8b7fc25a2dc3d93`。未安装/启动，Android 真机回归待用户执行 |
 | Ubuntu 24.04 / Wayland | — | 待提供环境与结果 |
 | Windows | — | Windows CI 暂缓；未编译/未实机验收 |
 | Android 回归 | 先前检查点曾有 431 项 Flutter 测试通过；本次提交新增用例未运行 | 最新共享控件与歌曲操作改动的自动回归、Android 真机锁屏/通知栏/封面验证仍待完成 |
