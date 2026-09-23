@@ -2,7 +2,7 @@
 
 [返回 spec](README.md) · [验收矩阵](acceptance.md) · [决策](decisions.md)
 
-状态：最新代码 `d6bb46f5` 已在全新 `build/linux-lldtmp-2058` CMake 目录构建，使用系统 Clang 与 Ubuntu LLD 14；`.deb` 为 `1.1.0+2053`/amd64。Android 签名 ARM64-only APK versionCode `2048`，高于用户设备报告的 `2026`。两端产物均未安装或启动；P0–P4 系统操作、恢复、性能和安装场景仍待验证。当前优先 Ubuntu/Linux；Windows CI 暂缓。详情见 [托盘恢复竞态构建证据](evidence/260924-tray-host-hide-race-build/README.md)。
+状态：最新代码 `8acd46dd` 已在全新 `build/linux-lldtmp-2059` CMake 目录构建，使用系统 Clang 与 Ubuntu LLD 14；`.deb` 为 `1.1.0+2053`/amd64。Android 签名 ARM64-only APK versionCode `2049`，高于用户设备报告的 `2026`。两端产物均未安装或启动；P0–P4 系统操作、恢复、性能和安装场景仍待验证。当前优先 Ubuntu/Linux；Windows CI 暂缓。详情见 [Wayland 窗口恢复构建证据](evidence/260924-wayland-window-recovery-build/README.md)。
 
 ## 目标与交付范围
 
@@ -30,7 +30,7 @@ Ubuntu 交付可安装 `.deb` 与完整 bundle 压缩包；Windows 交付 releas
 - `scripts/package_linux_deb.sh` 从 `build/linux/x64/release/bundle` 组装 Debian 包，依赖声明面向当前 Ubuntu 22.04 基线：`libgtk-3-0`、`libayatana-appindicator3-1`、`libmpv1`。MPV 是运行时动态加载项，不会出现在主 ELF 的 `DT_NEEDED` 中，因此显式声明。
 - `.github/workflows/build_linux.yml` 在 release bundle 外再上传 `.deb`；`.github/workflows/pr_checks.yml` 加入包组装步骤。Windows workflow 未改。
 - 仓库 `README.md` 已增加 Linux `.deb` 安装命令、运行依赖、自绘窗口与托盘/MPRIS 说明，并明确 22.04/GNOME/X11 的验证范围；最新 Linux 桌面截图需待用户手动视觉验收后再刷新，避免把旧版界面图当作当前 release 证据。
-- 历史候选包已由后续构建替换。最新包为 `build/linux-lldtmp-2058/packages/echoes_1.1.0+2053_amd64.deb`，SHA-256 `3a5b7363c291492ebfda10cb165eea95f34f16a2daa50e14001e54629e8ea5ab`；`dpkg-deb` 元数据与完整 bundle preflight 通过，尚未安装验证。
+- 历史候选包已由后续构建替换。最新包为 `build/linux-lldtmp-2059/packages/echoes_1.1.0+2053_amd64.deb`，SHA-256 `6536ce3349d1669c8db43c3e6e02aed1ee6f36773b570c198521eb94d4fbe3a9`；`dpkg-deb` 元数据与完整 bundle preflight 通过，尚未安装验证。
 
 ### 原生分发与网络通路的补充检查
 
@@ -151,6 +151,8 @@ Ubuntu 24.04/Wayland 若仍未验收，只能先发布明确限定 22.04/X11 的
 | Android ARM64 APK | `54207f92` / build number override `47` / `app-arm64-v8a-release.apk` | 本机签名，version name/code `1.1.0` / `2047`，仅含 `arm64-v8a`；证书 SHA-256 `8604465c3ee1282b48a1b2759801f784ace32447d1188e0481fab0fe8ac74c94`，APK SHA-256 `08e74d6e98d2a966db2d77b598da3ea6ff53b1c40ed45013be8dd0ebacf8a8f3`。未安装/启动，Android 真机回归待用户执行 |
 | Ubuntu 22.04 X11 | `d6bb46f5` / `build/linux-lldtmp-2058` | 关窗过程中托盘宿主丢失时增加显示+最小化恢复；系统 Clang + Ubuntu LLD 14 在全新 build-dir 构建 `1.1.0+2053` amd64 `.deb`。bundle executable SHA-256 `a7aa9bd28d6474271b3cd90084d0867a66be25a0d00c6f1b64042dd2dcaa3a75`，`libapp.so` SHA-256 `4e213db33f8316e5b1ed04f51a8014582051fa363314a8eb640b98d2583aa635`，`.deb` SHA-256 `3a5b7363c291492ebfda10cb165eea95f34f16a2daa50e14001e54629e8ea5ab`。`dpkg-deb` 元数据核对通过；未安装/启动，测试/analyze 未运行 |
 | Android ARM64 APK | `d6bb46f5` / build number override `48` / `app-arm64-v8a-release.apk` | 本机签名，version name/code `1.1.0` / `2048`，仅含 `arm64-v8a`；证书 SHA-256 `8604465c3ee1282b48a1b2759801f784ace32447d1188e0481fab0fe8ac74c94`，APK SHA-256 `00bfd0772d6d88d126b6c9690af753b49be2dc44537967adb8a49f251aba552b`。未安装/启动，Android 真机回归待用户执行 |
+| Ubuntu 22.04 X11 | `8acd46dd` / `build/linux-lldtmp-2059` | 将窗口显示与焦点错误分开处理，Wayland focus 被拒绝不再让生命周期状态残留为 hidden；系统 Clang + Ubuntu LLD 14 在全新 build-dir 构建 `1.1.0+2053` amd64 `.deb`。bundle executable SHA-256 `16b476bf4a4dcad68eb90df6734bf9c77bd3210a075513cd809640ee6459208c`，`libapp.so` SHA-256 `b583270c10b7573618006e47612dda7bde7ca7dc174b93089d0b1b671e677207`，`.deb` SHA-256 `6536ce3349d1669c8db43c3e6e02aed1ee6f36773b570c198521eb94d4fbe3a9`。`dpkg-deb` 元数据核对通过；未安装/启动，测试/analyze 未运行 |
+| Android ARM64 APK | `8acd46dd` / build number override `49` / `app-arm64-v8a-release.apk` | 本机签名，version name/code `1.1.0` / `2049`，仅含 `arm64-v8a`；证书 SHA-256 `8604465c3ee1282b48a1b2759801f784ace32447d1188e0481fab0fe8ac74c94`，APK SHA-256 `a2311a4fd2361b33efd65c52315bd5a211022ac22e5206168ae07ebc72d41b93`。未安装/启动，Android 真机回归待用户执行 |
 | Ubuntu 24.04 / Wayland | — | 待提供环境与结果 |
 | Windows | — | Windows CI 暂缓；未编译/未实机验收 |
 | Android 回归 | 先前检查点曾有 431 项 Flutter 测试通过；本次提交新增用例未运行 | 最新共享控件与歌曲操作改动的自动回归、Android 真机锁屏/通知栏/封面验证仍待完成 |
