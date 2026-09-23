@@ -2,7 +2,7 @@
 
 [返回 spec](README.md) · [总体设计](desktop-adaptation-plan.md) · [验收](acceptance.md)
 
-状态：首轮实现中。桌面侧栏按分组导航，不再显示离线任务状态页或账户/服务器信息块；品牌区与主面板工具栏共用高度，桌面播放栏贴合主面板边缘。线路选择与添加音乐库集中放在侧栏可达的设置页，音乐库切换/编辑也在那里提供。桌面现使用独立 Navigator：侧栏主目的地替换当前主页面，内容详情共享同一返回/前进栈，根页面为音乐流；Android 继续使用 `StatefulShellRoute`，窄屏抽屉保留远端离线任务状态入口。Linux 隐藏 GNOME GTK 标题栏和原生窗口框，由应用根部绘制覆盖登录与主界面的窗口栏及边缘缩放区；主应用页面在内容 shell 内显示返回/前进/搜索工具栏。窗口最小逻辑尺寸 840×560，避免落入 Android 风格布局。自动用例覆盖主目的地连续切换、详情逐层返回、前进恢复、重复返回箭头消除和窗口控制语义；本轮新增设置返回、顶栏高度对齐、无账户区、播放栏贴边、前进滚动、搜索、详情排序、收藏页签和歌手视图恢复回归用例均未运行。用户实测反馈上一版窗口栏按钮不可点/闪烁、窗口缩放异常；已移除放在 Navigator Overlay 外的 Tooltip，启动时清除置顶并显式恢复缩放、最大化和最小化能力。前进通过保存的路由 builder 重建页面，并复用 route-local PageStorageBucket 恢复可滚动组件的位置；搜索页恢复已提交查询和未完成输入，专辑/歌单详情恢复排序选项，收藏夹恢复页签，歌手详情恢复当前内容区和热门歌曲展开状态。Ubuntu 实际拖动/缩放、滚动/筛选恢复和不同尺寸/DPI尚待用户验证。Windows 暂保留原生标题栏，之后单独验证。
+状态：首轮实现中。桌面侧栏按分组导航，不再显示离线任务状态页或账户/服务器信息块；品牌区与主面板工具栏共用高度，桌面播放栏贴合主面板边缘。线路选择与添加音乐库集中放在侧栏可达的设置页，音乐库切换/编辑也在那里提供。桌面现使用独立 Navigator：侧栏主目的地替换当前主页面，内容详情共享同一返回/前进栈，根页面为音乐流；Android 继续使用 `StatefulShellRoute`，窄屏抽屉保留远端离线任务状态入口。Linux 隐藏 GNOME GTK 标题栏和原生窗口框，由应用根部绘制覆盖登录与主界面的窗口栏及边缘缩放区；主应用页面在内容 shell 内显示返回/前进/搜索工具栏。窗口最小逻辑尺寸 840×560，避免落入 Android 风格布局。自动用例覆盖主目的地连续切换、详情逐层返回、前进恢复、重复返回箭头消除和窗口控制语义；本轮新增设置返回、顶栏高度对齐、无账户区、播放栏贴边、前进滚动、搜索、详情排序、收藏页签和歌手视图恢复回归用例均未运行。用户实测反馈上一版窗口栏按钮不可点/闪烁、窗口缩放异常；已移除放在 Navigator Overlay 外的 Tooltip，启动时清除置顶并显式恢复缩放、最大化和最小化能力。前进通过保存的路由 builder 重建页面，并复用 route-local PageStorageBucket 恢复可滚动组件的位置；搜索页与 Explore 页恢复已提交查询和未完成输入，Explore 本地/远端结果列表位置也恢复；远端搜索 provider 已自动释放时，按保存的查询重新发起请求。专辑/歌单详情恢复排序选项，收藏夹恢复页签，歌手详情恢复当前内容区和热门歌曲展开状态。Ubuntu 实际拖动/缩放、滚动/筛选恢复和不同尺寸/DPI尚待用户验证。Windows 暂保留原生标题栏，之后单独验证。
 
 ## 目标与边界
 
@@ -66,3 +66,4 @@
 | 2026-09-23 / `52463122`，bundle `52463122` | StarredPage 的当前页签和 ArtistDetailPage 的内容区/热门歌曲展开状态写入 PageStorage；新增收藏夹/歌手页面前进恢复 widget 用例。仅格式化与 diff 空白检查，未运行测试；Linux release build 与 `.deb` 构建成功 | 搜索、详情排序、收藏和歌手页面状态已纳入前进恢复；未覆盖的其他页面状态、回归用例执行及 Ubuntu 手动复测仍待完成 |
 | 2026-09-23 / `c9db7c96` | LibraryPage 的歌单排序选项写入/恢复 route-local PageStorage；新增 `desktop forward restores personal playlist sort` widget 回归用例。仅格式化和 diff 空白检查，未运行测试；当前 Linux release bundle 与 `.deb` 已包含该代码 | 曲库歌单排序现可跨桌面前进重建保留；仍待用户手动验收返回/前进及排序结果 |
 | 2026-09-23 / `801f2bcc` | DiscoverPage 的随心听“更多歌曲”展开状态写入/恢复 route-local PageStorage；新增 `random song expansion restores after discover route rebuild` widget 用例。仅格式化、diff 检查和 Linux release build，未运行测试；当前 Linux bundle 已包含该代码 | 前进重建音乐流页面时不再把已展开的歌曲列表收回；Ubuntu 手动验收与回归用例运行仍待完成 |
+| 2026-09-23 / `c2a9e159` | ExplorePage 将已提交查询、输入草稿写入 route-local PageStorage；远端请求 provider 已自动释放时根据历史 query 重新发起搜索；本地/远端结果列表各自使用稳定 PageStorageKey 恢复滚动位置。新增 query 恢复与远端重发 widget 用例；仅格式化、diff 检查和 Linux release build，未运行测试 | Explore 页前进重建时恢复查询、结果和滚动位置；新增回归与 Ubuntu 手动验收仍待完成 |
