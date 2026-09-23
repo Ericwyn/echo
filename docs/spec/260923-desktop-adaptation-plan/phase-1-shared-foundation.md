@@ -34,7 +34,7 @@
 
 ### 元数据与系统会话的补充边界
 
-Android 的 `_updateMediaItem` 在 `_audioHandler == null` 时返回，但 Linux/Windows 媒体 adapter 通过 `PlaybackSnapshot.fromState` 独立取得当前元数据，不依赖 Android handler。剩余工作是统一 snapshot 与 Android `MediaItem` 对缺失艺术家/专辑/时长等字段的默认规则，并把纯元数据构建从 notifier 移到平台无关文件。
+Android 的 `_updateMediaItem` 在 `_audioHandler == null` 时返回，但 Linux/Windows 媒体 adapter 通过 `PlaybackSnapshot.fromState` 独立取得当前元数据，不依赖 Android handler。`PlaybackMetadata.fromSong` 现作为平台无关的纯 metadata value，统一标题、缺失艺术家/专辑和有效时长规则；`audio_media_item_mapper.dart` 只负责转换到 AudioService `MediaItem`。新增 snapshot/MediaItem 一致性用例尚未运行，Android 最终实机回归仍待完成。
 
 artwork 使用明确的“待解析网络 URI / 本地文件 URI或路径 / 无封面”状态，由 adapter 转成其原生接口要求的类型。元数据更新不等待封面下载，封面完成后按 library/entry/source generation 补发；无封面是清理旧图的事件，不是忽略更新。
 
@@ -62,3 +62,4 @@ artwork 使用明确的“待解析网络 URI / 本地文件 URI或路径 / 无�
 | --- | --- | --- |
 | 2026-09-23 / 首个实施里程碑 | 新增 `PlaybackCommands` 与 `PlaybackSnapshot`，`PlayerNotifier` 继续作为唯一引擎所有者；音量拆分为 userVolume 与 fadeGain，userVolume 本地保存；运行 `flutter test test/providers/player_recovery_test.dart`（31 项通过）和涉及文件的 `flutter analyze`（无问题） | 契约仍需接入系统 adapter 与桌面 UI；还需覆盖 seek/切源/恢复时音量竞争、metadata/artwork 独立构建、Android 专项回归及队列组件提取；P1 未完成 |
 | 2026-09-23 / `f6100044` | 增加跨 Android/Linux 使用的 `ArtworkFileCache`，Android handler 与 Linux MPRIS 从本地缓存文件发布当前歌曲封面并丢弃过期响应；Linux 桌面直接创建 AudioPlayer，不再主动抛 UnsupportedError 触发 AudioService 误报；全量 431 项 Flutter 测试及项目级 `flutter analyze` 通过 | Android 需在设备上复验离线/切歌封面；metadata builder 仍有 Android handler 早退耦合；用户音量与 seek 换源竞争需持续手动观察 |
+| 2026-09-23 / `21feeac1` | 抽出平台无关 `PlaybackMetadata` 和 AudioService `MediaItem` mapper；snapshot 与 Android 系统媒体映射共用标题/艺术家/专辑/时长默认规则。新增 metadata/snapshot/media item 一致性用例；仅格式化与 diff 空白检查，未运行测试、analyze、构建或应用 | 新模型的自动回归待运行；Android 通知栏/锁屏与 Linux MPRIS 仍需最终设备验收；音量竞争场景待补 |
