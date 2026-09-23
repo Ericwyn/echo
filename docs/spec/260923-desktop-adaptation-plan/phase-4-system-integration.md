@@ -10,6 +10,8 @@
 
 `8acd46dd` 将显示窗口成功和获取焦点拆开处理：Wayland compositor 拒绝 focus 时仍会正确记录窗口可见，并避免重复恢复或误判隐藏。最新 Linux `1.1.0+2053` 与 Android ARM64 versionCode `2049` release 已构建；focus policy 和窗口恢复需用户在目标桌面验证。
 
+`bb8d9af3` 把“托盘不可用/隐藏期间消失”和“显示成功但 focus 被拒绝”的决策抽成可单测 helper，并添加 5 条回归用例；按用户要求未运行。最新 Linux `1.1.0+2053` 与 Android ARM64 versionCode `2050` release 已编译。
+
 ## 目标与拆分
 
 - **P4-A 媒体会话**：Linux MPRIS、Windows SMTC，控制现有播放器；基础 Linux 版本可与 P2 组成 M1。
@@ -102,3 +104,4 @@ P4-A 不依赖托盘存在；P4-B 的隐藏行为必须等托盘或其他恢复�
 | P4-A MPRIS property/track identity | 2026-09-24 / `54207f92` | `LoopStatus` 不再随 Shuffle 强制变为 `None`；SHA-256 track path 基于 JSON 序列化的库/队列条目身份。添加独立循环/随机属性与歧义身份/迟到 SetPosition D-Bus 用例。Dart 格式与 diff 检查、Linux 与 Android ARM64 release 构建通过；未运行 Flutter 测试/analyze | GNOME media card/playerctl 的 repeat/shuffle/seek 仍待 Ubuntu 手动验证 |
 | P4-B tray hide recovery race | 2026-09-24 / `d6bb46f5` | 窗口 hide 完成后再次检查 watcher；若 host 在异步 hide 期间消失，则显示窗口并最小化。Dart 格式与 diff 检查通过，Linux 与 Android ARM64 release 构建通过；未运行测试/analyze | 宿主消失和关窗交错时的任务栏恢复行为仍待 Ubuntu 手动验证 |
 | P4-B Wayland visibility/focus recovery | 2026-09-24 / `8acd46dd` | `show()` 成功即清除 hidden 状态；后续 focus 请求单独捕获失败，compositor 拒绝 focus 不再将已显示窗口误记为隐藏。Dart 格式与 diff 检查通过，Linux 与 Android ARM64 release 构建通过；未运行测试/analyze | Wayland focus 被拒绝、显示窗口和托盘/任务栏恢复路径仍需手动验证 |
+| P4-B lifecycle policy tests | 2026-09-24 / `bb8d9af3` | 抽出显示/focus 与托盘消失关闭策略，新增 5 条无托盘、hide 期间丢 host、host 可用、focus 拒绝、show 失败用例。Dart 格式、diff 检查及两端 release build 通过；新增 Flutter tests 未运行 | 自动回归定义覆盖状态转换；GNOME/Wayland 实机与测试运行仍待用户执行 |
