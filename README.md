@@ -73,6 +73,18 @@
 
 Web 中的服务器访问还受浏览器跨域、HTTPS 和音频格式支持限制；不要把浏览器预览当作原生端离线能力的验收。
 
+### Linux 桌面安装
+
+Ubuntu 用户优先安装发布页提供的 `.deb`，由 APT 解析并安装 GTK 3、Ayatana AppIndicator 和 libmpv 运行依赖：
+
+```bash
+sudo apt install ./echoes_VERSION_amd64.deb
+```
+
+安装后可从应用列表启动 Echoes，也可在终端运行 `echoes`。Linux 桌面使用 Echo 自绘标题栏，窗口最小逻辑尺寸为 `840 × 560`；GNOME 媒体控制通过 MPRIS 接入，托盘显示取决于当前会话的 AppIndicator/SNI 宿主。
+
+当前主要验证范围为 Ubuntu 22.04、GNOME、X11。Ubuntu 24.04、Wayland 和其他发行版尚未列入已验证范围；`.deb` 的依赖声明与 release 构建成功也不替代干净系统上的安装、播放和升级验收。
+
 ## 界面设计：Echo Listening System
 
 Echo 使用自有的 **Echo Listening System**，以“**Album Light, Quiet Chrome**”为设计方向：专辑封面只在播放器、MiniPlayer 和媒体详情等与当前音乐直接相连的场景提供局部光线；导航、资料库、下载、设置和表单保持安静、稳定的中性界面，让内容与任务始终处于主位。
