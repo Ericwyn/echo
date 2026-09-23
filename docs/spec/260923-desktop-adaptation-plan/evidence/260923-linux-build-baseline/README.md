@@ -2,6 +2,8 @@
 
 日期：2026-09-23
 
+此记录是 2026-09-23 的历史构建，已由 [2026-09-24 共享播放器构建](../260924-shared-player-layer-build/README.md) 更新。
+
 范围：记录 Ubuntu 本机 release bundle 与 Debian 包构建。构建/包检查不代表已安装、启动、播放或通过 GNOME 交互验收；按用户要求，这里没有启动应用或运行 Flutter tests/analyze。
 
 ## 环境
