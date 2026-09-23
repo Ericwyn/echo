@@ -4,6 +4,8 @@
 
 状态：Linux 首轮已实现，部分实机通过。MPRIS SetPosition、Seeked、track ID 校验和远程 command error 隔离已落代码；`Seeked` 现在由成功 seek 的显式 revision 触发，延迟的普通进度采样不会误发 seek 信号。首次选择关闭到后台时会显示托盘/任务栏恢复说明，确认后才隐藏/最小化；成功后持久化“已告知”状态，取消或隐藏失败不会标记。托盘菜单由播放快照驱动播放/暂停与上下首能力；每个原生菜单事件只经 TrayListener 执行一次。显式退出中的各清理步骤现独立捕获、分别限时并继续执行；StatusNotifier 两个 watcher 别名现合并跟踪，订阅先于初始查询以防漏事件，宿主恢复时刷新托盘图标与菜单。新增 MPRIS/生命周期/托盘映射用例尚未运行，Ubuntu 绝对 seek、菜单点击、首次提示、关窗、恢复和宿主失效仍待实测。前置：Linux P0 路径与 P1 命令/快照契约已建立；与 P2/P3 联调完成后才能认定桌面交互闭环。当前不运行 Windows CI，Windows 原生接入和实机仍未验证。
 
+2026-09-24，`54207f92` 让 MPRIS 的 `LoopStatus` 按 repeat mode 独立于 `Shuffle` 报告，并以无歧义的 `(libraryId, entryId)` 序列化值生成 SHA-256 track path，避免 32 位 track ID 碰撞或分隔符歧义让旧 `SetPosition` 命中另一首歌。Linux `1.1.0+2053` 与 Android arm64 versionCode `2047` release 均已编译；新增 D-Bus 回归未运行，系统卡片行为仍待用户验证。
+
 ## 目标与拆分
 
 - **P4-A 媒体会话**：Linux MPRIS、Windows SMTC，控制现有播放器；基础 Linux 版本可与 P2 组成 M1。
@@ -93,3 +95,4 @@ P4-A 不依赖托盘存在；P4-B 的隐藏行为必须等托盘或其他恢复�
 | P4-C library switch and Android AudioService lifecycle | 2026-09-24 / `6f0f80e6` | 切库时先保存旧库播放会话、停播并清除系统媒体 metadata，再将进程级 AudioService 命令绑定到新 notifier；Android handler 不随 provider 重建重复初始化。Linux 与 Android ARM64 release 编译通过，相关用例未运行 | 用户需验证跨库恢复、切库失败回滚、GNOME 系统媒体项清理及 Android 后台控制 |
 | P4-C add-library handoff | 2026-09-24 / `67f62407` | 添加库认证成功后先保存/停播旧库并解绑旧命令，再激活新库；失败回滚旧播放器，成功后重建当前 notifier。未认证的首次登录不创建多余 PlayerNotifier。Linux 与 Android ARM64 release 编译通过，相关回归未运行 | 用户需验证 Android 添加库时通知栏元数据/播放停止与恢复、切库失败后的旧播放恢复 |
 | P4-C active library deletion recovery | 2026-09-24 / `d85868f1` | 删除非活动库不触碰当前播放器；活动库已删除而替代激活失败时清理旧 PlayerNotifier 并退出到未认证状态，避免保留已删除 libraryId。Linux 与 Android ARM64 release 编译通过，未运行回归 | 删除非活动库后继续播放，以及活动库删除/切换失败后的错误提示和恢复待用户验证 |
+| P4-A MPRIS property/track identity | 2026-09-24 / `54207f92` | `LoopStatus` 不再随 Shuffle 强制变为 `None`；SHA-256 track path 基于 JSON 序列化的库/队列条目身份。添加独立循环/随机属性与歧义身份/迟到 SetPosition D-Bus 用例。Dart 格式与 diff 检查、Linux 与 Android ARM64 release 构建通过；未运行 Flutter 测试/analyze | GNOME media card/playerctl 的 repeat/shuffle/seek 仍待 Ubuntu 手动验证 |
