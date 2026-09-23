@@ -20,20 +20,7 @@ import '../../../widgets/echo_artwork.dart';
 import '../../library/pages/album_detail_page.dart';
 import '../../library/pages/artist_detail_page.dart';
 import '../../library/pages/song_metadata_edit_page.dart';
-
-class SongOptionsExtraAction {
-  const SongOptionsExtraAction({
-    required this.icon,
-    required this.title,
-    required this.onPressed,
-    this.isDestructive = false,
-  });
-
-  final IconData icon;
-  final String title;
-  final bool isDestructive;
-  final FutureOr<void> Function() onPressed;
-}
+import 'song_action.dart';
 
 enum SongOptionsSheetMode { full, offlineOnly }
 
@@ -41,7 +28,7 @@ Future<void> showSongOptionsSheet({
   required BuildContext context,
   required Song song,
   bool useRootNavigator = true,
-  List<SongOptionsExtraAction> extraActions = const <SongOptionsExtraAction>[],
+  List<SongAction> extraActions = const <SongAction>[],
   SongOptionsSheetMode mode = SongOptionsSheetMode.full,
   EchoMediaVisuals? mediaVisuals,
 }) async {
@@ -78,7 +65,7 @@ class _SongOptionsSheet extends ConsumerWidget {
 
   final BuildContext hostContext;
   final Song song;
-  final List<SongOptionsExtraAction> extraActions;
+  final List<SongAction> extraActions;
   final SongOptionsSheetMode mode;
 
   @override
@@ -115,9 +102,11 @@ class _SongOptionsSheet extends ConsumerWidget {
             icon: action.icon,
             title: action.title,
             destructive: action.isDestructive,
-            onPressed: () => unawaited(
-              _closeAndRun(context, () async => action.onPressed()),
-            ),
+            onPressed: !action.isAvailable
+                ? null
+                : () => unawaited(
+                    _closeAndRun(context, () async => action.onPressed()),
+                  ),
           ),
         );
       }
@@ -328,9 +317,11 @@ class _SongOptionsSheet extends ConsumerWidget {
             icon: action.icon,
             title: action.title,
             destructive: action.isDestructive,
-            onPressed: () => unawaited(
-              _closeAndRun(context, () async => action.onPressed()),
-            ),
+            onPressed: !action.isAvailable
+                ? null
+                : () => unawaited(
+                    _closeAndRun(context, () async => action.onPressed()),
+                  ),
           ),
         );
       }

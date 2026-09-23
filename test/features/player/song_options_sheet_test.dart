@@ -3,6 +3,7 @@ import 'package:echoes/core/theme/app_theme.dart';
 import 'package:echoes/data/models/music_library.dart';
 import 'package:echoes/data/models/song.dart';
 import 'package:echoes/data/repositories/library_repository.dart';
+import 'package:echoes/features/player/widgets/song_action.dart';
 import 'package:echoes/features/player/widgets/song_options_sheet.dart';
 import 'package:echoes/providers/library_provider.dart';
 import 'package:echoes/providers/player_provider.dart';
@@ -72,8 +73,9 @@ void main() {
                     context: context,
                     song: song,
                     mode: SongOptionsSheetMode.offlineOnly,
-                    extraActions: <SongOptionsExtraAction>[
-                      SongOptionsExtraAction(
+                    extraActions: <SongAction>[
+                      SongAction(
+                        id: 'test.song-action',
                         icon: AppIcons.downloadOutline,
                         title: '添加到离线下载队列',
                         onPressed: () => activations += 1,
@@ -99,6 +101,51 @@ void main() {
     await tester.pumpAndSettle();
     expect(activations, 1);
     expect(hostContext.mounted, isTrue);
+  });
+
+  testWidgets('unavailable host actions are disabled', (tester) async {
+    final notifier = TestPlayerNotifier(
+      PlayerState(currentSong: song, queue: <Song>[song]),
+    );
+    var activations = 0;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [playerProvider.overrideWith((ref) => notifier)],
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => showSongOptionsSheet(
+                  context: context,
+                  song: song,
+                  mode: SongOptionsSheetMode.offlineOnly,
+                  extraActions: <SongAction>[
+                    SongAction(
+                      id: 'test.unavailable-action',
+                      icon: AppIcons.downloadOutline,
+                      title: '暂不可用',
+                      isAvailable: false,
+                      onPressed: () => activations += 1,
+                    ),
+                  ],
+                ),
+                child: const Text('打开操作'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('打开操作'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('暂不可用'));
+    await tester.pumpAndSettle();
+
+    expect(activations, 0);
+    expect(find.text('暂不可用'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('full mode exposes the established business actions', (

@@ -11,6 +11,7 @@ import '../../../data/models/song.dart';
 import '../../../providers/palette_provider.dart';
 import '../../../providers/player_provider.dart';
 import '../../../widgets/song_list_item.dart';
+import 'song_action.dart';
 import 'song_options_sheet.dart';
 
 Future<void> showPlayQueueSheet({
@@ -79,8 +80,9 @@ class PlayQueueSheet extends ConsumerWidget {
           context: rowContext,
           song: song,
           mediaVisuals: visuals,
-          extraActions: <SongOptionsExtraAction>[
-            SongOptionsExtraAction(
+          extraActions: <SongAction>[
+            SongAction(
+              id: 'playback.queue.remove-entry',
               icon: AppIcons.removeCircle,
               title: '从队列移除',
               isDestructive: true,

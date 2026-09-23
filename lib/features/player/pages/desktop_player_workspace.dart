@@ -12,6 +12,7 @@ import '../../../widgets/echo_artwork.dart';
 import '../widgets/current_lyrics_panel.dart';
 import '../widgets/player_backdrop.dart';
 import '../widgets/play_queue_sheet.dart';
+import '../widgets/song_action.dart';
 import '../widgets/song_options_sheet.dart';
 
 enum DesktopPlayerPanel { lyrics, queue }
@@ -495,8 +496,9 @@ class _DesktopQueuePanelState extends ConsumerState<_DesktopQueuePanel> {
                     return showSongOptionsSheet(
                       context: rowContext,
                       song: song,
-                      extraActions: <SongOptionsExtraAction>[
-                        SongOptionsExtraAction(
+                      extraActions: <SongAction>[
+                        SongAction(
+                          id: 'playback.queue.remove-entry',
                           icon: AppIcons.removeCircle,
                           title: '从队列移除',
                           isDestructive: true,

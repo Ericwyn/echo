@@ -7,7 +7,7 @@ import '../../../data/models/song.dart';
 import '../../../providers/player_provider.dart';
 import '../../../widgets/echo_artwork.dart';
 import '../pages/desktop_player_workspace.dart';
-import '../pages/full_player_page.dart' show PlaybackControls, ProgressBar;
+import 'playback_controls.dart' show PlaybackControls, ProgressBar;
 import 'player_scrubber.dart';
 
 /// Persistent desktop controls. Phone and tablet layouts continue to use the

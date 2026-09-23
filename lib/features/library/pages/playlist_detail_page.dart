@@ -17,6 +17,7 @@ import '../../../providers/player_provider.dart';
 import '../../../providers/playlist_provider.dart';
 import '../../../widgets/song_list_item.dart';
 import '../../../widgets/visible_remote_retry_scope.dart';
+import '../../player/widgets/song_action.dart';
 import '../../player/widgets/song_options_sheet.dart';
 import '../utils/library_sorting.dart';
 import '../widgets/media_detail_components.dart';
@@ -405,8 +406,9 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
     return showSongOptionsSheet(
       context: context,
       song: entry.song,
-      extraActions: <SongOptionsExtraAction>[
-        SongOptionsExtraAction(
+      extraActions: <SongAction>[
+        SongAction(
+          id: 'library.playlist.remove-song',
           icon: AppIcons.removeCircle,
           title: '从歌单移除',
           isDestructive: true,

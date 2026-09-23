@@ -5,6 +5,7 @@ import 'package:echoes/core/theme/app_theme.dart';
 import 'package:echoes/data/models/audio_quality.dart';
 import 'package:echoes/data/models/song.dart';
 import 'package:echoes/features/player/pages/full_player_page.dart';
+import 'package:echoes/features/player/widgets/playback_controls.dart';
 import 'package:echoes/features/player/widgets/mini_player.dart';
 import 'package:echoes/features/player/widgets/player_hero_helpers.dart';
 import 'package:echoes/features/player/widgets/player_scrubber.dart';
