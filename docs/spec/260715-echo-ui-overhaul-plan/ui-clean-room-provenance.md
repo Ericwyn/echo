@@ -6,7 +6,7 @@ Echo 当前 UI 的唯一设计与实施依据是：
 
 1. `PRODUCT.md`
 2. `DESIGN.md`
-3. `docs/echo-ui-overhaul-plan.md`
+3. `docs/spec/260715-echo-ui-overhaul-plan/echo-ui-overhaul-plan.md`
 4. `main` 在 UI 重构前已经存在的业务行为与数据模型
 
 `feature-glass-like`、`origin/feature-glass-like` 以及其他历史视觉实验分支仅用于确认需要避开的实现，不是代码来源。

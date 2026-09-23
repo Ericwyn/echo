@@ -30,7 +30,7 @@ Capture date: `2026-07-15`.
   night mode was restored to `auto` and airplane mode to `off`.
 
 This manifest closes the compact Android page matrix. It does not replace the
-broader release gates in `docs/echo-ui-overhaul-plan.md`: `430 x 932`,
+broader release gates in `docs/spec/260715-echo-ui-overhaul-plan/echo-ui-overhaul-plan.md`: `430 x 932`,
 `600 x 960`, landscape, iOS, `130%` text, screen-reader, and profiling evidence
 still require their own platform pass before the whole cross-platform plan can
 be marked complete.

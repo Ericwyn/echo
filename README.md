@@ -81,7 +81,7 @@ Echo 使用自有的 **Echo Listening System**，以“**Album Light, Quiet Chro
 - **无障碍目标**：主要触控目标至少 48dp，支持系统明暗模式、动态字体与减少动效；关键流程以 200% 字体缩放仍可完成为目标，具体设备、读屏和布局验收仍在持续完善。
 - **熟悉行为，自有表达**：保留 Flutter 的路由、语义、焦点、键盘和手势基础设施，可见界面统一由 Echo 组件、语义 token 与 `AppIcons` 控制。
 
-完整设计合同见 [`PRODUCT.md`](PRODUCT.md)、[`DESIGN.md`](DESIGN.md) 与 [`docs/echo-ui-overhaul-plan.md`](docs/echo-ui-overhaul-plan.md)。
+完整设计合同见 [`PRODUCT.md`](PRODUCT.md)、[`DESIGN.md`](DESIGN.md) 与 [`docs/spec/260715-echo-ui-overhaul-plan/echo-ui-overhaul-plan.md`](docs/spec/260715-echo-ui-overhaul-plan/echo-ui-overhaul-plan.md)。
 
 ## 界面截图
 
@@ -91,7 +91,7 @@ Echo 使用自有的 **Echo Listening System**，以“**Album Light, Quiet Chro
 | --- | --- | --- | --- |
 | <img src="docs/screenshots/android-2026-09-07/music-home.png" alt="Echoes 音乐流首页模拟器截图" width="200" /> | <img src="docs/screenshots/android-2026-09-07/library-home.png" alt="Echoes 音乐库模拟器截图" width="200" /> | <img src="docs/screenshots/android-2026-09-07/full-player.png" alt="Echoes 专辑配色全屏播放器模拟器截图" width="200" /> | <img src="docs/screenshots/android-2026-09-07/lyrics-view.png" alt="Echoes 同步双语歌词模拟器截图" width="200" /> |
 
-**本次核心验证**：完成编译安装、服务器登录、首页与音乐库加载、搜索并播放《Cruel Summer》，确认封面与同步双语歌词可用；采集后已暂停播放。本次仅完成这些必要流程验证，跨平台、完整设备矩阵、无障碍与性能验收仍以[UI 计划](docs/echo-ui-overhaul-plan.md)为准。[服务器连接页](docs/screenshots/android-2026-09-07/server-connection.png)也保留在本次截图目录中，历史采集记录见[截图验收清单](docs/ui-baseline-manifest.md)。
+**本次核心验证**：完成编译安装、服务器登录、首页与音乐库加载、搜索并播放《Cruel Summer》，确认封面与同步双语歌词可用；采集后已暂停播放。本次仅完成这些必要流程验证，跨平台、完整设备矩阵、无障碍与性能验收仍以[UI 计划](docs/spec/260715-echo-ui-overhaul-plan/echo-ui-overhaul-plan.md)为准。[服务器连接页](docs/screenshots/android-2026-09-07/server-connection.png)也保留在本次截图目录中，历史采集记录见[截图验收清单](docs/spec/260715-echo-ui-overhaul-plan/ui-baseline-manifest.md)。
 
 ## 技术栈
 
@@ -203,7 +203,8 @@ lib/
 gdstudio-embeded-service/     # 服务器侧离线导入服务
 gitbook/                      # 使用与部署文档
 website/                      # 产品官网、真实截图资源与本地预览服务
-docs/                         # 设计说明、验收计划与界面截图
+docs/spec/                    # 按需求创建日期归档的方案、实施阶段与验收
+docs/screenshots/             # 界面截图与采集记录
 test/                         # 单元测试与 Widget 测试
 .github/workflows/            # 检查、各平台构建与发布流程
 ```

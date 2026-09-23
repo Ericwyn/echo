@@ -1,6 +1,6 @@
 # Echo 移动端 UI 全面重构计划
 
-> 状态（2026-07-15）：P0-P6 的 Android 实现与文档已进入当前提交序列。360 × 800 紧凑 Android 的 24 页明暗矩阵、3 个 200% 字体关键页、225 项测试、Debug/Release 构建与最终 clean-room 来源审计已经完成，M0 证据按 `docs/ui-baseline-manifest.md` 管理。
+> 状态（2026-07-15）：P0-P6 的 Android 实现与文档已进入当前提交序列。360 × 800 紧凑 Android 的 24 页明暗矩阵、3 个 200% 字体关键页、225 项测试、Debug/Release 构建与最终 clean-room 来源审计已经完成，M0 证据按 `docs/spec/260715-echo-ui-overhaul-plan/ui-baseline-manifest.md` 管理。
 >
 > 当前可以判定紧凑 Android 实现通过本轮验收，但不能据此宣称整个跨平台计划完成。430 × 932、600 × 960、横屏、130% 字体、Android TalkBack、iOS 明暗模式与 VoiceOver、以及专项性能 profiling 仍待独立平台证据。
 
@@ -213,7 +213,7 @@ lib/core/design/
 
 | 阶段 | 页面组 | 关键 Echo 组件 | 完成判据 |
 |---|---|---|---|
-| M0 设计契约与基线 | 全部页面 | tokens、theme、adaptive metrics、palette scope | `PRODUCT.md` 与 `DESIGN.md` 冻结；clean-room 零复用门禁明确；`docs/ui-baseline-manifest.md` 中 24 个页面和关键弹层基线截图齐全；明暗模式、动态字体、减少动效规则明确 |
+| M0 设计契约与基线 | 全部页面 | tokens、theme、adaptive metrics、palette scope | `PRODUCT.md` 与 `DESIGN.md` 冻结；clean-room 零复用门禁明确；`docs/spec/260715-echo-ui-overhaul-plan/ui-baseline-manifest.md` 中 24 个页面和关键弹层基线截图齐全；明暗模式、动态字体、减少动效规则明确 |
 | M1 应用壳层 | `MainScaffold`、`AppDrawer`、底部导航、MiniPlayer 容器 | `EchoScaffold`、`EchoTopBar`、`EchoBottomNavigation`、`EchoIconAction`、`EchoPageRoute` | 三个主入口、返回逻辑和动态探索 Tab 行为不变；MiniPlayer 不遮挡内容；壳层无默认 Material 视觉 |
 | M2 垂直样板 | 音乐流、专辑详情、MiniPlayer、全屏播放器、队列与操作弹层 | `EchoCoverArt`、`EchoSongRow`、`EchoAlbumTile`、`EchoMediaHeader`、`EchoActionSheet`、`EchoAsyncView` | 打通“音乐流 → 专辑 → 播放 → MiniPlayer → 全屏播放器 → 操作弹层”；现有 Hero、手势、歌词和进度控制无回退 |
 | M3 三大主入口 | 探索、搜索、资料库 | `EchoSearchField`、`EchoModeSwitcher`、`EchoFilterBar`、`EchoCollectionShortcut`、`EchoSelectionBar` | 搜索、刷新、分页、试听、批量选择、下载与歌单操作全部保留；单手可达；无默认 Chip、PopupMenu 或 ListTile 视觉 |
