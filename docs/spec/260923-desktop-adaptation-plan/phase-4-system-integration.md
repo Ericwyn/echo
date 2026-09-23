@@ -52,7 +52,7 @@ P4-A 不依赖托盘存在；P4-B 的隐藏行为必须等托盘或其他恢复�
 | 显式退出且有活跃下载 | 按 D6 提示取消退出或停止任务并退出，不伪称下载会后台继续 |
 
 4. 显式退出先捕获会话恢复快照，再停止音频/任务，保存捕获的曲目与逻辑位置，解除 timer/订阅和系统会话、销毁托盘并结束进程。保存或释放异常有界处理并记录，不能无限挂起；stop 导致 position 清零后不能覆盖此前捕获的恢复位置。
-5. Linux 调整 `G_APPLICATION_NON_UNIQUE`，同时修正 activate 回调在已有窗口时只恢复；只改 flag 不足以保证单窗口。Windows 用 P0 确认的实例通信机制，在第二实例创建音频前转交激活并退出。
+5. Linux runner 已移除 `G_APPLICATION_NON_UNIQUE`，activate 回调在已有窗口时 present 现有窗口；仍需实机证明二次启动不会创建额外 GTK/Flutter 窗口或播放器。Windows 用 P0 确认的实例通信机制，在第二实例创建音频前转交激活并退出。
 6. 保持 application ID、`.desktop` basename、MPRIS DesktopEntry 和图标一致；Windows 同样统一应用身份和安装后启动路径。
 7. 保存正常窗口 bounds/最大化状态；显示器拔除时校正到可见区域。Wayland 不支持的绝对定位/主动聚焦不反复强行重试，记录有效能力并提供正常恢复入口。
 
@@ -77,5 +77,6 @@ P4-A 不依赖托盘存在；P4-B 的隐藏行为必须等托盘或其他恢复�
 | --- | --- | --- |
 | P4-A Linux | 2026-09-23 / `f6100044` | 自定义 MPRIS/D-Bus adapter 接入共用 playback commands/snapshot；封面使用本地缓存文件；Seek、SetPosition、Seeked 和 CanSeek 已实现，系统播放/暂停/切歌与封面已获用户确认；绝对 seek 和能力声明仍待用户实机验证 |
 | P4-B Linux lifecycle | 2026-09-23 / `f6100044` | tray_manager/window_manager 菜单及窗口显示/隐藏逻辑已接入，用户确认托盘基础功能正常；StatusNotifier 宿主消失、关窗后恢复、单实例和退出边界尚待验证 |
+| P4-B Linux single instance | 2026-09-23 / `9582436c` | GtkApplication 使用默认唯一实例；再次启动向已有进程发送 activate，runner 复用并呈现现有窗口。未编译/未运行，二次启动与隐藏恢复待 Ubuntu 实测 |
 | P4-C Android/Linux 联调 | 2026-09-23 / 自动测试 | artwork 过期响应和 MPRIS 状态测试在私有 D-Bus 会话中通过；全量 Flutter 测试 431 项通过。睡眠/音频设备和多个异常宿主组合仍待实机测试 |
 | Windows | 暂缓 | 暂不跑 Windows CI；任何 Windows Dart/native SMTC 代码均未获 Windows 编译或实机验证，不列入当前可交付范围 |

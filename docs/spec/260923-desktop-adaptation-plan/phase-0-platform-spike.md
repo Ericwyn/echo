@@ -20,7 +20,7 @@
 4. 扩展能力实验：逐项核对绝对定位、相对 seek、Seeked、可播放/可切歌/可定位、音量、身份和 DesktopEntry；对不支持项写清结果。若候选插件无法满足正式范围，记录固定版本补丁与薄 `dbus` 适配的成本，再选择一条路径。
 5. 托盘实验：设置图标和“显示主窗口/播放暂停/退出”菜单；隐藏→显示、窗口已最小化、用户关闭和显式退出分别验证。注册成功不能当成图标实际可见的证据。
 6. 检测 StatusNotifier 宿主是否存在以及 NameOwner 变化，验证宿主消失时的恢复策略。实验中只能在恢复入口已经证实时开放隐藏窗口。
-7. 核实 runner 当前 `G_APPLICATION_NON_UNIQUE` 与 activate 新建窗口的行为；设计单实例激活路径，记录 Wayland 下无法保证的定位/抢焦点操作。
+7. runner 已移除 `G_APPLICATION_NON_UNIQUE` 并在 activate 时复用/呈现已有窗口；仍需用第二次启动确认只存在一个进程、窗口和播放器。记录 Wayland 下无法保证的定位/抢焦点操作。
 8. 将保留的实验代码整理到平台适配边界；移除临时绕过、重复事件订阅和硬编码路径，记录 P4 接入所需接口。
 
 ### P0-B：Windows
@@ -70,3 +70,4 @@
 | 日期 / 提交 | 实际修改与检查 | 结果 / 遗留 |
 | --- | --- | --- |
 | 2026-09-23 / `f6100044` | 确认 Ubuntu 22.04 上系统 libmpv 0.34.1；选择薄 D-Bus MPRIS 与 `tray_manager`/`window_manager`；本机 HTTP 音频 smoke test 覆盖 MPRIS host adapter 之外的 MPV 初始化/网络加载，未再出现未知 `subs-fallback` 与 lavf cache-dir 错误；431 项 Flutter 测试、`flutter analyze`、Linux x64 release 构建通过 | 用户确认基本 MPRIS 控制、系统封面与托盘。仍需真实 MPRIS seek、关闭/恢复、StatusNotifier 宿主消失、单实例和干净安装实测；Windows 路径未测 |
+| 2026-09-23 / `9582436c` | Linux runner 移除 `G_APPLICATION_NON_UNIQUE`；收到 activate 时若窗口已存在则 `gtk_window_present`，否则创建首个窗口 | 源码路径已实现；按用户要求未编译/运行，二次启动、隐藏后恢复与进程数仍待 Ubuntu 手动验收；Windows 未测 |
