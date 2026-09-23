@@ -94,83 +94,81 @@ class _SongOptionsSheet extends ConsumerWidget {
         !song.isPreview &&
         (song.path?.trim().isNotEmpty ?? false);
 
-    final actions = <Widget>[];
+    final actions = <SongAction>[];
     if (mode == SongOptionsSheetMode.offlineOnly) {
-      for (final action in extraActions) {
-        actions.add(
-          _SongOptionRow(
-            icon: action.icon,
-            title: action.title,
-            destructive: action.isDestructive,
-            onPressed: !action.isAvailable
-                ? null
-                : () => unawaited(
-                    _closeAndRun(context, () async => action.onPressed()),
-                  ),
-          ),
-        );
-      }
+      actions.addAll(extraActions);
       if (extraActions.isEmpty) {
         actions.add(
-          _SongOptionRow(
+          SongAction(
+            id: 'playback.song-options.unavailable',
             icon: AppIcons.info,
             title: canDownload ? '暂无可用操作' : '当前不可操作',
-            onPressed: null,
+            isAvailable: false,
+            onPressed: () {},
           ),
         );
       }
     } else if (song.isPreview) {
       final previewSource = song.previewSource?.trim();
-      actions.addAll(<Widget>[
-        if (!isCurrentSong)
-          _SongOptionRow(
+      if (!isCurrentSong) {
+        actions.add(
+          SongAction(
+            id: 'playback.song.play-next',
             icon: AppIcons.queueAdd,
             title: '下一曲播放',
-            onPressed: () => unawaited(
-              _closeAndRun(context, () async {
+            onPressed: () async {
+              await _closeAndRun(context, () async {
                 await ref.read(playerProvider.notifier).playNext(song);
                 _showMessage('已添加试听歌曲到下一曲');
-              }),
-            ),
+              });
+            },
           ),
-        _SongOptionRow(
+        );
+      }
+      actions.add(
+        SongAction(
+          id: 'playback.preview.add-offline',
           icon: AppIcons.downloadOutline,
           title: '添加到离线下载队列',
-          onPressed: !canDownloadPreview
-              ? null
-              : () => unawaited(
-                  _closeAndRun(context, () async {
-                    try {
-                      await ref
-                          .read(offlineDownloadServiceProvider)
-                          .enqueuePreviewSong(
-                            song: song,
-                            libraryId: libraryId,
-                            config: embedConfig,
-                          );
-                      _showMessage('已添加「${song.title}」到离线下载队列');
-                    } catch (error) {
-                      NetworkErrorNotifier.show('添加试听歌曲失败: $error');
-                    }
-                  }),
-                ),
+          isAvailable: canDownloadPreview,
+          onPressed: () async {
+            await _closeAndRun(context, () async {
+              try {
+                await ref
+                    .read(offlineDownloadServiceProvider)
+                    .enqueuePreviewSong(
+                      song: song,
+                      libraryId: libraryId,
+                      config: embedConfig,
+                    );
+                _showMessage('已添加「${song.title}」到离线下载队列');
+              } catch (error) {
+                NetworkErrorNotifier.show('添加试听歌曲失败: $error');
+              }
+            });
+          },
         ),
-        _SongOptionRow(
+      );
+      actions.add(
+        SongAction(
+          id: 'playback.preview.source',
           icon: AppIcons.cloud,
           title: previewSource == null || previewSource.isEmpty
               ? '远程试听'
               : '远程试听 · $previewSource',
-          onPressed: null,
+          isAvailable: false,
+          onPressed: () {},
         ),
-      ]);
+      );
     } else {
-      actions.addAll(<Widget>[
-        _SongOptionRow(
+      actions.addAll(<SongAction>[
+        SongAction(
+          id: 'playback.song.toggle-favorite',
           icon: song.starred ? AppIcons.heart : AppIcons.heartOutline,
           title: song.starred ? '取消红心' : '红心',
-          selected: song.starred,
-          onPressed: () => unawaited(
-            _closeAndRun(context, () async {
+          isSelected: song.starred,
+          onPressed: () async {
+            await _closeAndRun(context, () async {
               final newStarred = await ref
                   .read(playerProvider.notifier)
                   .toggleSongFavorite(song);
@@ -179,14 +177,15 @@ class _SongOptionsSheet extends ConsumerWidget {
                 return;
               }
               _showMessage(newStarred ? '已添加红心' : '已取消红心');
-            }),
-          ),
+            });
+          },
         ),
-        _SongOptionRow(
+        SongAction(
+          id: 'library.playlist.add-song',
           icon: AppIcons.playlistAdd,
           title: '添加到歌单',
-          onPressed: () => unawaited(
-            _closeAndRun(context, () async {
+          onPressed: () async {
+            await _closeAndRun(context, () async {
               if (!hostContext.mounted) return;
               await showEchoBottomSheet<void>(
                 context: hostContext,
@@ -195,89 +194,87 @@ class _SongOptionsSheet extends ConsumerWidget {
                 builder: (_) =>
                     _AddToPlaylistSheet(hostContext: hostContext, song: song),
               );
-            }),
-          ),
+            });
+          },
         ),
-        _SongOptionRow(
+        SongAction(
+          id: 'download.song.enqueue',
           icon: AppIcons.downloadOutline,
           title: '下载',
-          onPressed: !canDownload
-              ? null
-              : () => unawaited(
-                  _closeAndRun(context, () async {
-                    await ref
-                        .read(downloadServiceProvider)
-                        .enqueue(song, libraryId: libraryId);
-                    _showMessage('已添加「${song.title}」到下载队列');
-                  }),
-                ),
+          isAvailable: canDownload,
+          onPressed: () async {
+            await _closeAndRun(context, () async {
+              await ref
+                  .read(downloadServiceProvider)
+                  .enqueue(song, libraryId: libraryId);
+              _showMessage('已添加「${song.title}」到下载队列');
+            });
+          },
         ),
         if (!isCurrentSong)
-          _SongOptionRow(
+          SongAction(
+            id: 'playback.song.play-next',
             icon: AppIcons.queueAdd,
             title: '下一曲播放',
-            onPressed: () => unawaited(
-              _closeAndRun(context, () async {
+            onPressed: () async {
+              await _closeAndRun(context, () async {
                 await ref.read(playerProvider.notifier).playNext(song);
                 _showMessage('已添加到下一曲');
-              }),
-            ),
+              });
+            },
           ),
-        _SongOptionRow(
+        SongAction(
+          id: 'library.artist.open',
           icon: AppIcons.profile,
           title: '歌手：$artistName',
-          onPressed: !canOpenArtist
-              ? null
-              : () => unawaited(
-                  _closeAndRun(context, () async {
-                    await Navigator.of(hostContext).push<void>(
-                      EchoPageRoute<void>(
-                        context: hostContext,
-                        builder: (_) => ArtistDetailPage(
-                          artistId: song.artistId!,
-                          branchIndex: ref.read(
-                            currentVisibleBranchIndexProvider,
-                          ),
-                        ),
-                      ),
-                    );
-                  }),
+          isAvailable: canOpenArtist,
+          onPressed: () async {
+            await _closeAndRun(context, () async {
+              await Navigator.of(hostContext).push<void>(
+                EchoPageRoute<void>(
+                  context: hostContext,
+                  builder: (_) => ArtistDetailPage(
+                    artistId: song.artistId!,
+                    branchIndex: ref.read(currentVisibleBranchIndexProvider),
+                  ),
                 ),
+              );
+            });
+          },
           onLongPress: () {
             Clipboard.setData(ClipboardData(text: artistName));
             ToastNotifier.show('已复制歌手: $artistName');
           },
         ),
-        _SongOptionRow(
+        SongAction(
+          id: 'library.album.open',
           icon: AppIcons.albumOutline,
           title: '专辑：$albumName',
-          onPressed: !canOpenAlbum
-              ? null
-              : () => unawaited(
-                  _closeAndRun(context, () async {
-                    await Navigator.of(hostContext).push<void>(
-                      EchoPageRoute<void>(
-                        context: hostContext,
-                        builder: (_) => AlbumDetailPage(
-                          albumId: song.albumId!,
-                          branchIndex: ref.read(
-                            currentVisibleBranchIndexProvider,
-                          ),
-                        ),
-                      ),
-                    );
-                  }),
+          isAvailable: canOpenAlbum,
+          onPressed: () async {
+            await _closeAndRun(context, () async {
+              await Navigator.of(hostContext).push<void>(
+                EchoPageRoute<void>(
+                  context: hostContext,
+                  builder: (_) => AlbumDetailPage(
+                    albumId: song.albumId!,
+                    branchIndex: ref.read(currentVisibleBranchIndexProvider),
+                  ),
                 ),
+              );
+            });
+          },
           onLongPress: () {
             Clipboard.setData(ClipboardData(text: albumName));
             ToastNotifier.show('已复制专辑: $albumName');
           },
         ),
         if (canEditMetadata)
-          _SongOptionRow(
+          SongAction(
+            id: 'library.song.edit-metadata',
             icon: AppIcons.editNote,
             title: '修改元数据',
-            onPressed: () {
+            onPressed: () async {
               Logger.infoWithTag(
                 _logTag,
                 'enter editor from options songId=${song.id} '
@@ -288,43 +285,18 @@ class _SongOptionsSheet extends ConsumerWidget {
                 'albumId="${(song.albumId ?? '').trim()}" '
                 'artistId="${(song.artistId ?? '').trim()}"',
               );
-              unawaited(
-                _closeAndRun(context, () async {
-                  if (!hostContext.mounted) return;
-                  await Navigator.of(hostContext).push<bool>(
-                    EchoPageRoute<bool>(
-                      context: hostContext,
-                      builder: (_) => SongMetadataEditPage(song: song),
-                    ),
-                  );
-                }),
-              );
+              await _closeAndRun(context, () async {
+                if (!hostContext.mounted) return;
+                await Navigator.of(hostContext).push<bool>(
+                  EchoPageRoute<bool>(
+                    context: hostContext,
+                    builder: (_) => SongMetadataEditPage(song: song),
+                  ),
+                );
+              });
             },
           ),
       ]);
-    }
-
-    if (mode != SongOptionsSheetMode.offlineOnly && extraActions.isNotEmpty) {
-      actions.add(
-        Padding(
-          padding: EdgeInsets.symmetric(vertical: context.echoSpacing.xs),
-          child: const EchoDivider(),
-        ),
-      );
-      for (final action in extraActions) {
-        actions.add(
-          _SongOptionRow(
-            icon: action.icon,
-            title: action.title,
-            destructive: action.isDestructive,
-            onPressed: !action.isAvailable
-                ? null
-                : () => unawaited(
-                    _closeAndRun(context, () async => action.onPressed()),
-                  ),
-          ),
-        );
-      }
     }
 
     return EchoBottomSheet(
@@ -360,11 +332,41 @@ class _SongOptionsSheet extends ConsumerWidget {
                 padding: EdgeInsets.symmetric(vertical: context.echoSpacing.xs),
                 child: const EchoDivider(),
               ),
-              ...actions,
+              for (final action in actions)
+                _buildSongActionRow(context, action),
+              if (mode != SongOptionsSheetMode.offlineOnly &&
+                  extraActions.isNotEmpty) ...<Widget>[
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    vertical: context.echoSpacing.xs,
+                  ),
+                  child: const EchoDivider(),
+                ),
+                for (final action in extraActions)
+                  _buildSongActionRow(context, action),
+              ],
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildSongActionRow(BuildContext context, SongAction action) {
+    final onPressed = action.isAvailable
+        ? () => unawaited(_closeAndRun(context, () async => action.onPressed()))
+        : null;
+    final onLongPress = action.onLongPress == null
+        ? null
+        : () => unawaited(Future<void>.sync(action.onLongPress!));
+
+    return _SongOptionRow(
+      icon: action.icon,
+      title: action.title,
+      destructive: action.isDestructive,
+      selected: action.isSelected,
+      onPressed: onPressed,
+      onLongPress: onLongPress,
     );
   }
 

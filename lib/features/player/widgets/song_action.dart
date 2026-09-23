@@ -15,6 +15,8 @@ class SongAction {
     required this.onPressed,
     this.isAvailable = true,
     this.isDestructive = false,
+    this.isSelected = false,
+    this.onLongPress,
   }) : assert(id != '');
 
   final String id;
@@ -22,5 +24,7 @@ class SongAction {
   final String title;
   final bool isAvailable;
   final bool isDestructive;
+  final bool isSelected;
   final FutureOr<void> Function() onPressed;
+  final VoidCallback? onLongPress;
 }
