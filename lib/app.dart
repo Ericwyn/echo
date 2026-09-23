@@ -141,6 +141,10 @@ class App extends ConsumerWidget {
 }
 
 /// 路由配置
+final appRootNavigatorKeyProvider = Provider<GlobalKey<NavigatorState>>(
+  (ref) => GlobalKey<NavigatorState>(),
+);
+
 final _homeBranchNavigatorKey = GlobalKey<NavigatorState>();
 final _exploreBranchNavigatorKey = GlobalKey<NavigatorState>();
 final _libraryBranchNavigatorKey = GlobalKey<NavigatorState>();
@@ -154,8 +158,7 @@ final _branchNavigatorKeys = <GlobalKey<NavigatorState>>[
 ];
 
 final routerProvider = Provider<GoRouter>((ref) {
-  // 定义 NavigatorKey，以便在 ShellRoute 中使用
-  final rootNavigatorKey = GlobalKey<NavigatorState>();
+  final rootNavigatorKey = ref.watch(appRootNavigatorKeyProvider);
 
   // 监听认证状态变化
   ref.listen<AuthState>(authStateProvider, (previous, next) {

@@ -28,6 +28,7 @@ class DesktopLifecycleService with WindowListener, TrayListener {
   Future<void> Function()? _onNext;
   Future<void> Function()? _onQuit;
   Future<bool> Function()? _onBeforeQuit;
+  Future<bool> Function({required bool trayAvailable})? _onBeforeHide;
   DBusClient? _sessionBusClient;
   StreamSubscription<DBusNameOwnerChangedEvent>? _watcherSubscription;
   final StatusNotifierHostTracker _statusNotifierHostTracker =
@@ -47,6 +48,7 @@ class DesktopLifecycleService with WindowListener, TrayListener {
     required Future<void> Function() onNext,
     required Future<void> Function() onQuit,
     required Future<bool> Function() onBeforeQuit,
+    required Future<bool> Function({required bool trayAvailable}) onBeforeHide,
   }) async {
     if (_initialized) return;
     _initialized = true;
@@ -54,6 +56,7 @@ class DesktopLifecycleService with WindowListener, TrayListener {
     _onNext = onNext;
     _onQuit = onQuit;
     _onBeforeQuit = onBeforeQuit;
+    _onBeforeHide = onBeforeHide;
 
     windowManager.addListener(this);
     trayManager.addListener(this);
@@ -307,8 +310,27 @@ class DesktopLifecycleService with WindowListener, TrayListener {
     try {
       if (await DesktopCloseSettings.shouldExitOnClose()) {
         await requestExit();
-      } else {
-        await _hideOrMinimize();
+        return;
+      }
+
+      final shouldShowNotice =
+          await DesktopCloseSettings.shouldShowFirstBackgroundCloseNotice();
+      if (shouldShowNotice) {
+        final shouldHide = await _onBeforeHide!(trayAvailable: _trayAvailable);
+        if (!shouldHide) return;
+      }
+
+      final didHide = await _hideOrMinimize();
+      if (didHide && shouldShowNotice) {
+        try {
+          await DesktopCloseSettings.markFirstBackgroundCloseNoticeSeen();
+        } catch (error) {
+          Logger.warnWithTag(
+            'DESKTOP',
+            'could not remember first background-close notice',
+            error,
+          );
+        }
       }
     } catch (error) {
       Logger.warnWithTag('DESKTOP', 'window close action failed', error);
@@ -317,7 +339,7 @@ class DesktopLifecycleService with WindowListener, TrayListener {
     }
   }
 
-  Future<void> _hideOrMinimize() async {
+  Future<bool> _hideOrMinimize() async {
     try {
       if (_trayAvailable) {
         await windowManager.hide();
@@ -327,6 +349,7 @@ class DesktopLifecycleService with WindowListener, TrayListener {
         await windowManager.minimize();
         _windowHidden = false;
       }
+      return true;
     } catch (error) {
       Logger.warnWithTag('DESKTOP', 'close-to-tray action failed', error);
       try {
@@ -334,6 +357,7 @@ class DesktopLifecycleService with WindowListener, TrayListener {
       } catch (_) {
         // Keep the close failure local to the desktop shell.
       }
+      return false;
     }
   }
 

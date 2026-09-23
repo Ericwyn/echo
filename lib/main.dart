@@ -120,11 +120,47 @@ class _DesktopLifecycleHostState extends ConsumerState<_DesktopLifecycleHost> {
           await player.stopForDesktopExit();
         },
         onBeforeQuit: _confirmDesktopQuit,
+        onBeforeHide: _confirmFirstBackgroundClose,
       );
     } catch (error, stackTrace) {
       Logger.warnWithTag('DESKTOP', 'desktop lifecycle setup failed', error);
       Logger.debugWithTag('DESKTOP', 'lifecycle stack', stackTrace);
     }
+  }
+
+  Future<bool> _confirmFirstBackgroundClose({
+    required bool trayAvailable,
+  }) async {
+    final dialogContext = ref
+        .read(appRootNavigatorKeyProvider)
+        .currentState
+        ?.overlay
+        ?.context;
+    if (dialogContext == null) return false;
+
+    final recoveryPath = trayAvailable
+        ? '关闭窗口后，Echoes 会继续播放。可点击系统托盘中的 Echoes 图标，再选择“显示 Echo”恢复窗口。'
+        : '当前会话没有可用的系统托盘，Echoes 会最小化到任务栏而不是退出。可从任务栏恢复窗口。';
+    final hideLabel = trayAvailable ? '隐藏到托盘' : '最小化到任务栏';
+
+    return await showDialog<bool>(
+          context: dialogContext,
+          builder: (context) => AlertDialog(
+            title: const Text('Echoes 将继续在后台运行'),
+            content: Text('$recoveryPath\n\n也可以到设置中改为关闭窗口时退出。'),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('继续使用'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: Text(hideLabel),
+              ),
+            ],
+          ),
+        ) ??
+        false;
   }
 
   Future<bool> _confirmDesktopQuit() async {
