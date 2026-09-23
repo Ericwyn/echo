@@ -63,10 +63,10 @@ class MiniPlayer extends ConsumerWidget {
       mediaVisuals: visuals,
       onOpenPlayer: onOpenPlayer ?? () => _openFullPlayer(context),
       onTogglePlayPause: () =>
-          ref.read(playerProvider.notifier).togglePlayPause(),
-      onPrevious: () => ref.read(playerProvider.notifier).previous(),
-      onNext: () => ref.read(playerProvider.notifier).next(),
-      onSeek: (position) => ref.read(playerProvider.notifier).seek(position),
+          ref.read(playbackCommandsProvider).togglePlayPause(),
+      onPrevious: () => ref.read(playbackCommandsProvider).previous(),
+      onNext: () => ref.read(playbackCommandsProvider).next(),
+      onSeek: (position) => ref.read(playbackCommandsProvider).seek(position),
       progressLayer: const _ProviderMiniPlayerProgress(),
       onOpenActions: () => _showPlayerActions(
         context: context,
@@ -137,7 +137,7 @@ class MiniPlayer extends ConsumerWidget {
                   onPressed: playerState.hasPrevious
                       ? () => closeThen(
                           sheetContext,
-                          () => ref.read(playerProvider.notifier).previous(),
+                          () => ref.read(playbackCommandsProvider).previous(),
                         )
                       : null,
                 ),
@@ -147,7 +147,7 @@ class MiniPlayer extends ConsumerWidget {
                   onPressed: playerState.hasNext
                       ? () => closeThen(
                           sheetContext,
-                          () => ref.read(playerProvider.notifier).next(),
+                          () => ref.read(playbackCommandsProvider).next(),
                         )
                       : null,
                 ),
@@ -608,7 +608,7 @@ class _ProviderMiniPlayerProgress extends ConsumerWidget {
     return _MiniPlayerProgressSurface(
       position: progress.position,
       duration: progress.duration,
-      onSeek: (target) => ref.read(playerProvider.notifier).seek(target),
+      onSeek: (target) => ref.read(playbackCommandsProvider).seek(target),
     );
   }
 }

@@ -18,8 +18,10 @@ abstract interface class PlaybackCommands {
   Future<void> setUserVolume(double volume);
   Future<void> setMuted(bool muted);
   Future<void> setPlaybackMode(PlaybackMode mode, {bool persist = true});
+  Future<void> cyclePlaybackMode();
   Future<void> setLoopMode(LoopMode mode);
   Future<void> setShuffleEnabled(bool enabled);
+  Future<void> clearQueue();
   Future<void> skipToQueueEntry(String entryId);
   void removeQueueEntry(String entryId);
   void reorderQueue(int oldIndex, int newIndex);

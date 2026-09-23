@@ -1115,9 +1115,9 @@ class _PlayerUtilityBar extends ConsumerWidget {
               icon: modeIcon,
               label: modeLabel,
               selected: mode != PlaybackMode.sequential,
-              onPressed: () {
-                ref.read(playerProvider.notifier).cyclePlaybackMode();
-              },
+              onPressed: () => unawaited(
+                ref.read(playbackCommandsProvider).cyclePlaybackMode(),
+              ),
             ),
             PlaybackIconButton(
               icon: showLyrics ? AppIcons.lyricsFilled : AppIcons.lyrics,

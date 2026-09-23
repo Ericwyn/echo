@@ -428,7 +428,7 @@ class _DesktopQueuePanelState extends ConsumerState<_DesktopQueuePanel> {
       shuffleEnabled: queue.shuffleEnabled,
       loopMode: queue.loopMode,
     );
-    final notifier = ref.read(playerProvider.notifier);
+    final commands = ref.read(playbackCommandsProvider);
     final currentIndex = playerState.currentIndex;
 
     return Column(
@@ -462,7 +462,7 @@ class _DesktopQueuePanelState extends ConsumerState<_DesktopQueuePanel> {
               TextButton.icon(
                 onPressed: playerState.queue.isEmpty
                     ? null
-                    : () => unawaited(notifier.clearQueue()),
+                    : () => unawaited(commands.clearQueue()),
                 icon: const Icon(AppIcons.clearAll, size: 18),
                 label: const Text('清空后续'),
               ),
@@ -485,13 +485,13 @@ class _DesktopQueuePanelState extends ConsumerState<_DesktopQueuePanel> {
                   onEntrySelected: (entryId) {
                     setState(() => _selectedEntryId = entryId);
                   },
-                  onDeleteEntry: notifier.removeQueueEntry,
+                  onDeleteEntry: commands.removeQueueEntry,
                   onSelect: (index) {
                     final entryId = playerState.queueEntryIds[index];
                     setState(() => _selectedEntryId = entryId);
-                    return notifier.skipToQueueEntry(entryId);
+                    return commands.skipToQueueEntry(entryId);
                   },
-                  onReorder: notifier.reorderQueue,
+                  onReorder: commands.reorderQueue,
                   onOpenSongActions: (rowContext, index, song, entryId) {
                     return showSongOptionsSheet(
                       context: rowContext,
@@ -502,7 +502,7 @@ class _DesktopQueuePanelState extends ConsumerState<_DesktopQueuePanel> {
                           icon: AppIcons.removeCircle,
                           title: '从队列移除',
                           isDestructive: true,
-                          onPressed: () => notifier.removeQueueEntry(entryId),
+                          onPressed: () => commands.removeQueueEntry(entryId),
                         ),
                       ],
                     );

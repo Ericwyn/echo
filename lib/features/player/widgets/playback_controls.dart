@@ -183,7 +183,7 @@ class _ProgressBarState extends ConsumerState<ProgressBar>
                       HapticFeedback.selectionClick();
                       unawaited(
                         ref
-                            .read(playerProvider.notifier)
+                            .read(playbackCommandsProvider)
                             .seek(Duration(milliseconds: value.round())),
                       );
                     },
@@ -231,6 +231,7 @@ class PlaybackControls extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final commands = ref.read(playbackCommandsProvider);
     final state = ref.watch(
       playerProvider.select(
         (state) => (
@@ -251,7 +252,7 @@ class PlaybackControls extends ConsumerWidget {
         iconSize: 30,
         onPressed: !state.hasPrevious
             ? null
-            : () => unawaited(ref.read(playerProvider.notifier).previous()),
+            : () => unawaited(commands.previous()),
       ),
       PlaybackIconButton(
         icon: state.isPlaying ? AppIcons.pause : AppIcons.play,
@@ -269,17 +270,13 @@ class PlaybackControls extends ConsumerWidget {
             : Offset(playIconSize * _playIconOpticalCorrection, 0),
         onPressed: state.isLoading
             ? null
-            : () => unawaited(
-                ref.read(playerProvider.notifier).togglePlayPause(),
-              ),
+            : () => unawaited(commands.togglePlayPause()),
       ),
       PlaybackIconButton(
         icon: AppIcons.next,
         label: '下一首',
         iconSize: 30,
-        onPressed: !state.hasNext
-            ? null
-            : () => unawaited(ref.read(playerProvider.notifier).next()),
+        onPressed: !state.hasNext ? null : () => unawaited(commands.next()),
       ),
     ];
 

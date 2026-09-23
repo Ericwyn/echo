@@ -384,6 +384,12 @@ class _RecordingPlaybackCommands implements PlaybackCommands {
   Future<void> setShuffleEnabled(bool enabled) async {}
 
   @override
+  Future<void> cyclePlaybackMode() async {}
+
+  @override
+  Future<void> clearQueue() async {}
+
+  @override
   Future<void> skipToQueueEntry(String entryId) async {}
 
   @override

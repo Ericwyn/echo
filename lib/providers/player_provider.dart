@@ -111,6 +111,11 @@ final playerProvider = StateNotifierProvider<PlayerNotifier, PlayerState>((
   return PlayerNotifier(ref);
 });
 
+/// Stable command surface shared by desktop, mobile and system adapters.
+final playbackCommandsProvider = Provider<PlaybackCommands>(
+  (ref) => ref.watch(playerProvider.notifier),
+);
+
 /// 播放器状态管理器
 class PlayerNotifier extends StateNotifier<PlayerState>
     implements PlaybackCommands {
@@ -2952,6 +2957,7 @@ class PlayerNotifier extends StateNotifier<PlayerState>
   }
 
   /// 顺序播放 -> 列表循环 -> 单曲循环 -> 随机播放 -> 顺序播放
+  @override
   Future<void> cyclePlaybackMode() async {
     final nextMode = switch (playbackMode) {
       PlaybackMode.sequential => PlaybackMode.repeatAll,
@@ -3282,6 +3288,7 @@ class PlayerNotifier extends StateNotifier<PlayerState>
   }
 
   /// 清空队列
+  @override
   Future<void> clearQueue() async {
     final currentSong = state.currentSong;
     if (currentSong != null) {

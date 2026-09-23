@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart' show LoopMode;
@@ -32,6 +34,7 @@ class DesktopPlaybackBar extends ConsumerWidget {
     );
     final song = playback.song;
     if (song == null) return const SizedBox.shrink();
+    final commands = ref.read(playbackCommandsProvider);
 
     final mode = playback.shuffle
         ? PlaybackMode.shuffle
@@ -85,8 +88,9 @@ class DesktopPlaybackBar extends ConsumerWidget {
                     icon: AppIcons.shuffle,
                     label: playback.shuffle ? '关闭随机播放' : '开启随机播放',
                     selected: playback.shuffle,
-                    onPressed: () =>
-                        ref.read(playerProvider.notifier).toggleShuffle(),
+                    onPressed: () => unawaited(
+                      commands.setShuffleEnabled(!playback.shuffle),
+                    ),
                   ),
                 const PlaybackControls(compact: true),
                 if (!compact)
@@ -94,8 +98,7 @@ class DesktopPlaybackBar extends ConsumerWidget {
                     icon: modeIcon,
                     label: '$modeLabel，点击切换',
                     selected: mode != PlaybackMode.sequential,
-                    onPressed: () =>
-                        ref.read(playerProvider.notifier).cyclePlaybackMode(),
+                    onPressed: () => unawaited(commands.cyclePlaybackMode()),
                   ),
                 SizedBox(width: compact ? spacing.xs : spacing.md),
                 const Expanded(child: ProgressBar()),
@@ -185,6 +188,7 @@ class _DesktopVolumeControl extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final commands = ref.read(playbackCommandsProvider);
     final volume = ref.watch(
       playerProvider.select(
         (state) => (value: state.userVolume, muted: state.isMuted),
@@ -202,7 +206,7 @@ class _DesktopVolumeControl extends ConsumerWidget {
         EchoIconButton(
           icon: icon,
           label: volume.muted ? '取消静音' : '静音',
-          onPressed: () => ref.read(playerProvider.notifier).toggleMuted(),
+          onPressed: () => unawaited(commands.setMuted(!volume.muted)),
         ),
         if (showSlider)
           SizedBox(
@@ -215,8 +219,7 @@ class _DesktopVolumeControl extends ConsumerWidget {
               semanticValueFormatter: (value) => '${(value * 100).round()}%',
               semanticLabel: '播放音量',
               semanticValue: '${(volume.value * 100).round()}%',
-              onChanged: (value) =>
-                  ref.read(playerProvider.notifier).setUserVolume(value),
+              onChanged: (value) => unawaited(commands.setUserVolume(value)),
               activeColor: context.echoColors.accent,
               inactiveColor: context.echoColors.divider,
               thumbColor: context.echoColors.ink,

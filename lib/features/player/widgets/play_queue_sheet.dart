@@ -59,22 +59,22 @@ class PlayQueueSheet extends ConsumerWidget {
       shuffleEnabled: queueSnapshot.shuffleEnabled,
       loopMode: queueSnapshot.loopMode,
     );
+    final commands = ref.read(playbackCommandsProvider);
 
     return PlayQueueSheetView(
       playerState: playerState,
       mediaVisuals: visuals,
       onSelect: (index) async {
-        final player = ref.read(playerProvider.notifier);
         final entryId = queueSnapshot.playbackQueue.entryIds[index];
         Navigator.of(context).pop();
         await Future<void>.delayed(Duration.zero);
-        unawaited(player.skipToQueueEntry(entryId));
+        unawaited(commands.skipToQueueEntry(entryId));
       },
       onClear: () async {
-        await ref.read(playerProvider.notifier).clearQueue();
+        await commands.clearQueue();
         if (context.mounted) Navigator.of(context).pop();
       },
-      onReorder: ref.read(playerProvider.notifier).reorderQueue,
+      onReorder: commands.reorderQueue,
       onOpenSongActions: (rowContext, index, song, entryId) {
         return showSongOptionsSheet(
           context: rowContext,
@@ -86,8 +86,7 @@ class PlayQueueSheet extends ConsumerWidget {
               icon: AppIcons.removeCircle,
               title: '从队列移除',
               isDestructive: true,
-              onPressed: () =>
-                  ref.read(playerProvider.notifier).removeQueueEntry(entryId),
+              onPressed: () => commands.removeQueueEntry(entryId),
             ),
           ],
         );
