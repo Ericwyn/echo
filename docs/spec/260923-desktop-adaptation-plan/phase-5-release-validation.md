@@ -2,7 +2,7 @@
 
 [返回 spec](README.md) · [验收矩阵](acceptance.md) · [决策](decisions.md)
 
-状态：应用代码 `ba35b87d` 已在全新 `build/linux-lldtmp-2050` CMake 目录中构建，使用系统 Clang 与从 Ubuntu 包解压到 `/tmp` 的真实 LLD 14；`b8e3cd00` 加固 bundle 完整性检查并生成 Ubuntu `.deb`。当前 checkout 另已构建并签名 Android arm64-only release APK，versionCode `2039`，签名与 package metadata 已校验；两端产物均未安装或启动。前置：P0–P4 仍有系统操作、恢复、性能和安装场景待验证。当前优先 Ubuntu/Linux；Windows CI 暂缓。
+状态：应用代码 `6f0f80e6` 已在全新 `build/linux-lldtmp-2052` CMake 目录构建，使用系统 Clang 与 Ubuntu LLD 14；`.deb` 为 `1.1.0+2050`/amd64。Android 签名 ARM64-only APK versionCode `2041`，高于用户设备报告的 `2026`。两端产物均未安装或启动；P0–P4 系统操作、恢复、性能和安装场景仍待验证。当前优先 Ubuntu/Linux；Windows CI 暂缓。详情见 [音乐库切换隔离构建证据](evidence/260924-library-switch-isolation-build/README.md)。
 
 ## 目标与交付范围
 
@@ -30,7 +30,7 @@ Ubuntu 交付可安装 `.deb` 与完整 bundle 压缩包；Windows 交付 releas
 - `scripts/package_linux_deb.sh` 从 `build/linux/x64/release/bundle` 组装 Debian 包，依赖声明面向当前 Ubuntu 22.04 基线：`libgtk-3-0`、`libayatana-appindicator3-1`、`libmpv1`。MPV 是运行时动态加载项，不会出现在主 ELF 的 `DT_NEEDED` 中，因此显式声明。
 - `.github/workflows/build_linux.yml` 在 release bundle 外再上传 `.deb`；`.github/workflows/pr_checks.yml` 加入包组装步骤。Windows workflow 未改。
 - 仓库 `README.md` 已增加 Linux `.deb` 安装命令、运行依赖、自绘窗口与托盘/MPRIS 说明，并明确 22.04/GNOME/X11 的验证范围；最新 Linux 桌面截图需待用户手动视觉验收后再刷新，避免把旧版界面图当作当前 release 证据。
-- 历史包 `build/linux/packages/echoes_1.1.0+26_amd64.deb` 与 `1.1.0+2027` 至 `+2048` 候选均已被后续构建替换。当前最新包为 `build/linux-lldtmp-2050/packages/echoes_1.1.0+2049_amd64.deb`，SHA-256 为 `529b551d4baab310972d75d3ed9e169816782cf9b71343d913de75b62e8e8d94`；`dpkg-deb` 元数据检查通过，打包前的完整 bundle 校验也通过，仍未安装验证。干净系统播放依赖仍待 Ubuntu 实机记录。
+- 历史候选包已由后续构建替换。最新包为 `build/linux-lldtmp-2052/packages/echoes_1.1.0+2050_amd64.deb`，SHA-256 `7be0cd7ff14d5c008636afa7d3090354687a927a704ea7762b82c57a3904027e`；`dpkg-deb` 元数据与完整 bundle preflight 通过，尚未安装验证。
 
 ### 原生分发与网络通路的补充检查
 
@@ -136,6 +136,9 @@ Ubuntu 24.04/Wayland 若仍未验收，只能先发布明确限定 22.04/X11 的
 | Linux package preflight | `b8e3cd00` / `build/linux-lldtmp-2049/packages/echoes_1.1.0+2048_amd64.deb` | 托盘菜单状态更新版本的 release bundle 通过打包前完整性检查并生成 `1.1.0+2048` amd64 `.deb`；SHA-256 `5e216ef9c8eea67eeb3de9de8d985d321d16bb29c74c5cde5c692a1199b2b048`。未安装或启动；干净环境验收待用户执行 |
 | Ubuntu 22.04 X11 | `ba35b87d` / `build/linux-lldtmp-2050` | PlaybackSnapshot 增加音乐库 ID、音源 generation 和 buffered position；MPRIS track ID 与 MPRIS/SMTC artwork generation 使用对应身份。系统 Clang + Ubuntu LLD 14 构建 `1.1.0+2049`；bundle executable SHA-256 `f071f13a646d5a14db7d2d57a2095074a72e466f7624393c26b86560b2b03df8`，`libapp.so` SHA-256 `939853e3ec7cf764c3afe1a6ab883a98401dc7b1f0d98ba76adbd6d90665543d`，`.deb` SHA-256 `529b551d4baab310972d75d3ed9e169816782cf9b71343d913de75b62e8e8d94`。未安装/启动，测试/analyze 未运行 |
 | Android ARM64 APK | `ba35b87d` / Flutter build number `39` / `app-arm64-v8a-release.apk` | 本机签名，version name/code `1.1.0` / `2039`，仅含 `arm64-v8a`；签名证书 SHA-256 `8604465c3ee1282b48a1b2759801f784ace32447d1188e0481fab0fe8ac74c94`，APK SHA-256 `62253a151de3dabefe0ff44105daa0952f03ed466f306b6749a864da9f2c82d3`。未安装/启动，Android 真机回归待用户执行 |
+| Ubuntu 22.04 X11 | `6f0f80e6` / `build/linux-lldtmp-2052` | 音乐库切换隔离和 Android AudioService 生命周期修正后，系统 Clang + Ubuntu LLD 14 全新构建 `1.1.0+2050` amd64 `.deb`。bundle executable SHA-256 `f1a43230ea670e447a008eda866caff751c5c45bf239100d114896429eb14898`，`libapp.so` SHA-256 `3893c9dd63eb7539367aa2dd92f848f094d40d64eaa1c23d90b06243d568a569`，`.deb` SHA-256 `7be0cd7ff14d5c008636afa7d3090354687a927a704ea7762b82c57a3904027e`。未安装/启动，测试/analyze 未运行 |
+| Android ARM64 APK | `6f0f80e6` / build number override `41` / `app-arm64-v8a-release.apk` | 本机签名，version name/code `1.1.0` / `2041`，仅含 `arm64-v8a`；证书 SHA-256 `8604465c3ee1282b48a1b2759801f784ace32447d1188e0481fab0fe8ac74c94`，APK SHA-256 `5a0667e7b397453421c89652b8ce42b7663a2002352118e899b5e8edaba429da`。未安装/启动，Android 真机回归待用户执行 |
+| 本机 Android ARM64 构建脚本 | Git 忽略的 `scripts/local/build_android_release_arm64.sh` | 本机脚本从已有 versionCode `2040` 自动递增到 `2041`；构建后核验包名、仅 arm64 ABI 与签名证书。本次运行的 state 目录位于临时构建 HOME；用户日常运行默认将递增状态保存在本机 `~/.local/state/echoes/`。脚本含本机签名文件位置，不提交到 Git | `bash -n` 与 Git ignore 检查通过；脚本在本机可快捷重建签名 ARM64 APK |
 | Ubuntu 24.04 / Wayland | — | 待提供环境与结果 |
 | Windows | — | Windows CI 暂缓；未编译/未实机验收 |
 | Android 回归 | 先前检查点曾有 431 项 Flutter 测试通过；本次提交新增用例未运行 | 最新共享控件与歌曲操作改动的自动回归、Android 真机锁屏/通知栏/封面验证仍待完成 |
