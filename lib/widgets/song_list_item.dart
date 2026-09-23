@@ -14,6 +14,7 @@ class EchoSongRow extends StatelessWidget {
     required this.song,
     this.index = 0,
     this.variant = EchoSongRowVariant.standard,
+    this.showAlbumMetadata = false,
     this.rank,
     this.coverArtId,
     this.contentPadding = const EdgeInsets.symmetric(
@@ -48,6 +49,7 @@ class EchoSongRow extends StatelessWidget {
   final Song song;
   final int index;
   final EchoSongRowVariant variant;
+  final bool showAlbumMetadata;
   final int? rank;
   final String? coverArtId;
   final EdgeInsetsGeometry contentPadding;
@@ -88,6 +90,8 @@ class EchoSongRow extends StatelessWidget {
         ? <String>[
             song.title,
             artistText,
+            if (showAlbumMetadata && song.album?.trim().isNotEmpty == true)
+              song.album!.trim(),
             song.durationString,
             if (selected) '已选择',
           ].join('，')
@@ -215,7 +219,11 @@ class EchoSongRow extends StatelessWidget {
         ),
         SizedBox(height: context.echoSpacing.xxs),
         EchoMetadataLine(
-          items: <String?>[artistText, song.durationString],
+          items: <String?>[
+            artistText,
+            if (showAlbumMetadata) song.album,
+            song.durationString,
+          ],
           style: dimmedTextColor == null
               ? null
               : context.echoTypography.metadata.copyWith(
@@ -284,6 +292,8 @@ class EchoSongRow extends StatelessWidget {
       if (isDimmed) '当前之前',
       song.title,
       artistText,
+      if (showAlbumMetadata && song.album?.trim().isNotEmpty == true)
+        song.album!.trim(),
       song.durationString,
       if (_favorite) '已收藏',
       if (isDownloaded) '已下载',

@@ -102,6 +102,8 @@ typedef QueueSongAction =
       String entryId,
     );
 
+const _desktopAlbumMetadataMinWidth = 560.0;
+
 class _QueueEntryAnchor {
   const _QueueEntryAnchor({
     required this.key,
@@ -481,45 +483,78 @@ class _PlaybackQueueContentState extends State<PlaybackQueueContent> {
             };
           }
 
-          final songRow = EchoSongRow(
-            index: index,
-            song: song,
-            variant: EchoSongRowVariant.standard,
-            isCurrent: isCurrent,
-            isDimmed: state.currentIndex >= 0 && index < state.currentIndex,
-            currentStatusLabel: statusLabel,
-            currentIndicatorIcon: state.isPlaying
-                ? AppIcons.pause
-                : AppIcons.play,
-            isCurrentLoading: state.isLoading,
-            selected: widget.selectedEntryId == entryId,
-            contentPadding: EdgeInsetsDirectional.fromSTEB(
-              context.echoSpacing.md,
-              context.echoSpacing.xs,
-              context.echoSpacing.xs,
-              context.echoSpacing.xs,
+          final songRow = LayoutBuilder(
+            builder: (context, constraints) => EchoSongRow(
+              index: index,
+              song: song,
+              variant: EchoSongRowVariant.standard,
+              showAlbumMetadata:
+                  widget.desktopInteraction &&
+                  constraints.maxWidth >= _desktopAlbumMetadataMinWidth,
+              isCurrent: isCurrent,
+              isDimmed: state.currentIndex >= 0 && index < state.currentIndex,
+              currentStatusLabel: statusLabel,
+              currentIndicatorIcon: state.isPlaying
+                  ? AppIcons.pause
+                  : AppIcons.play,
+              isCurrentLoading: state.isLoading,
+              selected: widget.selectedEntryId == entryId,
+              contentPadding: EdgeInsetsDirectional.fromSTEB(
+                context.echoSpacing.md,
+                context.echoSpacing.xs,
+                context.echoSpacing.xs,
+                context.echoSpacing.xs,
+              ),
+              innerPadding: isCurrent
+                  ? EdgeInsets.symmetric(vertical: context.echoSpacing.xxs)
+                  : EdgeInsets.zero,
+              onPressed: widget.desktopInteraction
+                  ? () => _selectEntry(entryId)
+                  : () => _activateEntry(index),
+              onKeyboardActivate: widget.desktopInteraction
+                  ? () => _activateEntry(index)
+                  : null,
+              keyboardSpaceActivates: !widget.desktopInteraction,
+              onPlayPressed: widget.desktopInteraction
+                  ? () => _activateEntry(index)
+                  : null,
+              onMorePressed: () => unawaited(
+                widget.onOpenSongActions(context, index, song, entryId),
+              ),
+              moreSemanticLabel: '${song.title}，更多操作',
             ),
-            innerPadding: isCurrent
-                ? EdgeInsets.symmetric(vertical: context.echoSpacing.xxs)
-                : EdgeInsets.zero,
-            onPressed: widget.desktopInteraction
-                ? () => _selectEntry(entryId)
-                : () => _activateEntry(index),
-            onKeyboardActivate: widget.desktopInteraction
-                ? () => _activateEntry(index)
-                : null,
-            keyboardSpaceActivates: !widget.desktopInteraction,
-            onPlayPressed: widget.desktopInteraction
-                ? () => _activateEntry(index)
-                : null,
-            onMorePressed: () => unawaited(
-              widget.onOpenSongActions(context, index, song, entryId),
-            ),
-            moreSemanticLabel: '${song.title}，更多操作',
           );
           final rowContent = widget.desktopInteraction
               ? Row(
                   children: <Widget>[
+                    SizedBox(
+                      width: 28,
+                      child: Semantics(
+                        label: isCurrent
+                            ? '正在播放，第 ${index + 1} 首'
+                            : '第 ${index + 1} 首',
+                        child: ExcludeSemantics(
+                          child: Center(
+                            child: isCurrent
+                                ? Icon(
+                                    AppIcons.equalizer,
+                                    size: 18,
+                                    color: context.echoColors.accent,
+                                  )
+                                : Text(
+                                    '${index + 1}',
+                                    style: context.echoTypography.metadata
+                                        .copyWith(
+                                          color: context.echoColors.muted,
+                                          fontFeatures: const <FontFeature>[
+                                            FontFeature.tabularFigures(),
+                                          ],
+                                        ),
+                                  ),
+                          ),
+                        ),
+                      ),
+                    ),
                     Expanded(child: songRow),
                     if (widget.onReorder != null)
                       SizedBox(
@@ -563,6 +598,8 @@ class _PlaybackQueueContentState extends State<PlaybackQueueContent> {
             child: Padding(
               padding: EdgeInsets.only(bottom: context.echoSpacing.xxs),
               child: Semantics(
+                container: widget.desktopInteraction,
+                explicitChildNodes: widget.desktopInteraction,
                 label: widget.onReorder == null
                     ? null
                     : widget.desktopInteraction

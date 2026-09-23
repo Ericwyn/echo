@@ -188,8 +188,18 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
 
     final songs = <Song>[
-      Song(id: 'queue-first', title: 'Queue first'),
-      Song(id: 'queue-second', title: 'Queue second'),
+      Song(
+        id: 'queue-first',
+        title: 'Queue first',
+        artist: 'Queue Artist',
+        album: 'First queue album',
+      ),
+      Song(
+        id: 'queue-second',
+        title: 'Queue second',
+        artist: 'Queue Artist',
+        album: 'Second queue album',
+      ),
     ];
     final player = TestPlayerNotifier(
       PlayerState(currentSong: songs.first, queue: songs, currentIndex: 0),
@@ -220,6 +230,9 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+
+    expect(find.text('2'), findsOneWidget);
+    expect(find.textContaining('Second queue album'), findsOneWidget);
 
     final secondRow = find.ancestor(
       of: find.text('Queue second'),

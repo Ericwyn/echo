@@ -273,6 +273,65 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('desktop queue adds album metadata when row width permits', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    final queue = <Song>[
+      Song(
+        id: 'album-current',
+        title: 'Current wide row',
+        artist: 'Echo Artist',
+        album: 'Current album',
+      ),
+      Song(
+        id: 'album-next',
+        title: 'Next wide row',
+        artist: 'Echo Artist',
+        album: 'Next album',
+      ),
+    ];
+    final state = PlayerState(
+      currentSong: queue.first,
+      queue: queue,
+      currentIndex: 0,
+    );
+    final scrollController = ScrollController();
+    addTearDown(scrollController.dispose);
+
+    Widget subject() => MaterialApp(
+      theme: AppTheme.dark(),
+      home: Scaffold(
+        body: PlaybackQueueContent(
+          scrollController: scrollController,
+          playerState: state,
+          desktopInteraction: true,
+          onEntrySelected: (_) {},
+          onDeleteEntry: (_) {},
+          onSelect: (_) async {},
+          onReorder: (_, _) {},
+          onOpenSongActions: (context, index, song, entryId) async {},
+        ),
+      ),
+    );
+
+    tester.view.physicalSize = const Size(620, 640);
+    await tester.pumpWidget(subject());
+    await tester.pumpAndSettle();
+    expect(find.text('2'), findsOneWidget);
+    expect(find.bySemanticsLabel('第 2 首'), findsOneWidget);
+    expect(find.textContaining('Next album'), findsNothing);
+
+    tester.view.physicalSize = const Size(960, 640);
+    await tester.pumpWidget(subject());
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Next album'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('desktop queue context menu acts on its stable entry', (
     tester,
   ) async {
