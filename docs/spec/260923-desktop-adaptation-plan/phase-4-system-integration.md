@@ -2,7 +2,7 @@
 
 [返回 spec](README.md) · [决策](decisions.md) · [验收](acceptance.md)
 
-状态：Linux 首轮已实现，部分实机通过。前置：Linux P0 路径与 P1 命令/快照契约已建立；与 P2/P3 联调完成后才能认定桌面交互闭环。当前不运行 Windows CI，Windows 原生接入和实机仍未验证。
+状态：Linux 首轮已实现，部分实机通过。MPRIS SetPosition、Seeked、track ID 校验和远程 command error 隔离已落代码，新增测试尚未运行。前置：Linux P0 路径与 P1 命令/快照契约已建立；与 P2/P3 联调完成后才能认定桌面交互闭环。当前不运行 Windows CI，Windows 原生接入和实机仍未验证。
 
 ## 目标与拆分
 
@@ -76,6 +76,7 @@ P4-A 不依赖托盘存在；P4-B 的隐藏行为必须等托盘或其他恢复�
 | 子阶段 | 日期 / 提交 | 结果 / 遗留 |
 | --- | --- | --- |
 | P4-A Linux | 2026-09-23 / `f6100044` | 自定义 MPRIS/D-Bus adapter 接入共用 playback commands/snapshot；封面使用本地缓存文件；Seek、SetPosition、Seeked 和 CanSeek 已实现，系统播放/暂停/切歌与封面已获用户确认；绝对 seek 和能力声明仍待用户实机验证 |
+| P4-A Linux hardening | 2026-09-23 / `d7f6b359`，bundle `c5d2b512` | 远程 root/player 方法与属性设置异常映射为 D-Bus failure/invalid-args，避免 command rejection 冒泡；异步 Quit failure 记录日志；Dispose 尽力撤销 object、release bus name 并关闭连接。新增 `SetPosition` 校验当前 track ID、限幅和 `Seeked` 测试，以及命令失败后服务仍响应的测试；未运行测试，用户仍需验证 GNOME/playerctl 的绝对 seek 与失败恢复 |
 | P4-B Linux lifecycle | 2026-09-23 / `f6100044` | tray_manager/window_manager 菜单及窗口显示/隐藏逻辑已接入，用户确认托盘基础功能正常；StatusNotifier 宿主消失、关窗后恢复、单实例和退出边界尚待验证 |
 | P4-B Linux single instance | 2026-09-23 / `9582436c`，bundle `4015f879` | GtkApplication 使用默认唯一实例；再次启动向已有进程发送 activate，runner 复用并呈现现有窗口。已随最新 bundle 编译；二次启动与隐藏恢复待 Ubuntu 实测 |
 | P4-B Linux window state | 2026-09-23 / `2bbe899e`，bundle `4015f879` | 新增启动首帧前恢复逻辑尺寸与最大化状态，并对窗口 resize/maximize/unmaximize 做去抖持久化；不保存绝对屏幕坐标。源码已编译，恢复窗口、最小尺寸约束和屏幕变化仍待 Ubuntu 实测 |

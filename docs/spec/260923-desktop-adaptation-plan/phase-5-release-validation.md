@@ -2,7 +2,7 @@
 
 [返回 spec](README.md) · [验收矩阵](acceptance.md) · [决策](decisions.md)
 
-状态：`805cd9e4` 的 Linux release bundle 与 Ubuntu `.deb` 已构建；尚未安装或实播。前置：P0–P4 仍有完整系统操作、恢复和安装场景待验证。当前优先 Ubuntu/Linux；Windows CI 暂缓，不能据此宣称 Windows 发布支持。
+状态：`c5d2b512` 的 Linux release bundle 与 Ubuntu `.deb` 已构建；尚未安装或实播。前置：P0–P4 仍有完整系统操作、恢复和安装场景待验证。当前优先 Ubuntu/Linux；Windows CI 暂缓，不能据此宣称 Windows 发布支持。
 
 ## 目标与交付范围
 
@@ -70,6 +70,8 @@ Ubuntu 24.04/Wayland 若仍未验收，只能先发布明确限定 22.04/X11 的
 | Ubuntu 22.04 X11 | `7f4ae955` / 2026-09-23 release bundle（最终窗口栏修正前） | 构建和 437 项 Flutter 测试曾通过；此后为修复顶栏点击/闪烁和重置置顶状态所做的变更没有重跑构建/测试。用户接手最终启动和窗口操作验收 |
 | Ubuntu 22.04 X11 | `0f06bc0d` / 2026-09-23 release bundle 与 `.deb` | Linux release build 与包组装成功；包元数据依赖为 GTK、Ayatana AppIndicator、libmpv。未启动、未安装、未运行测试；由用户检查主导航、侧栏共享模型及添加库后的返回历史 |
 | Ubuntu 22.04 X11 | `805cd9e4` / 2026-09-23 release bundle 与 `.deb` | 包含共享导航模型及 5000 首队列定位校正；Linux release build 与包组装成功。未启动、未安装、未运行 Flutter 测试；用户手动检查导航返回、长队列定位和常用交互 |
+| Ubuntu 22.04 X11 | `d7f6b359` / 2026-09-23 release bundle 与 `.deb` | 包含 MPRIS remote-command error isolation 与 SetPosition/Seeked coverage；Linux release build 与包组装成功。未启动、未安装、未运行 Flutter 测试；用户手动复测 GNOME media controls 和 seek |
+| Ubuntu 22.04 X11 | `c5d2b512` / 2026-09-23 release bundle 与 `.deb` | 另包含 AudioService 兜底音量修正；Linux release build 与包组装成功。未启动、未安装、未运行 Flutter 测试；用户手动复测播放/系统音量及媒体控制 |
 | Ubuntu 24.04 / Wayland | — | 待提供环境与结果 |
 | Windows | — | Windows CI 暂缓；未编译/未实机验收 |
 | Android 回归 | 本任务 Flutter 测试 431 项通过 | artwork/shared player 自动回归通过；最终 Android 真机锁屏/通知栏/封面验证待完成 |
