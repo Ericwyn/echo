@@ -24,6 +24,8 @@ class EchoSongRow extends StatelessWidget {
     this.onPressed,
     this.onLongPress,
     this.onMorePressed,
+    this.onPlayPressed,
+    this.playSemanticLabel,
     this.moreSemanticLabel,
     this.selectionMode = false,
     this.selected = false,
@@ -51,6 +53,8 @@ class EchoSongRow extends StatelessWidget {
   final VoidCallback? onPressed;
   final VoidCallback? onLongPress;
   final VoidCallback? onMorePressed;
+  final VoidCallback? onPlayPressed;
+  final String? playSemanticLabel;
   final String? moreSemanticLabel;
   final bool selectionMode;
   final bool selected;
@@ -75,6 +79,7 @@ class EchoSongRow extends StatelessWidget {
     final mainAction = selectionMode ? selectionAction : onPressed;
     final mainLongPress = selectionMode ? selectionAction : onLongPress;
     final moreAction = selectionMode ? null : onMorePressed ?? onLongPress;
+    final isSelected = selectionMode ? selected : selected || isCurrent;
     final semanticLabel = selectionMode
         ? <String>[
             song.title,
@@ -95,7 +100,7 @@ class EchoSongRow extends StatelessWidget {
     final main = hasMainAction
         ? EchoPressable(
             semanticLabel: semanticLabel,
-            selected: selectionMode ? selected : (isCurrent ? true : null),
+            selected: isSelected ? true : (selectionMode ? false : null),
             onPressed: mainAction,
             onLongPress: mainLongPress,
             minimumSize: const Size(0, 48),
@@ -104,7 +109,7 @@ class EchoSongRow extends StatelessWidget {
           )
         : Semantics(
             container: true,
-            selected: selectionMode ? selected : (isCurrent ? true : null),
+            selected: isSelected ? true : (selectionMode ? false : null),
             label: semanticLabel,
             child: ExcludeSemantics(
               child: ConstrainedBox(
@@ -123,7 +128,7 @@ class EchoSongRow extends StatelessWidget {
       margin: contentPadding,
       padding: innerPadding,
       decoration: BoxDecoration(
-        color: selectionMode && selected
+        color: selected
             ? context.echoColors.accent.withValues(alpha: 0.1)
             : isCurrent
             ? context.echoColors.accent.withValues(alpha: 0.08)
@@ -142,13 +147,23 @@ class EchoSongRow extends StatelessWidget {
               selected: selected,
               onPressed: selectionAction,
             ),
-          ] else if (moreAction != null) ...<Widget>[
-            SizedBox(width: context.echoSpacing.xs),
-            EchoIconButton(
-              icon: AppIcons.more,
-              label: moreSemanticLabel ?? '${song.title}，更多操作',
-              onPressed: moreAction,
-            ),
+          ] else ...<Widget>[
+            if (onPlayPressed != null) ...<Widget>[
+              SizedBox(width: context.echoSpacing.xs),
+              EchoIconButton(
+                icon: AppIcons.play,
+                label: playSemanticLabel ?? '播放 ${song.title}',
+                onPressed: onPlayPressed,
+              ),
+            ],
+            if (moreAction != null) ...<Widget>[
+              SizedBox(width: context.echoSpacing.xs),
+              EchoIconButton(
+                icon: AppIcons.more,
+                label: moreSemanticLabel ?? '${song.title}，更多操作',
+                onPressed: moreAction,
+              ),
+            ],
           ],
         ],
       ),

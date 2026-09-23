@@ -80,7 +80,8 @@ void main() {
         textScale: 2,
         onSelect: (index) async => selected.add(index),
         onClear: () async => cleared += 1,
-        onOpenSongActions: (context, index, song) async => opened.add(index),
+        onOpenSongActions: (context, index, song, entryId) async =>
+            opened.add(index),
       ),
     );
     await tester.pump();
@@ -145,7 +146,7 @@ void main() {
         onSelect: (_) async {},
         onClear: () async {},
         onReorder: (oldIndex, newIndex) => moves.add((oldIndex, newIndex)),
-        onOpenSongActions: (context, index, song) async {},
+        onOpenSongActions: (context, index, song, entryId) async {},
       ),
     );
     await tester.pump();
@@ -167,6 +168,50 @@ void main() {
     expect(list.proxyDecorator, isNotNull);
     list.onReorder(0, 2);
     expect(moves, <(int, int)>[(0, 2)]);
+  });
+
+  testWidgets('desktop queue separates row selection from playback', (
+    tester,
+  ) async {
+    final state = PlayerState(
+      currentSong: songs.first,
+      queue: songs,
+      currentIndex: 0,
+    );
+    final scrollController = ScrollController();
+    addTearDown(scrollController.dispose);
+    final selected = <String>[];
+    final played = <String>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: PlaybackQueueContent(
+            scrollController: scrollController,
+            playerState: state,
+            desktopInteraction: true,
+            onEntrySelected: selected.add,
+            selectedEntryId: selected.isEmpty ? null : selected.last,
+            onSelect: (index) async => played.add(state.queueEntryIds[index]),
+            onReorder: (_, _) {},
+            onOpenSongActions: (context, index, song, entryId) async {},
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(ReorderableDragStartListener), findsNWidgets(2));
+    expect(find.byType(ReorderableDelayedDragStartListener), findsNothing);
+    await tester.tap(find.text(songs[1].title));
+    await tester.pump();
+    expect(selected, <String>[state.queueEntryIds[1]]);
+    expect(played, isEmpty);
+
+    await tester.tap(find.bySemanticsLabel('播放 ${songs[1].title}'));
+    await tester.pump();
+    expect(played, <String>[state.queueEntryIds[1]]);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('songs before the current one fade both lines of text', (
@@ -204,7 +249,7 @@ void main() {
         mediaVisuals: visuals,
         onSelect: (_) async {},
         onClear: () async {},
-        onOpenSongActions: (context, index, song) async {},
+        onOpenSongActions: (context, index, song, entryId) async {},
       ),
     );
     await tester.pumpAndSettle();
@@ -249,7 +294,7 @@ void main() {
           ),
           onSelect: (_) async {},
           onClear: () async {},
-          onOpenSongActions: (context, index, song) async {},
+          onOpenSongActions: (context, index, song, entryId) async {},
           onReorder: (_, _) {},
         ),
       );
@@ -281,7 +326,8 @@ void main() {
           onSelect: (index) async => selected.add(index),
           onClear: () async {},
           onReorder: (oldIndex, newIndex) => moves.add((oldIndex, newIndex)),
-          onOpenSongActions: (context, index, song) async => opened.add(index),
+          onOpenSongActions: (context, index, song, entryId) async =>
+              opened.add(index),
         ),
       );
       await tester.pump();
@@ -325,7 +371,7 @@ void main() {
         albumColor: const Color(0xFF7B1E3A),
         onSelect: (_) async {},
         onClear: () async {},
-        onOpenSongActions: (context, index, song) async {},
+        onOpenSongActions: (context, index, song, entryId) async {},
       ),
     );
     await tester.pump();
@@ -344,7 +390,7 @@ void main() {
         state: PlayerState(),
         onSelect: (_) async {},
         onClear: () async {},
-        onOpenSongActions: (context, index, song) async {},
+        onOpenSongActions: (context, index, song, entryId) async {},
       ),
     );
     await tester.pump();

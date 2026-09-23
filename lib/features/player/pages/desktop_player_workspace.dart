@@ -337,6 +337,7 @@ class _DesktopQueuePanel extends ConsumerStatefulWidget {
 
 class _DesktopQueuePanelState extends ConsumerState<_DesktopQueuePanel> {
   final ScrollController _scrollController = ScrollController();
+  String? _selectedEntryId;
 
   @override
   void dispose() {
@@ -414,12 +415,18 @@ class _DesktopQueuePanelState extends ConsumerState<_DesktopQueuePanel> {
               : PlaybackQueueContent(
                   scrollController: _scrollController,
                   playerState: playerState,
+                  desktopInteraction: true,
+                  selectedEntryId: _selectedEntryId,
+                  onEntrySelected: (entryId) {
+                    setState(() => _selectedEntryId = entryId);
+                  },
                   onSelect: (index) {
                     final entryId = playerState.queueEntryIds[index];
+                    setState(() => _selectedEntryId = entryId);
                     return notifier.skipToQueueEntry(entryId);
                   },
                   onReorder: notifier.reorderQueue,
-                  onOpenSongActions: (rowContext, index, song) {
+                  onOpenSongActions: (rowContext, index, song, entryId) {
                     return showSongOptionsSheet(
                       context: rowContext,
                       song: song,
@@ -428,9 +435,7 @@ class _DesktopQueuePanelState extends ConsumerState<_DesktopQueuePanel> {
                           icon: AppIcons.removeCircle,
                           title: '从队列移除',
                           isDestructive: true,
-                          onPressed: () => notifier.removeQueueEntry(
-                            playerState.queueEntryIds[index],
-                          ),
+                          onPressed: () => notifier.removeQueueEntry(entryId),
                         ),
                       ],
                     );

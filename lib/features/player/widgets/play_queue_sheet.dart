@@ -71,7 +71,7 @@ class PlayQueueSheet extends ConsumerWidget {
         if (context.mounted) Navigator.of(context).pop();
       },
       onReorder: ref.read(playerProvider.notifier).reorderQueue,
-      onOpenSongActions: (rowContext, index, song) {
+      onOpenSongActions: (rowContext, index, song, entryId) {
         return showSongOptionsSheet(
           context: rowContext,
           song: song,
@@ -81,10 +81,8 @@ class PlayQueueSheet extends ConsumerWidget {
               icon: AppIcons.removeCircle,
               title: '从队列移除',
               isDestructive: true,
-              onPressed: () {
-                final entryId = queueSnapshot.playbackQueue.entryIds[index];
-                ref.read(playerProvider.notifier).removeQueueEntry(entryId);
-              },
+              onPressed: () =>
+                  ref.read(playerProvider.notifier).removeQueueEntry(entryId),
             ),
           ],
         );
@@ -94,7 +92,12 @@ class PlayQueueSheet extends ConsumerWidget {
 }
 
 typedef QueueSongAction =
-    Future<void> Function(BuildContext context, int index, Song song);
+    Future<void> Function(
+      BuildContext context,
+      int index,
+      Song song,
+      String entryId,
+    );
 
 /// Provider-free queue surface for deterministic gesture and a11y tests.
 @visibleForTesting
@@ -268,13 +271,19 @@ class PlaybackQueueContent extends StatefulWidget {
     required this.onSelect,
     required this.onOpenSongActions,
     required this.onReorder,
-  });
+    this.desktopInteraction = false,
+    this.selectedEntryId,
+    this.onEntrySelected,
+  }) : assert(!desktopInteraction || onEntrySelected != null);
 
   final ScrollController scrollController;
   final PlayerState playerState;
   final Future<void> Function(int index) onSelect;
   final QueueSongAction onOpenSongActions;
   final void Function(int oldIndex, int newIndex)? onReorder;
+  final bool desktopInteraction;
+  final String? selectedEntryId;
+  final ValueChanged<String>? onEntrySelected;
 
   @override
   State<PlaybackQueueContent> createState() => _PlaybackQueueContentState();
@@ -372,43 +381,81 @@ class _PlaybackQueueContentState extends State<PlaybackQueueContent> {
           };
         }
 
+        final songRow = EchoSongRow(
+          index: index,
+          song: song,
+          variant: EchoSongRowVariant.standard,
+          isCurrent: isCurrent,
+          isDimmed: state.currentIndex >= 0 && index < state.currentIndex,
+          currentStatusLabel: statusLabel,
+          currentIndicatorIcon: state.isPlaying
+              ? AppIcons.pause
+              : AppIcons.play,
+          isCurrentLoading: state.isLoading,
+          selected: widget.selectedEntryId == entryId,
+          contentPadding: EdgeInsetsDirectional.fromSTEB(
+            context.echoSpacing.md,
+            context.echoSpacing.xs,
+            context.echoSpacing.xs,
+            context.echoSpacing.xs,
+          ),
+          innerPadding: isCurrent
+              ? EdgeInsets.symmetric(vertical: context.echoSpacing.xxs)
+              : EdgeInsets.zero,
+          onPressed: widget.desktopInteraction
+              ? () => widget.onEntrySelected?.call(entryId)
+              : () => unawaited(widget.onSelect(index)),
+          onPlayPressed: widget.desktopInteraction
+              ? () => unawaited(widget.onSelect(index))
+              : null,
+          onMorePressed: () => unawaited(
+            widget.onOpenSongActions(context, index, song, entryId),
+          ),
+          moreSemanticLabel: '${song.title}，更多操作',
+        );
+        final rowContent = widget.desktopInteraction
+            ? Row(
+                children: <Widget>[
+                  Expanded(child: songRow),
+                  if (widget.onReorder != null)
+                    SizedBox(
+                      width: 40,
+                      height: 48,
+                      child: ReorderableDragStartListener(
+                        index: index,
+                        child: Semantics(
+                          button: true,
+                          label: '拖动调整 ${song.title} 的顺序',
+                          child: MouseRegion(
+                            cursor: SystemMouseCursors.grab,
+                            child: Icon(
+                              Icons.drag_indicator,
+                              size: 20,
+                              color: context.echoColors.muted,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              )
+            : ReorderableDelayedDragStartListener(
+                index: index,
+                enabled: widget.onReorder != null,
+                child: songRow,
+              );
+
         return Padding(
           key: _entryKeys.putIfAbsent(entryId, GlobalKey.new),
           padding: EdgeInsets.only(bottom: context.echoSpacing.xxs),
           child: Semantics(
             label: widget.onReorder == null
                 ? null
+                : widget.desktopInteraction
+                ? '使用拖动手柄调整 ${song.title} 的顺序'
                 : '长按并拖动 ${song.title}，调整播放顺序',
             customSemanticsActions: semanticsActions,
-            child: ReorderableDelayedDragStartListener(
-              index: index,
-              enabled: widget.onReorder != null,
-              child: EchoSongRow(
-                index: index,
-                song: song,
-                variant: EchoSongRowVariant.standard,
-                isCurrent: isCurrent,
-                isDimmed: state.currentIndex >= 0 && index < state.currentIndex,
-                currentStatusLabel: statusLabel,
-                isCurrentLoading: state.isLoading,
-                currentIndicatorIcon: state.isPlaying
-                    ? AppIcons.pause
-                    : AppIcons.play,
-                contentPadding: EdgeInsetsDirectional.fromSTEB(
-                  context.echoSpacing.md,
-                  context.echoSpacing.xs,
-                  context.echoSpacing.xs,
-                  context.echoSpacing.xs,
-                ),
-                innerPadding: isCurrent
-                    ? EdgeInsets.symmetric(vertical: context.echoSpacing.xxs)
-                    : EdgeInsets.zero,
-                onPressed: () => unawaited(widget.onSelect(index)),
-                onMorePressed: () =>
-                    unawaited(widget.onOpenSongActions(context, index, song)),
-                moreSemanticLabel: '${song.title}，更多操作',
-              ),
-            ),
+            child: rowContent,
           ),
         );
       },
