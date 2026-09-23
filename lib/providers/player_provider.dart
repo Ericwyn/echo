@@ -2314,7 +2314,8 @@ class PlayerNotifier extends StateNotifier<PlayerState>
   @override
   Future<void> playQueue(List<Song> songs, {int startIndex = 0}) async {
     if (songs.isEmpty) return;
-    await playSong(songs[startIndex], queue: songs, index: startIndex);
+    final safeStartIndex = startIndex.clamp(0, songs.length - 1).toInt();
+    await playSong(songs[safeStartIndex], queue: songs, index: safeStartIndex);
   }
 
   /// 播放试听歌曲。

@@ -730,6 +730,24 @@ void main() {
     expect(loads, 2);
   });
 
+  playbackTest('play queue clamps the requested starting index', (
+    tester,
+  ) async {
+    createFixture();
+    await notifier.initialized;
+    final first = song.copyWith(id: 'first');
+    final last = song.copyWith(id: 'last');
+    final songs = <Song>[first, last];
+
+    await notifier.playQueue(songs, startIndex: -5);
+    expect(container.read(playerProvider).currentSong?.id, first.id);
+    expect(container.read(playerProvider).currentIndex, 0);
+
+    await notifier.playQueue(songs, startIndex: songs.length + 4);
+    expect(container.read(playerProvider).currentSong?.id, last.id);
+    expect(container.read(playerProvider).currentIndex, 1);
+  });
+
   playbackTest('sequential single-item queue stops and can replay', (
     tester,
   ) async {
