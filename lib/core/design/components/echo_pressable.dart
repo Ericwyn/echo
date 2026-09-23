@@ -32,6 +32,7 @@ class EchoPressable extends StatelessWidget {
     super.key,
     required this.child,
     this.onPressed,
+    this.onDoubleTap,
     this.onLongPress,
     this.onKeyboardActivate,
     this.keyboardSpaceActivates = true,
@@ -51,6 +52,7 @@ class EchoPressable extends StatelessWidget {
 
   final Widget child;
   final VoidCallback? onPressed;
+  final VoidCallback? onDoubleTap;
   final VoidCallback? onLongPress;
   final VoidCallback? onKeyboardActivate;
   final bool keyboardSpaceActivates;
@@ -75,7 +77,8 @@ class EchoPressable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final interactive = onPressed != null || onLongPress != null;
+    final interactive =
+        onPressed != null || onDoubleTap != null || onLongPress != null;
     final radius = borderRadius ?? context.echoRadii.control;
     final motion = context.echoMotion;
     final colors = context.echoColors;
@@ -111,7 +114,7 @@ class EchoPressable extends StatelessWidget {
       selected: selected,
       toggled: toggled,
       label: semanticLabel,
-      onTap: onPressed,
+      onTap: onPressed ?? onDoubleTap,
       onLongPress: onLongPress,
       child: Shortcuts(
         shortcuts: keyboardSpaceActivates ? _shortcuts : _enterShortcut,
@@ -119,7 +122,11 @@ class EchoPressable extends StatelessWidget {
           actions: <Type, Action<Intent>>{
             ActivateIntent: CallbackAction<ActivateIntent>(
               onInvoke: (intent) {
-                final action = onKeyboardActivate ?? onPressed ?? onLongPress;
+                final action =
+                    onKeyboardActivate ??
+                    onPressed ??
+                    onDoubleTap ??
+                    onLongPress;
                 if (action != null) _invoke(action);
                 return null;
               },
@@ -153,6 +160,9 @@ class EchoPressable extends StatelessWidget {
                       onTap: onPressed == null
                           ? null
                           : () => _invoke(onPressed!),
+                      onDoubleTap: onDoubleTap == null
+                          ? null
+                          : () => _invoke(onDoubleTap!),
                       onLongPress: onLongPress == null
                           ? null
                           : () => _invoke(onLongPress!),

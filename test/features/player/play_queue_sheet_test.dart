@@ -267,6 +267,14 @@ void main() {
     await tester.pump();
     expect(played, <String>[state.queueEntryIds[1], state.queueEntryIds[1]]);
 
+    await tester.doubleTap(find.text(songs[0].title));
+    await tester.pump();
+    expect(played, <String>[
+      state.queueEntryIds[1],
+      state.queueEntryIds[1],
+      state.queueEntryIds[0],
+    ]);
+
     await tester.sendKeyEvent(LogicalKeyboardKey.delete);
     await tester.pump();
     expect(deleted, <String>[state.queueEntryIds[1]]);

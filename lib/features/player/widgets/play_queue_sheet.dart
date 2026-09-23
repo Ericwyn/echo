@@ -512,6 +512,9 @@ class _PlaybackQueueContentState extends State<PlaybackQueueContent> {
               onPressed: widget.desktopInteraction
                   ? () => _selectEntry(entryId)
                   : () => _activateEntry(index),
+              onDoubleTap: widget.desktopInteraction
+                  ? () => _activateEntry(index)
+                  : null,
               onKeyboardActivate: widget.desktopInteraction
                   ? () => _activateEntry(index)
                   : null,

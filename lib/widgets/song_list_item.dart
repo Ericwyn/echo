@@ -23,6 +23,7 @@ class EchoSongRow extends StatelessWidget {
     ),
     this.innerPadding = EdgeInsets.zero,
     this.onPressed,
+    this.onDoubleTap,
     this.onLongPress,
     this.onKeyboardActivate,
     this.keyboardSpaceActivates = true,
@@ -55,6 +56,7 @@ class EchoSongRow extends StatelessWidget {
   final EdgeInsetsGeometry contentPadding;
   final EdgeInsetsGeometry innerPadding;
   final VoidCallback? onPressed;
+  final VoidCallback? onDoubleTap;
   final VoidCallback? onLongPress;
   final VoidCallback? onKeyboardActivate;
   final bool keyboardSpaceActivates;
@@ -104,12 +106,14 @@ class EchoSongRow extends StatelessWidget {
         Expanded(child: _buildDetails(context, artistText)),
       ],
     );
-    final hasMainAction = mainAction != null || mainLongPress != null;
+    final hasMainAction =
+        mainAction != null || onDoubleTap != null || mainLongPress != null;
     final main = hasMainAction
         ? EchoPressable(
             semanticLabel: semanticLabel,
             selected: isSelected ? true : (selectionMode ? false : null),
             onPressed: mainAction,
+            onDoubleTap: onDoubleTap,
             onLongPress: mainLongPress,
             onKeyboardActivate: onKeyboardActivate,
             keyboardSpaceActivates: keyboardSpaceActivates,
