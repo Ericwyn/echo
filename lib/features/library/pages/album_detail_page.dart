@@ -116,6 +116,9 @@ class _AlbumDetailPageState extends ConsumerState<AlbumDetailPage> {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 1400),
                 child: CustomScrollView(
+                  key: PageStorageKey<String>(
+                    'echo-album-detail-${widget.albumId}-scroll',
+                  ),
                   slivers: <Widget>[
                     SliverToBoxAdapter(
                       child: _AlbumIdentityHeader(

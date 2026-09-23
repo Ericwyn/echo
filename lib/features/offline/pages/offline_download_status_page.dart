@@ -145,6 +145,9 @@ class _OfflineDownloadStatusPageState
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 840),
                     child: ListView.builder(
+                      key: const PageStorageKey<String>(
+                        'echo-offline-download-status-scroll',
+                      ),
                       padding: EdgeInsets.fromLTRB(
                         context.echoSpacing.md,
                         context.echoSpacing.sm,

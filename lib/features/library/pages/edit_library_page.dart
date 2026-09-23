@@ -99,7 +99,9 @@ class _EditLibraryPageState extends ConsumerState<EditLibraryPage> {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 920),
                 child: SingleChildScrollView(
-                  key: const ValueKey<String>('edit-library-scroll'),
+                  key: PageStorageKey<String>(
+                    'echo-edit-library-${widget.libraryId}-scroll',
+                  ),
                   keyboardDismissBehavior:
                       ScrollViewKeyboardDismissBehavior.onDrag,
                   padding: EdgeInsets.fromLTRB(

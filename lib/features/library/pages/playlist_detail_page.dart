@@ -208,6 +208,9 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 1400),
                   child: CustomScrollView(
+                    key: PageStorageKey<String>(
+                      'echo-playlist-detail-${widget.playlistId}-scroll',
+                    ),
                     slivers: <Widget>[
                       SliverToBoxAdapter(
                         child: _PlaylistIdentityHeader(
