@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/design/echo_design.dart';
+import '../../../core/navigation/desktop_navigation_history_scope.dart';
 import '../../../core/navigation/route_return.dart';
+import '../../../core/utils/logger.dart';
 import '../../../data/models/embed_service_config.dart';
 import '../../../data/models/music_library.dart';
 import '../../../data/models/server_address.dart';
@@ -539,49 +541,120 @@ class _EditLibraryPageState extends ConsumerState<EditLibraryPage> {
     final player = deletingActiveLibrary
         ? ref.read(playerProvider.notifier)
         : null;
-    await player?.prepareForLibrarySwitch();
     var libraryDeleted = false;
+    var playbackSessionCleared = true;
+    var remainingLibraries = <MusicLibrary>[];
     try {
+      await player?.prepareForLibrarySwitch();
       final allLibraries = await ref.read(librariesProvider.future);
-      final remaining = allLibraries
+      remainingLibraries = allLibraries
           .where((item) => item.id != library.id)
           .toList();
       await repository.deleteLibrary(library.id);
       libraryDeleted = true;
-      await LocalStorage.clearPlaybackSession(libraryId: library.id);
+      ref.invalidate(librariesProvider);
+      try {
+        await LocalStorage.clearPlaybackSession(libraryId: library.id);
+      } catch (error) {
+        playbackSessionCleared = false;
+        Logger.warnWithTag(
+          'LIBRARY',
+          'deleted library playback session cleanup failed',
+          error,
+        );
+      }
 
-      if (!deletingActiveLibrary && remaining.isNotEmpty) {
-        if (mounted) _returnFromEditor();
+      if (!deletingActiveLibrary && remainingLibraries.isNotEmpty) {
+        if (mounted) {
+          if (!playbackSessionCleared) {
+            showEchoMessage(
+              context,
+              '音乐库已删除，但播放状态没有完全清理。',
+              kind: EchoMessageKind.warning,
+            );
+          }
+          _returnFromDeletedLibrary();
+        }
         return;
       }
 
-      if (remaining.isEmpty) {
+      if (remainingLibraries.isEmpty) {
         await ref.read(authStateProvider.notifier).logout();
         ref.invalidate(playerProvider);
         if (mounted) context.go('/login');
         return;
       }
 
-      final next = remaining.first;
+      final next = remainingLibraries.first;
       await repository.setActiveLibrary(next.id);
       ref.read(authStateProvider.notifier).switchLibrary(next);
       ref.invalidate(playerProvider);
-      if (mounted) _returnFromEditor();
-    } catch (_) {
-      if (libraryDeleted) {
+      if (mounted) {
+        if (!playbackSessionCleared) {
+          showEchoMessage(
+            context,
+            '音乐库已删除，但播放状态没有完全清理。',
+            kind: EchoMessageKind.warning,
+          );
+        }
+        _returnFromDeletedLibrary();
+      }
+    } catch (error, stackTrace) {
+      Logger.errorWithTag(
+        'LIBRARY',
+        'delete library flow failed',
+        error,
+        stackTrace,
+      );
+      if (!libraryDeleted) {
+        try {
+          await player?.cancelLibrarySwitchPreparation();
+        } catch (cancelError, cancelStackTrace) {
+          Logger.errorWithTag(
+            'PLAYBACK',
+            'failed to cancel library switch preparation after delete failure',
+            cancelError,
+            cancelStackTrace,
+          );
+        }
+        if (mounted) {
+          showEchoMessage(context, '删除音乐库失败，请重试。', kind: EchoMessageKind.error);
+        }
+        return;
+      }
+
+      ref.invalidate(librariesProvider);
+      if (deletingActiveLibrary || remainingLibraries.isEmpty) {
         ref.invalidate(playerProvider);
-        if (deletingActiveLibrary) {
-          // The active row is already gone. If selecting its replacement or
-          // clearing its session failed, do not leave AuthState pointing at a
-          // library that no longer exists.
+        try {
           await ref.read(authStateProvider.notifier).logout();
-          if (mounted) context.go('/login');
+        } catch (logoutError, logoutStackTrace) {
+          Logger.errorWithTag(
+            'AUTH',
+            'failed to log out after deleting active library',
+            logoutError,
+            logoutStackTrace,
+          );
+        }
+        if (mounted) {
+          DesktopNavigationHistoryScope.maybeOf(context)?.clearForwardHistory();
+          context.go('/login');
         }
       } else {
-        await player?.cancelLibrarySwitchPreparation();
+        if (mounted) {
+          showEchoMessage(
+            context,
+            '音乐库已删除，但部分状态未能更新。',
+            kind: EchoMessageKind.warning,
+          );
+          _returnFromDeletedLibrary();
+        }
       }
-      rethrow;
     }
+  }
+
+  void _returnFromDeletedLibrary() {
+    popCurrentRouteAndDiscardForwardOrGoHome(context);
   }
 
   Future<bool> _confirmDestructiveAction({

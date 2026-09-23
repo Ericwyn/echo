@@ -1,5 +1,6 @@
 import 'package:echoes/core/theme/app_theme.dart';
 import 'package:echoes/core/design/echo_design.dart';
+import 'package:echoes/core/navigation/route_return.dart';
 import 'package:echoes/data/models/song.dart';
 import 'package:echoes/providers/navigation_provider.dart';
 import 'package:echoes/providers/player_provider.dart';
@@ -357,6 +358,38 @@ void main() {
         isNull,
       );
     });
+
+    testWidgets(
+      'desktop entity deletion return discards stale forward history',
+      (tester) async {
+        await _pumpMainScaffold(tester, size: const Size(1440, 900));
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('echo-desktop-sidebar-songs')),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.byKey(const ValueKey<String>('open-desktop-detail')),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('delete-desktop-detail')),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Desktop songs'), findsOneWidget);
+        expect(
+          tester
+              .widget<EchoIconButton>(
+                find.byKey(const ValueKey<String>('echo-desktop-forward')),
+              )
+              .onPressed,
+          isNull,
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
 
     testWidgets(
       'desktop workspace keeps queue state when returning to browse',
@@ -826,8 +859,25 @@ class _DesktopDestinationPage extends StatelessWidget {
               onPressed: () => Navigator.of(context).push<void>(
                 EchoPageRoute<void>(
                   context: context,
-                  builder: (_) => const Scaffold(
-                    body: Center(child: Text('Desktop detail')),
+                  builder: (detailContext) => Scaffold(
+                    body: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          const Text('Desktop detail'),
+                          ElevatedButton(
+                            key: const ValueKey<String>(
+                              'delete-desktop-detail',
+                            ),
+                            onPressed: () =>
+                                popCurrentRouteAndDiscardForwardOrGoHome(
+                                  detailContext,
+                                ),
+                            child: const Text('Delete detail'),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),

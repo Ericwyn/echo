@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/design/components/echo_page_route.dart';
+import '../../core/navigation/desktop_navigation_history_scope.dart';
 import '../../providers/navigation_provider.dart';
 
 const _desktopDestinationRoutePrefix = 'desktop-destination:';
@@ -24,14 +25,18 @@ class DesktopNavigationStrategy {
   bool get canGoForward => _observer.canGoForward;
 
   Widget buildNavigator(BuildContext context, {required Widget rootPage}) {
-    return Navigator(
-      key: navigatorKey,
-      observers: <NavigatorObserver>[_observer],
-      onGenerateRoute: (_) => _destinationRoute(
-        context: context,
-        destinationId: 'music-flow',
-        branchIndex: discoverBranchIndex,
-        page: rootPage,
+    return DesktopNavigationHistoryScope(
+      popCurrentAndDiscardForward: popCurrentAndDiscardForward,
+      clearForwardHistory: _observer.clearForwardHistory,
+      child: Navigator(
+        key: navigatorKey,
+        observers: <NavigatorObserver>[_observer],
+        onGenerateRoute: (_) => _destinationRoute(
+          context: context,
+          destinationId: 'music-flow',
+          branchIndex: discoverBranchIndex,
+          page: rootPage,
+        ),
       ),
     );
   }
@@ -83,6 +88,15 @@ class DesktopNavigationStrategy {
     final navigator = navigatorKey.currentState;
     if (navigator == null) return false;
     return navigator.maybePop();
+  }
+
+  bool popCurrentAndDiscardForward() {
+    final navigator = navigatorKey.currentState;
+    if (navigator == null || !navigator.canPop()) return false;
+
+    _observer.withoutForwardRecording(() => navigator.pop());
+    _observer.clearForwardHistory();
+    return true;
   }
 
   void goForward(BuildContext context) {
