@@ -4,7 +4,7 @@
 
 状态：首轮桌面实现正在验收。历史工作树有 437 项 Flutter 测试、项目级 `flutter analyze` 和 Ubuntu 22.04 Linux release 编译通过记录；近期新增的桌面导航、播放器工作区状态恢复、右键队列、动态背景和窗口几何测试未运行。
 
-当前 Linux lifecycle recovery 代码 `0e832ddb` 已在 `build/linux-lldtmp-2064` 构建。`.deb` 为 `1.1.0+2053`/amd64，SHA-256：`f6e7b48e190b0cb3e696dbd57bc0a5ef875fc09f9357a2cc3d4a028e76b58450`。Android arm64-only APK version name/code 为 `1.1.0`/`2054`，高于设备报告的 `2026`；release 证书校验通过，SHA-256：`26ce4001832b034a515392661eafa0ddda4c80b08b2774c9c85f0b475f4d1380`。standalone bundle ZIP 对应前一个 Linux build `c4bd0b6e`，完整性检查通过。产物未安装或启动，Flutter tests/analyze 未运行；手动交互由用户验收。详见[生命周期恢复构建证据](evidence/260924-linux-lifecycle-recovery/README.md)和[播放队列索引边界构建证据](evidence/260924-playback-queue-index-build/README.md)。
+当前 Linux lifecycle recovery 代码 `0e832ddb` 已在 `build/linux-lldtmp-2064` 构建。`.deb` 为 `1.1.0+2053`/amd64，SHA-256：`f6e7b48e190b0cb3e696dbd57bc0a5ef875fc09f9357a2cc3d4a028e76b58450`。Android arm64-only APK version name/code 为 `1.1.0`/`2054`，高于设备报告的 `2026`；release 证书校验通过，SHA-256：`26ce4001832b034a515392661eafa0ddda4c80b08b2774c9c85f0b475f4d1380`。同一 commit 的 standalone bundle ZIP SHA-256 为 `3d313cc02e489cfed707dd4980b10256511dca7e5529dc879265a8453965dcdb`，完整性检查通过。产物未安装或启动，Flutter tests/analyze 未运行；手动交互由用户验收。详见[生命周期恢复构建证据](evidence/260924-linux-lifecycle-recovery/README.md)和[播放队列索引边界构建证据](evidence/260924-playback-queue-index-build/README.md)。
 
 ## 功能与责任阶段
 
