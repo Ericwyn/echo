@@ -78,6 +78,24 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('random song expansion restores after discover route rebuild', (
+    tester,
+  ) async {
+    final bucket = PageStorageBucket();
+    final songs = _songs(count: 8);
+
+    await _pumpDiscover(tester, songs: songs, pageStorageBucket: bucket);
+    expect(find.byType(DiscoverSongTile), findsNWidgets(6));
+
+    await tester.tap(find.text('更多歌曲'));
+    await tester.pumpAndSettle();
+    expect(find.byType(DiscoverSongTile), findsNWidgets(8));
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await _pumpDiscover(tester, songs: songs, pageStorageBucket: bucket);
+    expect(find.byType(DiscoverSongTile), findsNWidgets(8));
+  });
+
   testWidgets('discover survives 320dp and 200 percent text scaling', (
     tester,
   ) async {
@@ -409,6 +427,7 @@ Future<void> _pumpDiscover(
   List<Album>? newest,
   List<Album>? frequent,
   _RecordingPlayerNotifier? player,
+  PageStorageBucket? pageStorageBucket,
   List<Override> extraOverrides = const <Override>[],
 }) async {
   tester.view.devicePixelRatio = 1;
@@ -451,7 +470,10 @@ Future<void> _pumpDiscover(
             child: child!,
           );
         },
-        home: const DiscoverPage(),
+        home: PageStorage(
+          bucket: pageStorageBucket ?? PageStorageBucket(),
+          child: const DiscoverPage(),
+        ),
       ),
     ),
   );

@@ -152,7 +152,30 @@ class RandomSongsSection extends ConsumerStatefulWidget {
 }
 
 class _RandomSongsSectionState extends ConsumerState<RandomSongsSection> {
+  static const String _expandedPageStorageKey =
+      'echo-discover-random-songs-expanded';
+
   bool _expanded = false;
+  bool _restoredExpandedState = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_restoredExpandedState) return;
+    _restoredExpandedState = true;
+
+    final stored = PageStorage.maybeOf(
+      context,
+    )?.readState(context, identifier: _expandedPageStorageKey);
+    if (stored is bool) _expanded = stored;
+  }
+
+  void _setExpanded(bool expanded) {
+    PageStorage.maybeOf(
+      context,
+    )?.writeState(context, expanded, identifier: _expandedPageStorageKey);
+    setState(() => _expanded = expanded);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -223,7 +246,7 @@ class _RandomSongsSectionState extends ConsumerState<RandomSongsSection> {
                     leadingIcon: _expanded
                         ? AppIcons.chevronUp
                         : AppIcons.chevronDown,
-                    onPressed: () => setState(() => _expanded = !_expanded),
+                    onPressed: () => _setExpanded(!_expanded),
                   ),
                 ],
               ],
