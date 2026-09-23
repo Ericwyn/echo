@@ -116,6 +116,12 @@ final playbackCommandsProvider = Provider<PlaybackCommands>(
   (ref) => ref.watch(playerProvider.notifier),
 );
 
+/// Platform-neutral playback view for selectors used by player surfaces.
+final playbackSnapshotProvider = Provider<PlaybackSnapshot>((ref) {
+  ref.watch(playerProvider);
+  return ref.read(playerProvider.notifier).snapshot;
+});
+
 /// 播放器状态管理器
 class PlayerNotifier extends StateNotifier<PlayerState>
     implements PlaybackCommands {

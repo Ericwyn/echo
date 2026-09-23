@@ -233,12 +233,12 @@ class PlaybackControls extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final commands = ref.read(playbackCommandsProvider);
     final state = ref.watch(
-      playerProvider.select(
-        (state) => (
-          isPlaying: state.isPlaying,
-          isLoading: state.isLoading,
-          hasPrevious: state.hasPrevious,
-          hasNext: state.hasNext,
+      playbackSnapshotProvider.select(
+        (snapshot) => (
+          isPlaying: snapshot.isPlaying,
+          isLoading: snapshot.isLoading,
+          hasPrevious: snapshot.canGoPrevious,
+          hasNext: snapshot.canGoNext,
         ),
       ),
     );

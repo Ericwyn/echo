@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart' show LoopMode;
 
 import '../../../core/design/echo_design.dart';
-import '../../../data/models/song.dart';
 import '../../../providers/player_provider.dart';
 import '../../../widgets/echo_artwork.dart';
 import '../pages/desktop_player_workspace.dart';
@@ -24,16 +23,18 @@ class DesktopPlaybackBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final playback = ref.watch(
-      playerProvider.select(
-        (state) => (
-          song: state.currentSong,
-          shuffle: state.shuffleEnabled,
-          loopMode: state.loopMode,
+      playbackSnapshotProvider.select(
+        (snapshot) => (
+          songId: snapshot.songId,
+          title: snapshot.title,
+          artist: snapshot.artist,
+          artworkReference: snapshot.artworkReference,
+          shuffle: snapshot.shuffleEnabled,
+          loopMode: snapshot.loopMode,
         ),
       ),
     );
-    final song = playback.song;
-    if (song == null) return const SizedBox.shrink();
+    if (playback.songId == null) return const SizedBox.shrink();
     final commands = ref.read(playbackCommandsProvider);
 
     final mode = playback.shuffle
@@ -78,7 +79,9 @@ class DesktopPlaybackBar extends ConsumerWidget {
                 SizedBox(
                   width: compact ? 188 : 248,
                   child: _DesktopCurrentTrack(
-                    song: song,
+                    title: playback.title,
+                    artist: playback.artist,
+                    artworkReference: playback.artworkReference,
                     onPressed: () => onOpenWorkspace(DesktopPlayerPanel.lyrics),
                   ),
                 ),
@@ -125,14 +128,20 @@ class DesktopPlaybackBar extends ConsumerWidget {
 }
 
 class _DesktopCurrentTrack extends StatelessWidget {
-  const _DesktopCurrentTrack({required this.song, required this.onPressed});
+  const _DesktopCurrentTrack({
+    required this.title,
+    required this.artist,
+    required this.artworkReference,
+    required this.onPressed,
+  });
 
-  final Song song;
+  final String title;
+  final String artist;
+  final String? artworkReference;
   final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
-    final artist = song.artist?.trim() ?? '';
     return InkWell(
       onTap: onPressed,
       borderRadius: context.echoRadii.control,
@@ -141,8 +150,8 @@ class _DesktopCurrentTrack extends StatelessWidget {
         child: Row(
           children: <Widget>[
             EchoArtwork(
-              coverArtId: song.artworkReference,
-              semanticLabel: '${song.title} 封面',
+              coverArtId: artworkReference,
+              semanticLabel: '$title 封面',
               size: 56,
               requestSize: 160,
               borderRadius: context.echoRadii.control,
@@ -154,7 +163,7 @@ class _DesktopCurrentTrack extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
-                    song.title,
+                    title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: context.echoTypography.body.copyWith(
@@ -190,8 +199,8 @@ class _DesktopVolumeControl extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final commands = ref.read(playbackCommandsProvider);
     final volume = ref.watch(
-      playerProvider.select(
-        (state) => (value: state.userVolume, muted: state.isMuted),
+      playbackSnapshotProvider.select(
+        (snapshot) => (value: snapshot.volume, muted: snapshot.isMuted),
       ),
     );
     final icon = volume.muted || volume.value == 0
