@@ -31,9 +31,45 @@ class ArtistDetailPage extends ConsumerStatefulWidget {
 
 class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
   static const int _topSongsPreviewCount = 5;
+  static const String _pageStorageStateKey = 'echo-artist-detail-state';
 
   int _selectedSection = 0;
   bool _showAllTopSongs = false;
+  bool _restoredPageState = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_restoredPageState) return;
+    _restoredPageState = true;
+    final savedState = PageStorage.maybeOf(
+      context,
+    )?.readState(context, identifier: _pageStorageStateKey);
+    if (savedState is! Map) return;
+
+    final selectedSection = savedState['selectedSection'];
+    final showAllTopSongs = savedState['showAllTopSongs'];
+    if (selectedSection is int && selectedSection >= 0 && selectedSection < 2) {
+      _selectedSection = selectedSection;
+    }
+    if (showAllTopSongs is bool) _showAllTopSongs = showAllTopSongs;
+  }
+
+  @override
+  void didUpdateWidget(covariant ArtistDetailPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.artistId == widget.artistId) return;
+    _selectedSection = 0;
+    _showAllTopSongs = false;
+    _savePageStorageState();
+  }
+
+  void _savePageStorageState() {
+    PageStorage.maybeOf(context)?.writeState(context, <String, Object>{
+      'selectedSection': _selectedSection,
+      'showAllTopSongs': _showAllTopSongs,
+    }, identifier: _pageStorageStateKey);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -142,6 +178,7 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
                         onSelected: (index) {
                           if (index == _selectedSection) return;
                           setState(() => _selectedSection = index);
+                          _savePageStorageState();
                         },
                       ),
                     ),
@@ -207,6 +244,7 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
                         : null,
                     onAction: () {
                       setState(() => _showAllTopSongs = !_showAllTopSongs);
+                      _savePageStorageState();
                     },
                   ),
                   SizedBox(height: context.echoSpacing.xs),

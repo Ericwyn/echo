@@ -16,6 +16,8 @@ import 'artist_detail_page.dart';
 
 enum StarredTab { songs, albums, artists }
 
+const _starredPageTabStorageKey = 'echo-starred-page-selected-tab';
+
 class StarredPage extends ConsumerWidget {
   const StarredPage({super.key, this.initialTab = StarredTab.songs});
 
@@ -28,6 +30,15 @@ class StarredPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final storedTabIndex = PageStorage.maybeOf(
+      context,
+    )?.readState(context, identifier: _starredPageTabStorageKey);
+    final initialTabIndex =
+        storedTabIndex is int &&
+            storedTabIndex >= 0 &&
+            storedTabIndex < StarredTab.values.length
+        ? storedTabIndex
+        : initialTab.index;
     final starredAsync = ref.watch(starredProvider);
     final loadFailed = ref.watch(starredLoadFailedProvider);
     final value = starredAsync.valueOrNull;
@@ -42,7 +53,7 @@ class StarredPage extends ConsumerWidget {
       onRetry: (ref) => ref.invalidate(starredProvider),
       child: DefaultTabController(
         length: StarredTab.values.length,
-        initialIndex: initialTab.index,
+        initialIndex: initialTabIndex,
         child: Builder(
           builder: (tabContext) {
             final controller = DefaultTabController.of(tabContext);
@@ -344,9 +355,12 @@ class _StarredTabStrip extends StatefulWidget {
 }
 
 class _StarredTabStripState extends State<_StarredTabStrip> {
+  late int _lastStoredIndex;
+
   @override
   void initState() {
     super.initState();
+    _lastStoredIndex = widget.controller.index;
     widget.controller.addListener(_handleControllerChanged);
   }
 
@@ -356,6 +370,7 @@ class _StarredTabStripState extends State<_StarredTabStrip> {
     if (oldWidget.controller == widget.controller) return;
     oldWidget.controller.removeListener(_handleControllerChanged);
     widget.controller.addListener(_handleControllerChanged);
+    _lastStoredIndex = widget.controller.index;
   }
 
   @override
@@ -365,6 +380,15 @@ class _StarredTabStripState extends State<_StarredTabStrip> {
   }
 
   void _handleControllerChanged() {
+    final currentIndex = widget.controller.index;
+    if (currentIndex != _lastStoredIndex) {
+      _lastStoredIndex = currentIndex;
+      PageStorage.maybeOf(context)?.writeState(
+        context,
+        currentIndex,
+        identifier: _starredPageTabStorageKey,
+      );
+    }
     if (mounted) setState(() {});
   }
 
