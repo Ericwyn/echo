@@ -367,6 +367,18 @@ class DesktopLifecycleService with WindowListener, TrayListener {
       if (_trayAvailable) {
         await windowManager.hide();
         _windowHidden = true;
+        if (!_trayAvailable) {
+          // The host can disappear after the availability check but before
+          // hide completes. Recover a taskbar path instead of stranding the
+          // process in an unobservable hidden state.
+          Logger.warnWithTag(
+            'DESKTOP',
+            'tray host disappeared while hiding; falling back to minimize',
+          );
+          await windowManager.show();
+          _windowHidden = false;
+          await windowManager.minimize();
+        }
       } else {
         // Keep a taskbar/dock recovery path when no StatusNotifier host exists.
         await windowManager.minimize();
