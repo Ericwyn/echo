@@ -12,11 +12,8 @@ import '../design/layout/echo_desktop_metrics.dart';
 import '../utils/logger.dart';
 import 'desktop_close_settings.dart';
 import 'desktop_window_state_service.dart';
+import 'status_notifier_host_tracker.dart';
 
-const _statusNotifierWatchers = <String>[
-  'org.kde.StatusNotifierWatcher',
-  'org.freedesktop.StatusNotifierWatcher',
-];
 const _exitCleanupTimeout = Duration(seconds: 4);
 const _playerQuitTimeout = Duration(seconds: 15);
 const _windowDestroyTimeout = Duration(seconds: 8);
@@ -33,7 +30,8 @@ class DesktopLifecycleService with WindowListener, TrayListener {
   Future<bool> Function()? _onBeforeQuit;
   DBusClient? _sessionBusClient;
   StreamSubscription<DBusNameOwnerChangedEvent>? _watcherSubscription;
-  String? _watcherName;
+  final StatusNotifierHostTracker _statusNotifierHostTracker =
+      StatusNotifierHostTracker();
   bool _initialized = false;
   bool _exitRequested = false;
   bool _trayIconRegistered = false;
@@ -91,38 +89,10 @@ class DesktopLifecycleService with WindowListener, TrayListener {
       if (Platform.isWindows) {
         await trayManager.setToolTip('Echoes');
       }
-      await trayManager.setContextMenu(
-        Menu(
-          items: <MenuItem>[
-            MenuItem(
-              key: 'show_window',
-              label: '显示 Echo',
-              onClick: (_) => unawaited(showWindow()),
-            ),
-            MenuItem.separator(),
-            MenuItem(
-              key: 'play_pause',
-              label: '播放 / 暂停',
-              onClick: (_) => unawaited(_onTogglePlayPause?.call()),
-            ),
-            MenuItem(
-              key: 'next',
-              label: '下一首',
-              onClick: (_) => unawaited(_onNext?.call()),
-            ),
-            MenuItem.separator(),
-            MenuItem(
-              key: 'quit',
-              label: '退出 Echo',
-              onClick: (_) => unawaited(requestExit()),
-            ),
-          ],
-        ),
-      );
-      if (defaultTargetPlatform != TargetPlatform.linux ||
-          _watcherName != null) {
-        _trayAvailable = true;
-      }
+      await trayManager.setContextMenu(_buildTrayContextMenu());
+      _trayAvailable =
+          defaultTargetPlatform != TargetPlatform.linux ||
+          _statusNotifierHostTracker.hasHost;
       Logger.infoWithTag(
         'DESKTOP',
         'tray initialized available=$_trayAvailable',
@@ -137,35 +107,51 @@ class DesktopLifecycleService with WindowListener, TrayListener {
   Future<void> _connectToStatusNotifierWatcher() async {
     DBusClient? client;
     try {
+      _statusNotifierHostTracker.beginInitialLookup();
       client = DBusClient.session();
-      for (final name in _statusNotifierWatchers) {
-        try {
-          final owner = await client.getNameOwner(name);
-          if (owner != null) {
-            _watcherName = name;
-            break;
-          }
-        } catch (_) {
-          // A missing watcher is a supported desktop configuration.
-        }
-      }
       _sessionBusClient = client;
       _watcherSubscription = client.nameOwnerChanged.listen(
         _onNameOwnerChanged,
         onError: (Object error) {
+          _statusNotifierHostTracker.clear();
+          _trayAvailable = false;
+          if (_windowHidden && !_exitRequested) unawaited(showWindow());
           Logger.warnWithTag('DESKTOP', 'tray watcher monitor failed', error);
         },
       );
+      for (final name in StatusNotifierHostTracker.watcherNames) {
+        try {
+          final owner = await client.getNameOwner(name);
+          _statusNotifierHostTracker.applyInitialLookup(
+            name,
+            hasOwner: owner != null,
+          );
+        } catch (_) {
+          // A missing watcher is a supported desktop configuration.
+          _statusNotifierHostTracker.applyInitialLookup(name, hasOwner: false);
+        }
+      }
+      _statusNotifierHostTracker.finishInitialLookup();
     } catch (error) {
+      _statusNotifierHostTracker.clear();
+      await _watcherSubscription?.cancel();
+      _watcherSubscription = null;
+      _sessionBusClient = null;
       await client?.close();
       Logger.warnWithTag('DESKTOP', 'cannot inspect tray host', error);
     }
   }
 
   void _onNameOwnerChanged(DBusNameOwnerChangedEvent event) {
-    if (!_statusNotifierWatchers.contains(event.name)) return;
-    if (event.newOwner == null) {
-      _watcherName = null;
+    final wasAvailable = _statusNotifierHostTracker.hasHost;
+    if (!_statusNotifierHostTracker.applyOwnerChange(
+      event.name,
+      hasOwner: event.newOwner != null,
+    )) {
+      return;
+    }
+
+    if (!_statusNotifierHostTracker.hasHost) {
       _trayAvailable = false;
       if (_windowHidden && !_exitRequested) {
         unawaited(showWindow());
@@ -177,13 +163,63 @@ class DesktopLifecycleService with WindowListener, TrayListener {
       return;
     }
 
-    _watcherName = event.name;
-    _trayAvailable = _trayIconRegistered;
-    if (_windowHidden && !_exitRequested) {
-      // The icon is available again, but leave the user's hidden-window choice
-      // intact. The tray menu is now the recovery route.
+    if (!wasAvailable) {
+      _trayAvailable = false;
+      unawaited(_refreshTrayAfterHostAppeared());
+    } else {
+      _trayAvailable = _trayIconRegistered;
     }
   }
+
+  Future<void> _refreshTrayAfterHostAppeared() async {
+    if (!_trayIconRegistered || !_statusNotifierHostTracker.hasHost) return;
+    try {
+      await trayManager.setIcon(
+        Platform.isWindows ? 'assets/tray_icon.ico' : 'assets/tray_icon.png',
+      );
+      await trayManager.setContextMenu(_buildTrayContextMenu());
+      _trayAvailable =
+          _trayIconRegistered && _statusNotifierHostTracker.hasHost;
+      Logger.infoWithTag(
+        'DESKTOP',
+        'tray registration refreshed after host appeared available=$_trayAvailable',
+      );
+    } catch (error) {
+      _trayAvailable = false;
+      Logger.warnWithTag(
+        'DESKTOP',
+        'failed to refresh tray after host appeared',
+        error,
+      );
+    }
+  }
+
+  Menu _buildTrayContextMenu() => Menu(
+    items: <MenuItem>[
+      MenuItem(
+        key: 'show_window',
+        label: '显示 Echo',
+        onClick: (_) => unawaited(showWindow()),
+      ),
+      MenuItem.separator(),
+      MenuItem(
+        key: 'play_pause',
+        label: '播放 / 暂停',
+        onClick: (_) => unawaited(_onTogglePlayPause?.call()),
+      ),
+      MenuItem(
+        key: 'next',
+        label: '下一首',
+        onClick: (_) => unawaited(_onNext?.call()),
+      ),
+      MenuItem.separator(),
+      MenuItem(
+        key: 'quit',
+        label: '退出 Echo',
+        onClick: (_) => unawaited(requestExit()),
+      ),
+    ],
+  );
 
   Future<void> showWindow() async {
     try {
