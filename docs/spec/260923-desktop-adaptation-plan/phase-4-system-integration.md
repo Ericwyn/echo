@@ -6,6 +6,8 @@
 
 2026-09-24，`54207f92` 让 MPRIS 的 `LoopStatus` 按 repeat mode 独立于 `Shuffle` 报告，并以无歧义的 `(libraryId, entryId)` 序列化值生成 SHA-256 track path，避免 32 位 track ID 碰撞或分隔符歧义让旧 `SetPosition` 命中另一首歌。Linux `1.1.0+2053` 与 Android arm64 versionCode `2047` release 均已编译；新增 D-Bus 回归未运行，系统卡片行为仍待用户验证。
 
+`d6bb46f5` 补上关窗时的托盘宿主丢失竞态：如果 host 在窗口 hide 等待期间消失，窗口会先重新显示再最小化，保留任务栏恢复路径。Linux `1.1.0+2053` 和 Android arm64 versionCode `2048` release 已编译；该竞态还需用户在 Ubuntu 手动验证。
+
 ## 目标与拆分
 
 - **P4-A 媒体会话**：Linux MPRIS、Windows SMTC，控制现有播放器；基础 Linux 版本可与 P2 组成 M1。
@@ -96,3 +98,4 @@ P4-A 不依赖托盘存在；P4-B 的隐藏行为必须等托盘或其他恢复�
 | P4-C add-library handoff | 2026-09-24 / `67f62407` | 添加库认证成功后先保存/停播旧库并解绑旧命令，再激活新库；失败回滚旧播放器，成功后重建当前 notifier。未认证的首次登录不创建多余 PlayerNotifier。Linux 与 Android ARM64 release 编译通过，相关回归未运行 | 用户需验证 Android 添加库时通知栏元数据/播放停止与恢复、切库失败后的旧播放恢复 |
 | P4-C active library deletion recovery | 2026-09-24 / `d85868f1` | 删除非活动库不触碰当前播放器；活动库已删除而替代激活失败时清理旧 PlayerNotifier 并退出到未认证状态，避免保留已删除 libraryId。Linux 与 Android ARM64 release 编译通过，未运行回归 | 删除非活动库后继续播放，以及活动库删除/切换失败后的错误提示和恢复待用户验证 |
 | P4-A MPRIS property/track identity | 2026-09-24 / `54207f92` | `LoopStatus` 不再随 Shuffle 强制变为 `None`；SHA-256 track path 基于 JSON 序列化的库/队列条目身份。添加独立循环/随机属性与歧义身份/迟到 SetPosition D-Bus 用例。Dart 格式与 diff 检查、Linux 与 Android ARM64 release 构建通过；未运行 Flutter 测试/analyze | GNOME media card/playerctl 的 repeat/shuffle/seek 仍待 Ubuntu 手动验证 |
+| P4-B tray hide recovery race | 2026-09-24 / `d6bb46f5` | 窗口 hide 完成后再次检查 watcher；若 host 在异步 hide 期间消失，则显示窗口并最小化。Dart 格式与 diff 检查通过，Linux 与 Android ARM64 release 构建通过；未运行测试/analyze | 宿主消失和关窗交错时的任务栏恢复行为仍待 Ubuntu 手动验证 |
