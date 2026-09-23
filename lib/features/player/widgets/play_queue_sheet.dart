@@ -349,8 +349,10 @@ class _PlaybackQueueContentState extends State<PlaybackQueueContent> {
   void didUpdateWidget(covariant PlaybackQueueContent oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.playerState.currentEntryId !=
-        widget.playerState.currentEntryId) {
+            widget.playerState.currentEntryId ||
+        oldWidget.playerState.currentIndex != widget.playerState.currentIndex) {
       _positionScheduled = false;
+      _positionedEntryId = null;
     }
   }
 
@@ -533,34 +535,65 @@ class _PlaybackQueueContentState extends State<PlaybackQueueContent> {
         _positionScheduled = false;
         return;
       }
-      final entryId = widget.playerState.currentEntryId;
-      final targetContext = entryId == null
-          ? null
-          : _entryKeys[entryId]?.currentContext;
-      if (targetContext != null) {
-        unawaited(Scrollable.ensureVisible(targetContext, alignment: 0.35));
-        _positionedEntryId = entryId;
-        return;
-      }
+      _positionCurrentEntry(context, attempt: 0);
+    });
+  }
 
-      final textScale = MediaQuery.textScalerOf(context).scale(1);
-      final estimatedExtent = 76 + max(0.0, textScale - 1) * 48;
-      final position = widget.scrollController.position;
-      widget.scrollController.jumpTo(
-        (currentIndex * estimatedExtent)
-            .clamp(position.minScrollExtent, position.maxScrollExtent)
-            .toDouble(),
-      );
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        final context = entryId == null
-            ? null
-            : _entryKeys[entryId]?.currentContext;
-        if (context != null) {
-          unawaited(Scrollable.ensureVisible(context, alignment: 0.35));
-        }
-        _positionedEntryId = entryId;
-      });
+  void _positionCurrentEntry(BuildContext context, {required int attempt}) {
+    if (!mounted || !widget.scrollController.hasClients) {
+      _positionScheduled = false;
+      return;
+    }
+
+    final state = widget.playerState;
+    final entryId = state.currentEntryId;
+    final targetContext = entryId == null
+        ? null
+        : _entryKeys[entryId]?.currentContext;
+    if (targetContext != null) {
+      unawaited(Scrollable.ensureVisible(targetContext, alignment: 0.35));
+      _positionedEntryId = entryId;
+      _positionScheduled = false;
+      return;
+    }
+
+    final position = widget.scrollController.position;
+    final samples = <({int index, double extent})>[];
+    for (final entry in _entryKeys.entries) {
+      final index = state.queueEntryIds.indexOf(entry.key);
+      final rowContext = entry.value.currentContext;
+      final renderObject = rowContext?.findRenderObject();
+      if (index < 0 || renderObject is! RenderBox || !renderObject.hasSize) {
+        continue;
+      }
+      final extent = renderObject.size.height;
+      if (extent > 0) samples.add((index: index, extent: extent));
+    }
+    samples.sort((first, second) => first.index.compareTo(second.index));
+
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final estimatedExtent = samples.isEmpty
+        ? 76 + max(0.0, textScale - 1) * 48
+        : samples.fold<double>(0, (total, sample) => total + sample.extent) /
+              samples.length;
+    final anchorIndex = samples.isEmpty
+        ? 0
+        : samples[samples.length ~/ 2].index;
+    final targetOffset =
+        position.pixels + (state.currentIndex - anchorIndex) * estimatedExtent;
+    position.jumpTo(
+      targetOffset
+          .clamp(position.minScrollExtent, position.maxScrollExtent)
+          .toDouble(),
+    );
+
+    if (attempt >= 7) {
+      _positionedEntryId = entryId;
+      _positionScheduled = false;
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _positionCurrentEntry(context, attempt: attempt + 1);
     });
   }
 }

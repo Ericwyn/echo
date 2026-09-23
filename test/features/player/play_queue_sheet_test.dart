@@ -231,6 +231,46 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('large queue locates a distant current entry lazily', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1180, 720);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    const currentIndex = 4500;
+    final queue = List<Song>.generate(
+      5000,
+      (index) => Song(id: 'queue-$index', title: 'Queue track $index'),
+      growable: false,
+    );
+    await tester.pumpWidget(
+      buildSubject(
+        state: PlayerState(
+          currentSong: queue[currentIndex],
+          queue: queue,
+          currentIndex: currentIndex,
+        ),
+        onSelect: (_) async {},
+        onClear: () async {},
+        onOpenSongActions: (context, index, song, entryId) async {},
+        onReorder: (_, _) {},
+      ),
+    );
+    for (var frame = 0; frame < 10; frame++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+
+    expect(find.text(queue[currentIndex].title), findsOneWidget);
+    expect(
+      find.byType(EchoSongRow).evaluate().length,
+      lessThan(80),
+      reason: 'the queue should keep offscreen rows lazily built',
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('songs before the current one fade both lines of text', (
     tester,
   ) async {
