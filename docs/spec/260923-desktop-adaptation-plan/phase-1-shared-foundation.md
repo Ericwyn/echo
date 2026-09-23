@@ -61,4 +61,4 @@ artwork 使用明确的“待解析网络 URI / 本地文件 URI或路径 / 无�
 | 日期 / 提交 | 实际修改与检查 | 结果 / 遗留 |
 | --- | --- | --- |
 | 2026-09-23 / 首个实施里程碑 | 新增 `PlaybackCommands` 与 `PlaybackSnapshot`，`PlayerNotifier` 继续作为唯一引擎所有者；音量拆分为 userVolume 与 fadeGain，userVolume 本地保存；运行 `flutter test test/providers/player_recovery_test.dart`（31 项通过）和涉及文件的 `flutter analyze`（无问题） | 契约仍需接入系统 adapter 与桌面 UI；还需覆盖 seek/切源/恢复时音量竞争、metadata/artwork 独立构建、Android 专项回归及队列组件提取；P1 未完成 |
-| 2026-09-23 / artwork 与桌面回归 | 增加跨 Android/Linux 使用的 `ArtworkFileCache`，Android handler 与 Linux MPRIS 从本地缓存文件发布当前歌曲封面并丢弃过期响应；Linux 桌面直接创建 AudioPlayer，不再主动抛 UnsupportedError 触发 AudioService 误报；全量 431 项 Flutter 测试及项目级 `flutter analyze` 通过 | Android 需在设备上复验离线/切歌封面；metadata builder 仍有 Android handler 早退耦合；用户音量与 seek 换源竞争需持续手动观察 |
+| 2026-09-23 / `f6100044` | 增加跨 Android/Linux 使用的 `ArtworkFileCache`，Android handler 与 Linux MPRIS 从本地缓存文件发布当前歌曲封面并丢弃过期响应；Linux 桌面直接创建 AudioPlayer，不再主动抛 UnsupportedError 触发 AudioService 误报；全量 431 项 Flutter 测试及项目级 `flutter analyze` 通过 | Android 需在设备上复验离线/切歌封面；metadata builder 仍有 Android handler 早退耦合；用户音量与 seek 换源竞争需持续手动观察 |
