@@ -60,14 +60,38 @@ class DesktopPlayerWorkspace extends ConsumerWidget {
               ),
               LayoutBuilder(
                 builder: (context, constraints) {
-                  final narrow = constraints.maxWidth < 900;
-                  final panelPadding = narrow ? spacing.md : spacing.xl;
-                  final columnGap = narrow ? spacing.lg : spacing.xxl;
+                  final compact =
+                      constraints.maxWidth < 820 || constraints.maxHeight < 520;
+
+                  if (compact) {
+                    return Padding(
+                      padding: EdgeInsets.all(spacing.md),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: <Widget>[
+                          _DesktopWorkspaceHeader(
+                            song: song,
+                            panel: panel,
+                            onPanelChanged: onPanelChanged,
+                            onClose: onClose,
+                            compact: true,
+                          ),
+                          SizedBox(height: spacing.sm),
+                          const EchoDivider(),
+                          SizedBox(height: spacing.xs),
+                          Expanded(child: _buildActivePanel(context)),
+                        ],
+                      ),
+                    );
+                  }
+
+                  final panelPadding = spacing.xl;
+                  final columnGap = spacing.xxl;
                   final artworkWidth = (constraints.maxWidth * 0.36)
-                      .clamp(260.0, 440.0)
+                      .clamp(280.0, 440.0)
                       .toDouble();
                   final coverSize = (artworkWidth - panelPadding * 2)
-                      .clamp(220.0, 400.0)
+                      .clamp(240.0, 400.0)
                       .toDouble();
 
                   return Padding(
@@ -96,25 +120,7 @@ class DesktopPlayerWorkspace extends ConsumerWidget {
                               SizedBox(height: spacing.md),
                               const EchoDivider(),
                               SizedBox(height: spacing.sm),
-                              Expanded(
-                                child: AnimatedSwitcher(
-                                  duration: context.echoMotion.resolve(
-                                    context,
-                                    context.echoMotion.state,
-                                  ),
-                                  child: panel == DesktopPlayerPanel.lyrics
-                                      ? const CurrentLyricsPanel(
-                                          key: ValueKey<String>(
-                                            'desktop-lyrics',
-                                          ),
-                                        )
-                                      : const _DesktopQueuePanel(
-                                          key: ValueKey<String>(
-                                            'desktop-queue',
-                                          ),
-                                        ),
-                                ),
-                              ),
+                              Expanded(child: _buildActivePanel(context)),
                             ],
                           ),
                         ),
@@ -127,6 +133,15 @@ class DesktopPlayerWorkspace extends ConsumerWidget {
           );
         },
       ),
+    );
+  }
+
+  Widget _buildActivePanel(BuildContext context) {
+    return AnimatedSwitcher(
+      duration: context.echoMotion.resolve(context, context.echoMotion.state),
+      child: panel == DesktopPlayerPanel.lyrics
+          ? const CurrentLyricsPanel(key: ValueKey<String>('desktop-lyrics'))
+          : const _DesktopQueuePanel(key: ValueKey<String>('desktop-queue')),
     );
   }
 }
@@ -193,18 +208,35 @@ class _DesktopWorkspaceHeader extends StatelessWidget {
     required this.panel,
     required this.onPanelChanged,
     required this.onClose,
+    this.compact = false,
   });
 
   final Song song;
   final DesktopPlayerPanel panel;
   final ValueChanged<DesktopPlayerPanel> onPanelChanged;
   final VoidCallback onClose;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final spacing = context.echoSpacing;
     return Row(
+      key: ValueKey<String>(
+        compact
+            ? 'echo-desktop-workspace-compact-header'
+            : 'echo-desktop-workspace-header',
+      ),
       children: <Widget>[
+        if (compact) ...<Widget>[
+          EchoArtwork(
+            coverArtId: song.artworkReference,
+            semanticLabel: '${song.title} 封面',
+            size: 56,
+            requestSize: 160,
+            borderRadius: context.echoRadii.control,
+          ),
+          SizedBox(width: spacing.sm),
+        ],
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

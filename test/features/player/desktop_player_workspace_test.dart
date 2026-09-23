@@ -69,4 +69,60 @@ void main() {
     expect(emptyLyrics.style?.color, visuals.foreground);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('desktop workspace uses a compact header when space is tight', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(720, 460);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    final song = Song(
+      id: 'desktop-compact-current',
+      title: 'Compact desktop song',
+      artist: 'Echo Artist',
+      album: 'Echo Album',
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          playerProvider.overrideWith(
+            (ref) => TestPlayerNotifier(
+              PlayerState(
+                currentSong: song,
+                queue: <Song>[song],
+                currentIndex: 0,
+              ),
+            ),
+          ),
+          currentLyricsProvider.overrideWith((ref) async => null),
+          currentSongPaletteProvider.overrideWith((ref) async => null),
+          resolvedCurrentSongMediaVisualsProvider.overrideWithValue(
+            EchoMediaVisuals.fallback(seed: const Color(0xFF187EA5)),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: Scaffold(
+            body: DesktopPlayerWorkspace(
+              panel: DesktopPlayerPanel.lyrics,
+              onPanelChanged: (_) {},
+              onClose: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(
+        const ValueKey<String>('echo-desktop-workspace-compact-header'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('歌词'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }
