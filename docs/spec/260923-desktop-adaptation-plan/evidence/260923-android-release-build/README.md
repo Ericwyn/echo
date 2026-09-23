@@ -2,7 +2,7 @@
 
 日期：2026-09-23
 
-此记录是 `versionCode 4037` 的历史构建，已由 [2026-09-24 共享播放器构建](../260924-shared-player-layer-build/README.md) 更新为适配本机 `2026` 安装版本的 `versionCode 2027`。
+此记录是 `versionCode 4037` 的历史构建，已由 [2026-09-24 共享播放器构建](../260924-shared-player-layer-build/README.md) 更新；本机 ARM64 脚本先生成可升级的 `2027`，随后递增至 `2028`。
 
 范围：确认桌面适配后的共享 Flutter 工程仍可生成一个可供 arm64 Android 设备安装的正式 APK。此记录只证明构建与签名，不证明安装、启动或 Android 功能行为。
 
