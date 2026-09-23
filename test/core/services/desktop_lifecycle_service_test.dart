@@ -2,6 +2,19 @@ import 'package:echoes/core/services/desktop_lifecycle_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  group('statusNotifierReconnectDelay', () {
+    test('backs off to a capped 30 second retry interval', () {
+      expect(statusNotifierReconnectDelay(0), const Duration(seconds: 1));
+      expect(statusNotifierReconnectDelay(1), const Duration(seconds: 1));
+      expect(statusNotifierReconnectDelay(2), const Duration(seconds: 2));
+      expect(statusNotifierReconnectDelay(3), const Duration(seconds: 4));
+      expect(statusNotifierReconnectDelay(4), const Duration(seconds: 8));
+      expect(statusNotifierReconnectDelay(5), const Duration(seconds: 16));
+      expect(statusNotifierReconnectDelay(6), const Duration(seconds: 30));
+      expect(statusNotifierReconnectDelay(50), const Duration(seconds: 30));
+    });
+  });
+
   group('showWindowWithBestEffortFocus', () {
     test('keeps visible state when the compositor denies focus', () async {
       var visible = false;

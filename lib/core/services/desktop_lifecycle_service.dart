@@ -19,6 +19,8 @@ import 'status_notifier_host_tracker.dart';
 const _exitCleanupTimeout = Duration(seconds: 4);
 const _playerQuitTimeout = Duration(seconds: 15);
 const _windowDestroyTimeout = Duration(seconds: 8);
+const _watcherStableResetDelay = Duration(seconds: 30);
+const _watcherReconnectMaximumAttempt = 6;
 
 /// Owns desktop window/tray lifetime only. Playback remains in PlayerNotifier.
 class DesktopLifecycleService with WindowListener, TrayListener {
@@ -34,15 +36,20 @@ class DesktopLifecycleService with WindowListener, TrayListener {
   Future<bool> Function({required bool trayAvailable})? _onBeforeHide;
   DBusClient? _sessionBusClient;
   StreamSubscription<DBusNameOwnerChangedEvent>? _watcherSubscription;
+  Timer? _watcherReconnectTimer;
+  Timer? _watcherStableTimer;
   final StatusNotifierHostTracker _statusNotifierHostTracker =
       StatusNotifierHostTracker();
   bool _initialized = false;
+  bool _watcherConnectInProgress = false;
   bool _exitRequested = false;
   bool _trayIconRegistered = false;
   bool _trayAvailable = false;
   bool _windowHidden = false;
   bool _closeActionPending = false;
   bool _exitCheckInProgress = false;
+  int _watcherGeneration = 0;
+  int _watcherReconnectAttempt = 0;
   DesktopTrayMenuState _trayMenuState = const DesktopTrayMenuState.empty();
 
   bool get trayAvailable => _trayAvailable;
@@ -135,41 +142,152 @@ class DesktopLifecycleService with WindowListener, TrayListener {
     }
   }
 
-  Future<void> _connectToStatusNotifierWatcher() async {
+  Future<void> _connectToStatusNotifierWatcher({
+    bool refreshTrayOnSuccess = false,
+  }) async {
+    if (_exitRequested || _watcherConnectInProgress) return;
+    _watcherConnectInProgress = true;
+    final generation = ++_watcherGeneration;
     DBusClient? client;
     try {
       _statusNotifierHostTracker.beginInitialLookup();
       client = DBusClient.session();
       _sessionBusClient = client;
       _watcherSubscription = client.nameOwnerChanged.listen(
-        _onNameOwnerChanged,
-        onError: (Object error) {
-          _statusNotifierHostTracker.clear();
-          _trayAvailable = false;
-          if (_windowHidden && !_exitRequested) unawaited(showWindow());
-          Logger.warnWithTag('DESKTOP', 'tray watcher monitor failed', error);
+        (event) {
+          if (_isCurrentWatcher(generation)) _onNameOwnerChanged(event);
         },
+        onError: (Object error) {
+          unawaited(_handleWatcherConnectionFailure(generation, error));
+        },
+        onDone: () => unawaited(
+          _handleWatcherConnectionFailure(
+            generation,
+            StateError('StatusNotifierWatcher monitor closed'),
+          ),
+        ),
       );
       for (final name in StatusNotifierHostTracker.watcherNames) {
         try {
           final owner = await client.getNameOwner(name);
+          if (!_isCurrentWatcher(generation)) return;
           _statusNotifierHostTracker.applyInitialLookup(
             name,
             hasOwner: owner != null,
           );
         } catch (_) {
           // A missing watcher is a supported desktop configuration.
+          if (!_isCurrentWatcher(generation)) return;
           _statusNotifierHostTracker.applyInitialLookup(name, hasOwner: false);
         }
       }
+      if (!_isCurrentWatcher(generation)) return;
       _statusNotifierHostTracker.finishInitialLookup();
+      _watcherStableTimer?.cancel();
+      _watcherStableTimer = Timer(_watcherStableResetDelay, () {
+        if (_isCurrentWatcher(generation)) _watcherReconnectAttempt = 0;
+      });
+      _watcherReconnectTimer?.cancel();
+      _watcherReconnectTimer = null;
+      _trayAvailable =
+          _trayIconRegistered && _statusNotifierHostTracker.hasHost;
+      if (refreshTrayOnSuccess && _statusNotifierHostTracker.hasHost) {
+        await _restoreTrayRegistrationAfterHostAppeared();
+      }
     } catch (error) {
-      _statusNotifierHostTracker.clear();
-      await _watcherSubscription?.cancel();
-      _watcherSubscription = null;
+      if (_isCurrentWatcher(generation)) {
+        await _handleWatcherConnectionFailure(
+          generation,
+          error,
+          failedClient: client,
+        );
+      }
+    } finally {
+      _watcherConnectInProgress = false;
+    }
+  }
+
+  bool _isCurrentWatcher(int generation) =>
+      generation == _watcherGeneration && !_exitRequested;
+
+  Future<void> _handleWatcherConnectionFailure(
+    int generation,
+    Object error, {
+    DBusClient? failedClient,
+  }) async {
+    if (!_isCurrentWatcher(generation)) return;
+    ++_watcherGeneration;
+    _watcherStableTimer?.cancel();
+    _watcherStableTimer = null;
+    _statusNotifierHostTracker.clear();
+    _trayAvailable = false;
+
+    final subscription = _watcherSubscription;
+    _watcherSubscription = null;
+    if (subscription != null) {
+      try {
+        await subscription.cancel().timeout(_exitCleanupTimeout);
+      } catch (cleanupError) {
+        Logger.warnWithTag(
+          'DESKTOP',
+          'could not stop failed tray host monitor',
+          cleanupError,
+        );
+      }
+    }
+    final activeClient = _sessionBusClient;
+    final clientToClose = failedClient ?? activeClient;
+    if (failedClient == null || identical(activeClient, failedClient)) {
       _sessionBusClient = null;
-      await client?.close();
-      Logger.warnWithTag('DESKTOP', 'cannot inspect tray host', error);
+    }
+    try {
+      await clientToClose?.close().timeout(_exitCleanupTimeout);
+    } catch (cleanupError) {
+      Logger.warnWithTag(
+        'DESKTOP',
+        'could not close failed session bus connection',
+        cleanupError,
+      );
+    }
+
+    if (_windowHidden && !_exitRequested) unawaited(showWindow());
+    Logger.warnWithTag('DESKTOP', 'tray watcher monitor failed', error);
+    _scheduleWatcherReconnect();
+  }
+
+  void _scheduleWatcherReconnect() {
+    if (_exitRequested || _watcherReconnectTimer != null) return;
+    if (_watcherReconnectAttempt < _watcherReconnectMaximumAttempt) {
+      _watcherReconnectAttempt++;
+    }
+    final delay = statusNotifierReconnectDelay(_watcherReconnectAttempt);
+    Logger.infoWithTag(
+      'DESKTOP',
+      'retrying tray host monitor in ${delay.inSeconds}s',
+    );
+    _watcherReconnectTimer = Timer(delay, () {
+      _watcherReconnectTimer = null;
+      _attemptWatcherReconnect();
+    });
+  }
+
+  void _attemptWatcherReconnect() {
+    if (_exitRequested) return;
+    if (_watcherConnectInProgress) {
+      _watcherReconnectTimer = Timer(const Duration(seconds: 1), () {
+        _watcherReconnectTimer = null;
+        _attemptWatcherReconnect();
+      });
+      return;
+    }
+    unawaited(_connectToStatusNotifierWatcher(refreshTrayOnSuccess: true));
+  }
+
+  Future<void> _restoreTrayRegistrationAfterHostAppeared() async {
+    if (_trayIconRegistered) {
+      await _refreshTrayAfterHostAppeared();
+    } else {
+      await _installTrayIcon();
     }
   }
 
@@ -196,7 +314,7 @@ class DesktopLifecycleService with WindowListener, TrayListener {
 
     if (!wasAvailable) {
       _trayAvailable = false;
-      unawaited(_refreshTrayAfterHostAppeared());
+      unawaited(_restoreTrayRegistrationAfterHostAppeared());
     } else {
       _trayAvailable = _trayIconRegistered;
     }
@@ -276,6 +394,11 @@ class DesktopLifecycleService with WindowListener, TrayListener {
     if (!approved) return;
 
     _exitRequested = true;
+    _watcherReconnectTimer?.cancel();
+    _watcherReconnectTimer = null;
+    _watcherStableTimer?.cancel();
+    _watcherStableTimer = null;
+    ++_watcherGeneration;
     await _runExitStep(
       'save window state',
       DesktopWindowStateService.instance.dispose,
@@ -309,8 +432,73 @@ class DesktopLifecycleService with WindowListener, TrayListener {
     try {
       await windowManager.destroy().timeout(_windowDestroyTimeout);
     } catch (error) {
-      _exitRequested = false;
       Logger.errorWithTag('DESKTOP', 'failed to destroy main window', error);
+      await _restoreAfterDestroyFailure();
+    }
+  }
+
+  Future<void> _restoreAfterDestroyFailure() async {
+    _exitRequested = false;
+    _windowHidden = false;
+    _trayAvailable = false;
+    _trayIconRegistered = false;
+
+    await _runRecoveryStep(
+      'restore close guard',
+      () => windowManager.setPreventClose(true),
+    );
+    await _runRecoveryStep('restore window listener', () async {
+      windowManager.removeListener(this);
+      windowManager.addListener(this);
+    });
+    await _runRecoveryStep('restore tray listener', () async {
+      trayManager.removeListener(this);
+      trayManager.addListener(this);
+    });
+    await _runRecoveryStep(
+      'restore window state persistence',
+      DesktopWindowStateService.instance.initialize,
+    );
+
+    if (defaultTargetPlatform == TargetPlatform.linux) {
+      await _connectToStatusNotifierWatcher(refreshTrayOnSuccess: true);
+    }
+    if (!_trayIconRegistered) {
+      await _runRecoveryStep('restore tray icon', _installTrayIcon);
+    }
+
+    final shown = await showWindowWithBestEffortFocus(
+      show: windowManager.show,
+      focus: windowManager.focus,
+      onShown: () => _windowHidden = false,
+      onShowFailure: (error) => Logger.warnWithTag(
+        'DESKTOP',
+        'failed to restore main window after exit failure',
+        error,
+      ),
+      onFocusFailure: (error) => Logger.warnWithTag(
+        'DESKTOP',
+        'restored window but could not focus it after exit failure',
+        error,
+      ),
+    );
+    if (!shown) {
+      await _runRecoveryStep(
+        'minimize window after failed restore',
+        windowManager.minimize,
+      );
+    }
+  }
+
+  Future<void> _runRecoveryStep(
+    String label,
+    Future<void> Function() operation,
+  ) async {
+    try {
+      await operation().timeout(_exitCleanupTimeout);
+    } catch (error, stackTrace) {
+      Logger.warnWithTag('DESKTOP', 'exit recovery failed: $label', error);
+      Logger.debugWithTag('DESKTOP', 'exit recovery stack: $label', stackTrace);
     }
   }
 
@@ -429,6 +617,16 @@ class DesktopLifecycleService with WindowListener, TrayListener {
 }
 
 enum DesktopWindowCloseResult { hidden, minimized }
+
+@visibleForTesting
+Duration statusNotifierReconnectDelay(int attempt) {
+  if (attempt <= 1) return const Duration(seconds: 1);
+  if (attempt == 2) return const Duration(seconds: 2);
+  if (attempt == 3) return const Duration(seconds: 4);
+  if (attempt == 4) return const Duration(seconds: 8);
+  if (attempt == 5) return const Duration(seconds: 16);
+  return const Duration(seconds: 30);
+}
 
 @visibleForTesting
 Future<bool> showWindowWithBestEffortFocus({
