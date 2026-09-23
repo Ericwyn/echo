@@ -2,7 +2,7 @@
 
 [返回 spec](README.md) · [验收矩阵](acceptance.md) · [决策](decisions.md)
 
-状态：`eaa77d13` 的 Linux release bundle 与 Ubuntu `.deb` 已构建；已核对 ELF x64、desktop entry、图标及 GTK/AppIndicator/libmpv 依赖，尚未安装或实播。前置：P0–P4 仍有完整系统操作、恢复和安装场景待验证。当前优先 Ubuntu/Linux；Windows CI 暂缓，不能据此宣称 Windows 发布支持。
+状态：`52463122` 的 Linux release bundle 与 Ubuntu `.deb` 已构建；已核对 ELF x64、desktop entry、图标及 GTK/AppIndicator/libmpv 依赖，尚未安装或实播。前置：P0–P4 仍有完整系统操作、恢复和安装场景待验证。当前优先 Ubuntu/Linux；Windows CI 暂缓，不能据此宣称 Windows 发布支持。
 
 ## 目标与交付范围
 
@@ -79,6 +79,7 @@ Ubuntu 24.04/Wayland 若仍未验收，只能先发布明确限定 22.04/X11 的
 | Ubuntu 22.04 X11 | `27913d3f` / 2026-09-23 release bundle 与 `.deb` | 另包含桌面前进重建详情页时复用 PageStorageBucket 恢复可滚动内容位置；release build 与 `.deb` 组装成功，核对 amd64 ELF、desktop entry、图标和运行依赖。未启动、未安装、未运行 Flutter 测试；滚动恢复由用户实测 |
 | Ubuntu 22.04 X11 | `859745a6` / 2026-09-23 release bundle 与 `.deb` | 另包含前进恢复 SearchPage 的查询/草稿状态；release build 与 `.deb` 组装成功，核对 amd64 ELF、desktop entry、图标和运行依赖。未启动、未安装、未运行 Flutter 测试；查询恢复由用户实测 |
 | Ubuntu 22.04 X11 | `eaa77d13` / 2026-09-23 release bundle 与 `.deb` | 另包含 album/playlist detail 排序选择的 route-local 状态恢复，并将搜索状态保存改为输入时写入；release build 与 `.deb` 组装成功，核对 amd64 ELF、desktop entry、图标和运行依赖。未启动、未安装、未运行 Flutter 测试；详情筛选恢复由用户实测 |
+| Ubuntu 22.04 X11 | `52463122` / 2026-09-23 release bundle 与 `.deb` | 另包含收藏夹 tab 与 artist detail 当前内容区的路由状态恢复；release build 与 `.deb` 组装成功，核对 amd64 ELF、desktop entry、图标和运行依赖。未启动、未安装、未运行 Flutter 测试；收藏/歌手页面恢复由用户实测 |
 | Ubuntu 24.04 / Wayland | — | 待提供环境与结果 |
 | Windows | — | Windows CI 暂缓；未编译/未实机验收 |
 | Android 回归 | 本任务 Flutter 测试 431 项通过 | artwork/shared player 自动回归通过；最终 Android 真机锁屏/通知栏/封面验证待完成 |
