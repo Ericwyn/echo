@@ -12,7 +12,7 @@
 
 `bb8d9af3` 把“托盘不可用/隐藏期间消失”和“显示成功但 focus 被拒绝”的决策抽成可单测 helper，并添加 5 条回归用例；按用户要求未运行。最新 Linux `1.1.0+2053` 与 Android ARM64 versionCode `2050` release 已编译。
 
-`cab6fe11` 还修复了删除音乐库后前进历史恢复失效页面的问题；对应 Linux `1.1.0+2053` 与 Android ARM64 versionCode `2051` release 已编译。后续 `b12aa608` 又统一了队列播放命令，`c4bd0b6e` 补上索引边界保护；当前 Android release versionCode `2054`，交互和回归用例仍待用户验证。
+`cab6fe11` 还修复了删除音乐库后前进历史恢复失效页面的问题；对应 Linux `1.1.0+2053` 与 Android ARM64 versionCode `2051` release 已编译。后续 `b12aa608` 又统一了队列播放命令，`c4bd0b6e` 补上索引边界保护；当时 Android release versionCode 为 `2054`，交互和回归用例仍待用户验证。
 
 ## 目标与拆分
 
@@ -109,3 +109,4 @@ P4-A 不依赖托盘存在；P4-B 的隐藏行为必须等托盘或其他恢复�
 | P4-B Wayland visibility/focus recovery | 2026-09-24 / `8acd46dd` | `show()` 成功即清除 hidden 状态；后续 focus 请求单独捕获失败，compositor 拒绝 focus 不再将已显示窗口误记为隐藏。Dart 格式与 diff 检查通过，Linux 与 Android ARM64 release 构建通过；未运行测试/analyze | Wayland focus 被拒绝、显示窗口和托盘/任务栏恢复路径仍需手动验证 |
 | P4-B lifecycle policy tests | 2026-09-24 / `bb8d9af3` | 抽出显示/focus 与托盘丢失关闭策略，新增 5 条无托盘、hide 期间丢 host、host 可用、focus 拒绝、show 失败用例。Dart 格式、diff 检查及两端 release build 通过；新增 Flutter tests 未运行 | 自动回归定义覆盖状态转换；GNOME/Wayland 实机与测试运行仍待用户执行 |
 | P4-C lifecycle failure recovery | 2026-09-24 / `0e832ddb`、`e34563ef`、`9abb3e09`，`build/linux-lldtmp-2064` | StatusNotifier session-bus 监听异常后按 1/2/4/8/16/30 秒上限退避重连，并以 connection generation 丢弃旧回调；连接稳定 30 秒后重置退避。窗口 destroy 失败/超时时恢复 close guard、window/tray listeners、窗口状态持久化、watcher/tray 注册并显示窗口，显示失败时尝试最小化；show/minimize 兜底新增 3 条回归定义。所有新增测试未运行；Linux `1.1.0+2053` amd64 `.deb` 构建成功，SHA-256 `ab02302777cf8d9b94b9baebbb2ff053441be3e57978cb3bee3022dfbc6fc349`; standalone bundle ZIP SHA-256 `69417c0ef87a1f4630328a95a1b06ad8694d5b4ec19ee8327ecd42e72232f4b2`，归档完整性检查通过 | 未安装或启动应用；未运行 Flutter tests/analyze；用户仍需验证 watcher 重启、隐藏恢复、关闭/退出及极端 destroy 失败场景 |
+| P4-A independent Shuffle/LoopStatus | 2026-09-24 / `c7455cf0` | D-Bus `Shuffle` 和 `LoopStatus` 分别调用 `setShuffleEnabled` 与 `setLoopMode`；随机队列 repeat-off 在轮末停止，repeat-all 重建随机轮次，repeat-one 重播当前条目。添加两种属性写入顺序的 D-Bus 回归定义，未运行；Linux 与 Android ARM64 release 编译通过 | GNOME 两种写入顺序、LoopStatus/Shuffle 显示和 seek 待用户验证 |
