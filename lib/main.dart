@@ -9,11 +9,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'package:window_manager/window_manager.dart';
 import 'app.dart';
+import 'core/design/echo_design.dart';
+import 'core/design/layout/echo_desktop_metrics.dart';
 import 'core/services/background_playback_advisor.dart';
 import 'core/services/desktop_lifecycle_service.dart';
 import 'core/services/desktop_window_state_service.dart';
-import 'core/design/layout/echo_desktop_metrics.dart';
+import 'data/models/download_task.dart';
+import 'providers/download_provider.dart';
 import 'providers/player_provider.dart';
+import 'widgets/main_scaffold.dart' show scaffoldKey;
 
 void main() {
   runZonedGuarded(
@@ -115,10 +119,67 @@ class _DesktopLifecycleHostState extends ConsumerState<_DesktopLifecycleHost> {
           await player.initialized;
           await player.stop();
         },
+        onBeforeQuit: _confirmDesktopQuit,
       );
     } catch (error, stackTrace) {
       Logger.warnWithTag('DESKTOP', 'desktop lifecycle setup failed', error);
       Logger.debugWithTag('DESKTOP', 'lifecycle stack', stackTrace);
+    }
+  }
+
+  Future<bool> _confirmDesktopQuit() async {
+    try {
+      final tasks = await ref.read(downloadRepositoryProvider).getAllTasks();
+      final activeTasks = tasks
+          .where(
+            (task) =>
+                task.status == DownloadTaskStatus.pending ||
+                task.status == DownloadTaskStatus.downloading,
+          )
+          .toList(growable: false);
+      if (activeTasks.isEmpty) return true;
+
+      await DesktopLifecycleService.instance.showWindow();
+      final dialogContext = scaffoldKey.currentContext;
+      if (dialogContext == null) return false;
+
+      final shouldPauseAndQuit = await showDialog<bool>(
+        context: dialogContext,
+        builder: (context) => AlertDialog(
+          title: const Text('下载任务仍在进行'),
+          content: Text(
+            '有 ${activeTasks.length} 个本地下载任务未完成。退出会中断下载。'
+            '你可以先取消退出，或暂停任务并退出；下次可在下载管理中继续。',
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('取消退出'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('暂停下载并退出'),
+            ),
+          ],
+        ),
+      );
+      if (shouldPauseAndQuit != true) return false;
+
+      await ref.read(downloadServiceProvider).pauseAll();
+      return true;
+    } catch (error, stackTrace) {
+      Logger.warnWithTag('DESKTOP', 'download-aware exit failed', error);
+      Logger.debugWithTag('DESKTOP', 'exit stack', stackTrace);
+      await DesktopLifecycleService.instance.showWindow();
+      final context = scaffoldKey.currentContext;
+      if (context != null) {
+        showEchoMessage(
+          context,
+          '读取或暂停下载任务失败，Echoes 仍保持打开。',
+          kind: EchoMessageKind.error,
+        );
+      }
+      return false;
     }
   }
 

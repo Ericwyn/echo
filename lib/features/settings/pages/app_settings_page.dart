@@ -1,13 +1,16 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart'
     show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/design/echo_design.dart';
+import '../../../core/services/desktop_close_settings.dart';
 import '../../../core/services/update_checker.dart';
 import '../../../core/utils/logger.dart';
 import '../../../data/models/music_library.dart';
@@ -23,6 +26,7 @@ import '../../../providers/player_provider.dart';
 import '../../../providers/playlist_provider.dart';
 import '../../../providers/theme_provider.dart';
 import '../widgets/echo_settings_components.dart';
+import '../widgets/route_selection_sheet.dart';
 import 'audio_quality_page.dart';
 import 'background_playback_page.dart';
 import 'cache_management_page.dart';
@@ -42,6 +46,34 @@ class AppSettingsPage extends ConsumerStatefulWidget {
 class _AppSettingsPageState extends ConsumerState<AppSettingsPage> {
   bool _isExportingLogs = false;
   bool _isCheckingUpdate = false;
+  bool _exitOnDesktopClose = false;
+
+  bool get _showDesktopCloseSetting =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.linux;
+  bool get _showDesktopLibraryActions =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.linux ||
+          defaultTargetPlatform == TargetPlatform.windows ||
+          defaultTargetPlatform == TargetPlatform.macOS);
+
+  @override
+  void initState() {
+    super.initState();
+    if (_showDesktopCloseSetting) unawaited(_loadDesktopCloseSetting());
+  }
+
+  Future<void> _loadDesktopCloseSetting() async {
+    try {
+      final exitOnClose = await DesktopCloseSettings.shouldExitOnClose();
+      if (mounted) setState(() => _exitOnDesktopClose = exitOnClose);
+    } catch (error) {
+      Logger.warnWithTag(
+        'DESKTOP',
+        'cannot load close behavior setting',
+        error,
+      );
+    }
+  }
 
   Future<void> _exportLogs() async {
     setState(() => _isExportingLogs = true);
@@ -297,6 +329,23 @@ class _AppSettingsPageState extends ConsumerState<AppSettingsPage> {
                             ),
                           ),
                   ),
+                  if (_showDesktopLibraryActions) ...<Widget>[
+                    EchoSettingRow(
+                      icon: AppIcons.add,
+                      title: '添加音乐库',
+                      description: '连接另一台服务器或另一个账户',
+                      onPressed: () => unawaited(
+                        GoRouter.of(context).push<void>('/login?add=true'),
+                      ),
+                    ),
+                    EchoSettingRow(
+                      icon: AppIcons.route,
+                      title: '切换线路',
+                      value: activeAddress?.label ?? '自动选择',
+                      description: '手动锁定线路，或重新检测延迟',
+                      onPressed: () => showRouteSelectionSheet(context),
+                    ),
+                  ],
                 ],
               ),
               SizedBox(height: context.echoSpacing.xl),
@@ -345,6 +394,16 @@ class _AppSettingsPageState extends ConsumerState<AppSettingsPage> {
                     description: '设置相邻曲目之间的交叉衰减时长。',
                     onPressed: () => _showCrossfadeSheet(crossfadeMs),
                   ),
+                  if (_showDesktopCloseSetting)
+                    EchoSettingRow(
+                      icon: AppIcons.close,
+                      title: '关闭窗口后',
+                      value: _exitOnDesktopClose ? '退出应用' : '托盘运行',
+                      description: _exitOnDesktopClose
+                          ? '退出前会询问是否暂停未完成的本地下载。'
+                          : '托盘可用时隐藏并继续播放；托盘不可用时最小化。',
+                      onPressed: _showDesktopCloseBehaviorSheet,
+                    ),
                   EchoSettingRow(
                     icon: AppIcons.lyrics,
                     title: '歌词提供商',
@@ -509,6 +568,44 @@ class _AppSettingsPageState extends ConsumerState<AppSettingsPage> {
     );
     if (selected == null) return;
     ref.read(crossfadeDurationMsProvider.notifier).setDuration(selected);
+  }
+
+  Future<void> _showDesktopCloseBehaviorSheet() async {
+    final exitOnClose = await showEchoBottomSheet<bool>(
+      context: context,
+      useRootNavigator: true,
+      builder: (sheetContext) => EchoBottomSheet(
+        title: '关闭窗口后',
+        subtitle: '选择点击桌面窗口关闭按钮时的行为。',
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            EchoChoiceRow(
+              title: '隐藏到托盘并继续播放',
+              description: '托盘不可用时将最小化到任务栏。',
+              selected: !_exitOnDesktopClose,
+              icon: AppIcons.music,
+              onPressed: () => Navigator.of(sheetContext).pop(false),
+            ),
+            EchoChoiceRow(
+              title: '关闭窗口时退出',
+              description: '退出前可暂停尚未完成的本地下载。',
+              selected: _exitOnDesktopClose,
+              icon: AppIcons.close,
+              onPressed: () => Navigator.of(sheetContext).pop(true),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (exitOnClose == null || exitOnClose == _exitOnDesktopClose) return;
+
+    try {
+      await DesktopCloseSettings.setExitOnClose(exitOnClose);
+      if (mounted) setState(() => _exitOnDesktopClose = exitOnClose);
+    } catch (error) {
+      _showMessage('保存桌面关闭行为失败: $error', kind: EchoMessageKind.error);
+    }
   }
 
   void _showAboutSheet() {

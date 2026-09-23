@@ -162,7 +162,6 @@ class EchoExpandedNavigationSidebar extends StatelessWidget {
     required this.destinations,
     required this.selectedBranchIndex,
     required this.onDestinationSelected,
-    required this.onOpenDrawer,
     this.actions = const <EchoDesktopSidebarAction>[],
     this.accountLabel = '账户',
     this.accountSubtitle = '',
@@ -172,7 +171,6 @@ class EchoExpandedNavigationSidebar extends StatelessWidget {
   final List<EchoShellDestination> destinations;
   final int selectedBranchIndex;
   final ValueChanged<int> onDestinationSelected;
-  final VoidCallback onOpenDrawer;
   final List<EchoDesktopSidebarAction> actions;
   final String accountLabel;
   final String accountSubtitle;
@@ -289,10 +287,9 @@ class EchoExpandedNavigationSidebar extends StatelessWidget {
                       spacing.sm,
                       spacing.xs,
                     ),
-                    child: _DesktopAccountButton(
+                    child: _DesktopAccountIdentity(
                       accountLabel: accountLabel,
                       accountSubtitle: accountSubtitle,
-                      onPressed: onOpenDrawer,
                     ),
                   ),
                 ] else
@@ -316,10 +313,9 @@ class EchoExpandedNavigationSidebar extends StatelessWidget {
                           spacing.sm,
                           spacing.xs,
                         ),
-                        child: _DesktopAccountButton(
+                        child: _DesktopAccountIdentity(
                           accountLabel: accountLabel,
                           accountSubtitle: accountSubtitle,
-                          onPressed: onOpenDrawer,
                         ),
                       ),
                     ),
@@ -628,69 +624,62 @@ class _SidebarDestination extends StatelessWidget {
   }
 }
 
-class _DesktopAccountButton extends StatelessWidget {
-  const _DesktopAccountButton({
+class _DesktopAccountIdentity extends StatelessWidget {
+  const _DesktopAccountIdentity({
     required this.accountLabel,
     required this.accountSubtitle,
-    required this.onPressed,
   });
 
   final String accountLabel;
   final String accountSubtitle;
-  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
     final spacing = context.echoSpacing;
-    return EchoPressable(
-      semanticLabel: '账户、线路和设置',
-      onPressed: onPressed,
-      minimumSize: const Size(double.infinity, 60),
-      borderRadius: context.echoRadii.control,
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: spacing.xs),
-        child: Row(
-          children: <Widget>[
-            Icon(
-              AppIcons.profile,
-              size: context.echoInteraction.iconSize,
-              color: context.echoColors.accent,
-            ),
-            SizedBox(width: spacing.sm),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    accountLabel,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: context.echoTypography.label.copyWith(
-                      fontSize: 14,
-                      color: context.echoColors.ink,
-                    ),
-                  ),
-                  if (accountSubtitle.isNotEmpty)
+    return Semantics(
+      label:
+          '当前账户 $accountLabel${accountSubtitle.isEmpty ? '' : '，$accountSubtitle'}',
+      child: SizedBox(
+        height: 60,
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: spacing.xs),
+          child: Row(
+            children: <Widget>[
+              Icon(
+                AppIcons.profile,
+                size: context.echoInteraction.iconSize,
+                color: context.echoColors.accent,
+              ),
+              SizedBox(width: spacing.sm),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
                     Text(
-                      accountSubtitle,
+                      accountLabel,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: context.echoTypography.metadata.copyWith(
-                        fontSize: 13,
-                        color: context.echoColors.muted,
+                      style: context.echoTypography.label.copyWith(
+                        fontSize: 14,
+                        color: context.echoColors.ink,
                       ),
                     ),
-                ],
+                    if (accountSubtitle.isNotEmpty)
+                      Text(
+                        accountSubtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.echoTypography.metadata.copyWith(
+                          fontSize: 13,
+                          color: context.echoColors.muted,
+                        ),
+                      ),
+                  ],
+                ),
               ),
-            ),
-            SizedBox(width: spacing.xs),
-            Icon(
-              AppIcons.more,
-              size: context.echoInteraction.smallIconSize,
-              color: context.echoColors.muted,
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

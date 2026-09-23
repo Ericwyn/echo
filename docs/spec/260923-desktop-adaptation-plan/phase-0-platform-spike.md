@@ -70,4 +70,4 @@
 | 日期 / 提交 | 实际修改与检查 | 结果 / 遗留 |
 | --- | --- | --- |
 | 2026-09-23 / `f6100044` | 确认 Ubuntu 22.04 上系统 libmpv 0.34.1；选择薄 D-Bus MPRIS 与 `tray_manager`/`window_manager`；本机 HTTP 音频 smoke test 覆盖 MPRIS host adapter 之外的 MPV 初始化/网络加载，未再出现未知 `subs-fallback` 与 lavf cache-dir 错误；431 项 Flutter 测试、`flutter analyze`、Linux x64 release 构建通过 | 用户确认基本 MPRIS 控制、系统封面与托盘。仍需真实 MPRIS seek、关闭/恢复、StatusNotifier 宿主消失、单实例和干净安装实测；Windows 路径未测 |
-| 2026-09-23 / `9582436c` | Linux runner 移除 `G_APPLICATION_NON_UNIQUE`；收到 activate 时若窗口已存在则 `gtk_window_present`，否则创建首个窗口 | 源码路径已实现；按用户要求未编译/运行，二次启动、隐藏后恢复与进程数仍待 Ubuntu 手动验收；Windows 未测 |
+| 2026-09-23 / `9582436c`，bundle `4015f879` | Linux runner 移除 `G_APPLICATION_NON_UNIQUE`；收到 activate 时若窗口已存在则 `gtk_window_present`，否则创建首个窗口 | 最新 release bundle 已编译这段 GTK 代码但未启动；二次启动、隐藏后恢复与进程数仍待 Ubuntu 手动验收；Windows 未测 |

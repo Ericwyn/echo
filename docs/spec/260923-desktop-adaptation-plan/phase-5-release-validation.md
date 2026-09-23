@@ -2,7 +2,7 @@
 
 [返回 spec](README.md) · [验收矩阵](acceptance.md) · [决策](decisions.md)
 
-状态：Linux bundle 曾完成首轮 release 编译；Ubuntu `.deb` 框架与 CI 产物步骤已加入，尚未用最新源码重建、安装或实播。前置：P0–P4 仍有完整系统操作、恢复和安装场景待验证。当前优先 Ubuntu/Linux；Windows CI 暂缓，不能据此宣称 Windows 发布支持。
+状态：`4015f879` 的 Linux release bundle 与 Ubuntu `.deb` 已构建，包内容与 control 元数据已检查；尚未安装或实播。前置：P0–P4 仍有完整系统操作、恢复和安装场景待验证。当前优先 Ubuntu/Linux；Windows CI 暂缓，不能据此宣称 Windows 发布支持。
 
 ## 目标与交付范围
 
@@ -29,7 +29,7 @@ Ubuntu 交付可安装 `.deb` 与完整 bundle 压缩包；Windows 交付 releas
 - `packaging/linux/echoes.desktop` 使用 `echoes` desktop-file basename，与 Linux MPRIS 的 `DesktopEntry=echoes` 对齐；图标安装到 hicolor `192x192/apps`。
 - `scripts/package_linux_deb.sh` 从 `build/linux/x64/release/bundle` 组装 Debian 包，依赖声明面向当前 Ubuntu 22.04 基线：`libgtk-3-0`、`libayatana-appindicator3-1`、`libmpv1`。MPV 是运行时动态加载项，不会出现在主 ELF 的 `DT_NEEDED` 中，因此显式声明。
 - `.github/workflows/build_linux.yml` 在 release bundle 外再上传 `.deb`；`.github/workflows/pr_checks.yml` 加入包组装步骤。Windows workflow 未改。
-- 这些改动尚未在本地执行 package script，也尚未对 `.deb` 做安装验证；构建产物和干净系统播放依赖仍待 CI/Ubuntu 实机记录。
+- 本地已执行 package script，生成 `build/linux/packages/echoes_1.1.0+26_amd64.deb`；`dpkg-deb -I/-c` 检查显示完整 bundle、desktop entry、图标和依赖声明。尚未对 `.deb` 做安装验证；干净系统播放依赖仍待 CI/Ubuntu 实机记录。
 
 ### 原生分发与网络通路的补充检查
 

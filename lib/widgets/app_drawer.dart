@@ -6,6 +6,7 @@ import 'package:echoes/data/models/server_address.dart';
 import 'package:echoes/features/download/pages/download_manager_page.dart';
 import 'package:echoes/features/offline/pages/offline_download_status_page.dart';
 import 'package:echoes/features/settings/pages/app_settings_page.dart';
+import 'package:echoes/features/settings/widgets/route_selection_sheet.dart';
 import 'package:echoes/providers/api_provider.dart';
 import 'package:echoes/providers/library_provider.dart';
 import 'package:flutter/material.dart';
@@ -260,178 +261,9 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!navigator.mounted) return;
       unawaited(
-        _showRouteSelectionSheet(navigator.context, onClosed: onReturnFocus),
+        showRouteSelectionSheet(navigator.context, onClosed: onReturnFocus),
       );
     });
-  }
-
-  Future<void> _showRouteSelectionSheet(
-    BuildContext hostContext, {
-    VoidCallback? onClosed,
-  }) async {
-    try {
-      await showEchoBottomSheet<void>(
-        context: hostContext,
-        useRootNavigator: true,
-        isScrollControlled: true,
-        builder: (sheetContext) {
-          return Consumer(
-            builder: (context, ref, child) {
-              final authState = ref.watch(authStateProvider);
-              final activeLibraryId = authState.currentLibrary?.id;
-              final libraries = ref.watch(librariesProvider);
-              final activeAddress = ref.watch(activeAddressProvider);
-              final addressPool = ref.read(addressPoolProvider);
-
-              return EchoBottomSheet(
-                title: '切换线路',
-                subtitle: '手动锁定一条线路，或让 Echo 根据可用性和延迟自动选择。',
-                constrainToAvailableHeight: true,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    EchoButton.ghost(
-                      label: '重新检测延迟',
-                      leadingIcon: AppIcons.refresh,
-                      expand: true,
-                      onPressed: () {
-                        addressPool.probeAll();
-                      },
-                    ),
-                    SizedBox(height: context.echoSpacing.sm),
-                    Flexible(
-                      child: libraries.when(
-                        data: (items) {
-                          final fallbackLibrary =
-                              items
-                                  .where(
-                                    (library) => library.id == activeLibraryId,
-                                  )
-                                  .firstOrNull ??
-                              items.firstOrNull;
-                          final poolAddresses = addressPool.addresses;
-                          final addresses =
-                              List<ServerAddress>.from(
-                                poolAddresses.isNotEmpty
-                                    ? poolAddresses
-                                    : fallbackLibrary?.addresses ??
-                                          const <ServerAddress>[],
-                              )..sort(
-                                (first, second) =>
-                                    first.priority.compareTo(second.priority),
-                              );
-
-                          if (addresses.isEmpty) {
-                            return const SingleChildScrollView(
-                              child: EchoEmptyState(
-                                title: '没有可用线路',
-                                description: '请先在音乐库设置中添加至少一个服务器地址。',
-                                icon: AppIcons.route,
-                                padding: EdgeInsets.all(24),
-                              ),
-                            );
-                          }
-
-                          final isAuto = !addresses.any(
-                            (address) =>
-                                address.isLocked &&
-                                address.id == activeAddress?.id,
-                          );
-
-                          return ListView.builder(
-                            shrinkWrap: true,
-                            itemCount: addresses.length + 2,
-                            itemBuilder: (context, index) {
-                              if (index == 0) {
-                                return EchoActionRow(
-                                  icon: AppIcons.route,
-                                  title: '自动选择',
-                                  subtitle: isAuto
-                                      ? '当前已开启${activeAddress == null ? '' : ' · ${activeAddress.label}'}'
-                                      : '根据可用性和延迟选择线路',
-                                  selected: isAuto,
-                                  trailing: isAuto
-                                      ? Icon(
-                                          AppIcons.check,
-                                          color: context.echoColors.accent,
-                                        )
-                                      : null,
-                                  onPressed: () {
-                                    addressPool.setAutoMode();
-                                    Navigator.of(sheetContext).pop();
-                                  },
-                                );
-                              }
-
-                              if (index == 1) {
-                                return Padding(
-                                  padding: EdgeInsets.symmetric(
-                                    vertical: context.echoSpacing.xs,
-                                  ),
-                                  child: const EchoDivider(),
-                                );
-                              }
-
-                              final address = addresses[index - 2];
-                              final isSelected =
-                                  activeAddress?.id == address.id &&
-                                  address.isLocked;
-                              final status = _addressStatusPresentation(
-                                address,
-                              );
-                              return Padding(
-                                padding: EdgeInsets.only(
-                                  bottom: context.echoSpacing.xs,
-                                ),
-                                child: EchoActionRow(
-                                  icon: AppIcons.signalTower,
-                                  title: address.label,
-                                  subtitle:
-                                      '${address.url}\n${status.label} · '
-                                      '延迟 ${address.lastLatencyMs == null ? '未知' : '${address.lastLatencyMs}ms'}',
-                                  selected: isSelected,
-                                  trailing: Semantics(
-                                    label: status.label,
-                                    child: Icon(
-                                      isSelected ? AppIcons.check : status.icon,
-                                      size: 20,
-                                      color: isSelected
-                                          ? context.echoColors.accent
-                                          : status.color(context),
-                                    ),
-                                  ),
-                                  onPressed: () {
-                                    addressPool.setManualMode(address);
-                                    Navigator.of(sheetContext).pop();
-                                  },
-                                ),
-                              );
-                            },
-                          );
-                        },
-                        loading: () => const _DrawerSkeletonList(itemCount: 3),
-                        error: (error, stackTrace) => SingleChildScrollView(
-                          child: EchoErrorState(
-                            title: '无法读取线路',
-                            description: '线路信息暂时不可用。请重试，或稍后打开音乐库设置检查地址。',
-                            actionLabel: '重试',
-                            onAction: () => ref.invalidate(librariesProvider),
-                            padding: const EdgeInsets.all(24),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          );
-        },
-      );
-    } finally {
-      onClosed?.call();
-    }
   }
 }
 
@@ -454,26 +286,6 @@ EchoDrawerConnectionState _connectionState(ServerAddress? address) {
   };
 }
 
-_AddressStatusPresentation _addressStatusPresentation(ServerAddress address) {
-  return switch (address.status) {
-    ServerAddressStatus.ok => const _AddressStatusPresentation(
-      label: '连接正常',
-      icon: AppIcons.checkCircle,
-      kind: _AddressStatusKind.connected,
-    ),
-    ServerAddressStatus.failed => const _AddressStatusPresentation(
-      label: '连接失败',
-      icon: AppIcons.error,
-      kind: _AddressStatusKind.failed,
-    ),
-    ServerAddressStatus.unknown => const _AddressStatusPresentation(
-      label: '等待检测',
-      icon: AppIcons.help,
-      kind: _AddressStatusKind.unknown,
-    ),
-  };
-}
-
 class _DrawerNavigationEntry {
   const _DrawerNavigationEntry({
     required this.icon,
@@ -486,28 +298,6 @@ class _DrawerNavigationEntry {
   final String title;
   final String? subtitle;
   final VoidCallback onPressed;
-}
-
-enum _AddressStatusKind { connected, failed, unknown }
-
-class _AddressStatusPresentation {
-  const _AddressStatusPresentation({
-    required this.label,
-    required this.icon,
-    required this.kind,
-  });
-
-  final String label;
-  final IconData icon;
-  final _AddressStatusKind kind;
-
-  Color color(BuildContext context) {
-    return switch (kind) {
-      _AddressStatusKind.connected => context.echoColors.accent,
-      _AddressStatusKind.failed => context.echoColors.error,
-      _AddressStatusKind.unknown => context.echoColors.muted,
-    };
-  }
 }
 
 class _DrawerSkeletonList extends StatelessWidget {

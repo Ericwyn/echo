@@ -774,36 +774,6 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     ];
   }
 
-  Future<void> _showDesktopAppMenu() async {
-    final motion = context.echoMotion;
-    final duration = motion.resolve(context, motion.state);
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        final height =
-            (MediaQuery.sizeOf(dialogContext).height.clamp(320.0, 760.0) - 64)
-                .toDouble();
-        return Dialog(
-          clipBehavior: Clip.antiAlias,
-          insetPadding: const EdgeInsets.all(32),
-          child: SizedBox(
-            width: 400,
-            height: height,
-            child: AppDrawer(onReturnFocus: _restoreEchoAppDrawerFocus),
-          ),
-        );
-      },
-      barrierColor: context.echoColors.scrim,
-      useSafeArea: true,
-      traversalEdgeBehavior: TraversalEdgeBehavior.closedLoop,
-      routeSettings: const RouteSettings(name: 'desktop-app-menu'),
-      animationStyle: duration == Duration.zero
-          ? AnimationStyle.noAnimation
-          : AnimationStyle(duration: duration, reverseDuration: duration),
-    );
-    _restoreEchoAppDrawerFocus();
-  }
-
   Future<void> _moveAppToBackground() async {
     try {
       await _appLifecycleChannel.invokeMethod<void>('moveTaskToBack');
@@ -934,7 +904,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
               : const MiniPlayer()),
       showMiniPlayer: hasMiniPlayer,
       networkStatus: networkStatus,
-      onOpenDrawer: isDesktop ? _showDesktopAppMenu : openEchoAppDrawer,
+      onOpenDrawer: openEchoAppDrawer,
       desktopActions: isDesktop
           ? _desktopSidebarActions(showExploreTab: showExploreTab)
           : const [],

@@ -88,7 +88,7 @@ void main() {
       expect(tester.widget<Scaffold>(find.byType(Scaffold)).drawer, isNull);
     });
 
-    testWidgets('desktop sidebar unifies destinations and library shortcuts', (
+    testWidgets('desktop sidebar exposes destinations without account menu', (
       tester,
     ) async {
       var selected = '';
@@ -111,7 +111,7 @@ void main() {
         find.byKey(const ValueKey<String>('echo-desktop-sidebar-songs')),
         findsOneWidget,
       );
-      expect(find.bySemanticsLabel('账户、线路和设置'), findsOneWidget);
+      expect(find.bySemanticsLabel('当前账户 账户'), findsOneWidget);
       expect(tester.widget<Scaffold>(find.byType(Scaffold)).drawer, isNull);
       expect(find.bySemanticsLabel('音乐流'), findsNothing);
       expect(find.bySemanticsLabel('曲库'), findsNothing);
@@ -120,8 +120,8 @@ void main() {
         find.byKey(const ValueKey<String>('echo-desktop-sidebar-songs')),
       );
       expect(selected, 'songs');
-      await tester.tap(find.bySemanticsLabel('账户、线路和设置'));
-      expect(selected, 'account');
+      await tester.tap(find.bySemanticsLabel('当前账户 账户'));
+      expect(selected, 'songs');
     });
 
     testWidgets('desktop account footer aligns with the playback slot', (

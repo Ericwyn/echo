@@ -67,7 +67,8 @@
 | --- | --- |
 | Android | 可通过 Android Emulator 或真机运行；支持本地下载、缓存与后台媒体服务 |
 | iOS | 使用 macOS、Xcode 和 Simulator / 真机开发；真机安装需配置签名，CI 产物为未签名 IPA |
-| Windows / macOS / Linux | 桌面布局与播放持续适配中；当前播放器不启用移动端的 AudioService 集成 |
+| Linux | 桌面端重点适配 Ubuntu 22.04 / GNOME / X11；Linux MPRIS 与托盘已有基础用户验证，桌面导航和窗口交互仍在验收；播放器使用 Linux MPRIS adapter，不启用 Android AudioService |
+| Windows / macOS | 保留桌面工程与平台构建流程；桌面导航和平台媒体控制尚未完成对应系统的编译/实机验收 |
 | Web | 适合浏览器体验与开发预览；本地音频下载、音频文件缓存尚未实现，SQLite 使用内存数据库，刷新页面后数据库内容不会保留 |
 
 Web 中的服务器访问还受浏览器跨域、HTTPS 和音频格式支持限制；不要把浏览器预览当作原生端离线能力的验收。
@@ -117,7 +118,7 @@ Echo 使用自有的 **Echo Listening System**，以“**Album Light, Quiet Chro
 
 ### 前置环境
 
-- **Flutter stable**：CI 当前使用 `3.38.9`；`pubspec.yaml` 要求 Dart `^3.10.8`，使用满足该约束的 Flutter SDK。
+- **Flutter stable**：Android/iOS/Windows/macOS/Linux CI 使用 `3.41.7`，Web CI 仍使用 `3.38.9`；`pubspec.yaml` 要求 Dart `^3.10.8`，使用满足该约束的 Flutter SDK。
 - **Android**：Android Studio、Android SDK、Platform-Tools、Android Emulator 和至少一个 AVD；Android 构建使用 Java 17 目标，建议使用 Android Studio 提供的 JDK，并通过 `flutter doctor -v` 检查工具链。
 - **其他平台**：iOS / macOS 需要 macOS 与 Xcode；Windows 需要 Visual Studio 的 C++ 桌面开发工具；Linux 需要 GTK、CMake、Ninja 等原生构建依赖。
 
@@ -176,6 +177,25 @@ flutter build web
 ```
 
 Android APK 输出到 `build/app/outputs/flutter-apk/`。正式分发应配置 `android/key.properties` 或 `ECHO_STORE_FILE`、`ECHO_STORE_PASSWORD`、`ECHO_KEY_ALIAS`、`ECHO_KEY_PASSWORD` 环境变量；未配置完整发布签名时，当前构建脚本使用调试签名。`--no-codesign` 的 iOS 构建仅生成未签名产物，不能直接作为已签名应用安装。
+
+#### Linux 桌面 bundle 与 Ubuntu `.deb`
+
+Linux 桌面当前以 Ubuntu 22.04 x64 为验证基线，窗口最小尺寸为 840×560 逻辑像素。构建 bundle 和本地 `.deb`：
+
+```bash
+flutter build linux --release --no-pub
+bash scripts/package_linux_deb.sh
+```
+
+bundle 位于 `build/linux/x64/release/bundle/`，启动程序为 `echoes`；Debian 包输出到 `build/linux/packages/`。`.deb` 安装到 `/opt/echoes`，并添加应用菜单项与图标。包依赖 Ubuntu 的 `libgtk-3-0`、`libayatana-appindicator3-1` 和 `libmpv1`；安装包会通过 APT 声明这些依赖。
+
+安装本地生成的包：
+
+```bash
+sudo apt install ./build/linux/packages/echoes_1.1.0+26_amd64.deb
+```
+
+如果 `pubspec.yaml` 的版本号改变，按打包脚本打印的输出文件名替换命令中的版本号。当前 Linux CI 同时上传 bundle 压缩包与 `.deb` 构建产物；CI artifact 暂不是 GitHub Release 下载项。它们是适配验收产物，干净环境安装、升级和播放仍需单独验证；Ubuntu 24.04、Wayland、Windows 与 macOS 不在这份 Linux 产物的已验证范围内。
 
 ### 开发检查
 

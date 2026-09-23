@@ -238,7 +238,6 @@ class _WideShellBody extends StatelessWidget {
             destinations: destinations,
             selectedBranchIndex: selectedBranchIndex,
             onDestinationSelected: onDestinationSelected,
-            onOpenDrawer: onOpenDrawer,
             actions: desktopActions,
             accountLabel: desktopAccountLabel,
             accountSubtitle: desktopAccountSubtitle,

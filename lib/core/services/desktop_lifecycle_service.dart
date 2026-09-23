@@ -10,6 +10,7 @@ import 'package:window_manager/window_manager.dart';
 
 import '../design/layout/echo_desktop_metrics.dart';
 import '../utils/logger.dart';
+import 'desktop_close_settings.dart';
 import 'desktop_window_state_service.dart';
 
 const _statusNotifierWatchers = <String>[
@@ -26,6 +27,7 @@ class DesktopLifecycleService with WindowListener, TrayListener {
   Future<void> Function()? _onTogglePlayPause;
   Future<void> Function()? _onNext;
   Future<void> Function()? _onQuit;
+  Future<bool> Function()? _onBeforeQuit;
   DBusClient? _sessionBusClient;
   StreamSubscription<DBusNameOwnerChangedEvent>? _watcherSubscription;
   String? _watcherName;
@@ -34,6 +36,8 @@ class DesktopLifecycleService with WindowListener, TrayListener {
   bool _trayIconRegistered = false;
   bool _trayAvailable = false;
   bool _windowHidden = false;
+  bool _closeActionPending = false;
+  bool _exitCheckInProgress = false;
 
   bool get trayAvailable => _trayAvailable;
 
@@ -41,12 +45,14 @@ class DesktopLifecycleService with WindowListener, TrayListener {
     required Future<void> Function() onTogglePlayPause,
     required Future<void> Function() onNext,
     required Future<void> Function() onQuit,
+    required Future<bool> Function() onBeforeQuit,
   }) async {
     if (_initialized) return;
     _initialized = true;
     _onTogglePlayPause = onTogglePlayPause;
     _onNext = onNext;
     _onQuit = onQuit;
+    _onBeforeQuit = onBeforeQuit;
 
     windowManager.addListener(this);
     trayManager.addListener(this);
@@ -187,7 +193,18 @@ class DesktopLifecycleService with WindowListener, TrayListener {
   }
 
   Future<void> requestExit() async {
-    if (_exitRequested) return;
+    if (_exitRequested || _exitCheckInProgress) return;
+    _exitCheckInProgress = true;
+    var approved = false;
+    try {
+      approved = await (_onBeforeQuit?.call() ?? Future<bool>.value(true));
+    } catch (error) {
+      Logger.warnWithTag('DESKTOP', 'exit confirmation failed', error);
+    } finally {
+      _exitCheckInProgress = false;
+    }
+    if (!approved) return;
+
     _exitRequested = true;
     try {
       await DesktopWindowStateService.instance.dispose();
@@ -209,8 +226,23 @@ class DesktopLifecycleService with WindowListener, TrayListener {
 
   @override
   void onWindowClose() {
-    if (_exitRequested) return;
-    unawaited(_hideOrMinimize());
+    if (_exitRequested || _closeActionPending) return;
+    unawaited(_handleWindowClose());
+  }
+
+  Future<void> _handleWindowClose() async {
+    _closeActionPending = true;
+    try {
+      if (await DesktopCloseSettings.shouldExitOnClose()) {
+        await requestExit();
+      } else {
+        await _hideOrMinimize();
+      }
+    } catch (error) {
+      Logger.warnWithTag('DESKTOP', 'window close action failed', error);
+    } finally {
+      _closeActionPending = false;
+    }
   }
 
   Future<void> _hideOrMinimize() async {

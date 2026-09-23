@@ -31,6 +31,7 @@ class DownloadService {
   final _coverEnsuring = <String>{};
   final _progressController = StreamController<Map<String, double>>.broadcast();
   final _progress = <String, double>{};
+  bool _queuePaused = false;
 
   DownloadService({
     required Dio dio,
@@ -187,6 +188,7 @@ class DownloadService {
 
   /// 恢复任务
   Future<void> resume(String taskId) async {
+    _queuePaused = false;
     await _repository.updateTask(
       taskId: taskId,
       status: DownloadTaskStatus.pending,
@@ -232,13 +234,27 @@ class DownloadService {
 
   /// 全部暂停
   Future<void> pauseAll() async {
-    for (final taskId in _activeDownloads.keys.toList()) {
-      await pause(taskId);
+    _queuePaused = true;
+    for (final cancelToken in _activeDownloads.values.toList()) {
+      cancelToken.cancel('All downloads paused');
     }
+
+    final tasks = await _repository.getAllTasks();
+    for (final task in tasks) {
+      if (task.status == DownloadTaskStatus.pending ||
+          task.status == DownloadTaskStatus.downloading) {
+        await _repository.updateTask(
+          taskId: task.id,
+          status: DownloadTaskStatus.paused,
+        );
+      }
+    }
+    _activeDownloads.clear();
   }
 
   /// 全部恢复
   Future<void> resumeAll() async {
+    _queuePaused = false;
     final tasks = await _repository.getAllTasks();
     for (final task in tasks) {
       if (task.status == DownloadTaskStatus.paused) {
@@ -284,10 +300,12 @@ class DownloadService {
   /// 处理下载队列
   void _processQueue() async {
     try {
+      if (_queuePaused) return;
       if (_activeDownloads.length >= maxConcurrent) return;
 
       final pending = await _repository.getPendingTasks();
       for (final task in pending) {
+        if (_queuePaused) return;
         if (_activeDownloads.length >= maxConcurrent) break;
         if (_activeDownloads.containsKey(task.id)) continue;
 
@@ -300,15 +318,25 @@ class DownloadService {
 
   /// 开始下载
   Future<void> _startDownload(DownloadTask task) async {
+    if (_queuePaused) return;
     final cancelToken = CancelToken();
     _activeDownloads[task.id] = cancelToken;
 
-    await _repository.updateTask(
-      taskId: task.id,
-      status: DownloadTaskStatus.downloading,
-    );
-
     try {
+      await _repository.updateTask(
+        taskId: task.id,
+        status: DownloadTaskStatus.downloading,
+      );
+      // pauseAll may cancel this task while the initial status write is in
+      // flight. Reapply the paused state before any network work can begin.
+      if (_queuePaused || cancelToken.isCancelled) {
+        await _repository.updateTask(
+          taskId: task.id,
+          status: DownloadTaskStatus.paused,
+        );
+        return;
+      }
+
       // 构建下载 URL（始终下载原始文件）
       final downloadUrl = _apiClient.getDownloadUrl(task.songId);
       if (downloadUrl.isEmpty) {
@@ -772,6 +800,7 @@ class DownloadService {
   }
 
   void dispose() {
+    _queuePaused = true;
     for (final token in _activeDownloads.values) {
       token.cancel('Service disposed');
     }
