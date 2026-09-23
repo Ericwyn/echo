@@ -2,7 +2,7 @@
 
 [返回 spec](README.md) · [验收矩阵](acceptance.md) · [决策](decisions.md)
 
-状态：`1cf593f6` 的 Linux 应用代码已在全新 `build/linux-noshim` CMake 目录中构建，使用系统 Clang/GNU ld，无临时 linker shim；`c25e22aa` 支持从该目录生成 Ubuntu `.deb`。当前 checkout 另已构建并签名 Android release APK，校验证书与 package metadata；Linux `.deb` 和 Android APK 均未安装或启动。前置：P0–P4 仍有完整系统操作、恢复和安装场景待验证。当前优先 Ubuntu/Linux；Windows CI 暂缓，不能据此宣称 Windows 发布支持。
+状态：`1cf593f6` 的 Linux 应用代码已在全新 `build/linux-noshim` CMake 目录中构建，使用系统 Clang/GNU ld，无临时 linker shim；`c25e22aa` 支持从该目录生成 Ubuntu `.deb`。当前 checkout 另已构建并签名 Android arm64-only release APK，校验证书与 package metadata；Linux `.deb` 和 Android APK 均未安装或启动。前置：P0–P4 仍有完整系统操作、恢复和安装场景待验证。当前优先 Ubuntu/Linux；Windows CI 暂缓，不能据此宣称 Windows 发布支持。
 
 ## 目标与交付范围
 
@@ -82,7 +82,8 @@ Ubuntu 24.04/Wayland 若仍未验收，只能先发布明确限定 22.04/X11 的
 | Ubuntu 22.04 X11 | `52463122` / 2026-09-23 release bundle 与 `.deb` | 另包含收藏夹 tab 与 artist detail 当前内容区的路由状态恢复；release build 与 `.deb` 组装成功，核对 amd64 ELF、desktop entry、图标和运行依赖。未启动、未安装、未运行 Flutter 测试；收藏/歌手页面恢复由用户实测 |
 | Ubuntu 22.04 X11 | `1cf593f6` / 2026-09-23 release bundle 与 `.deb` | 另包含歌词/队列面板和整个播放工作区在切换/收起后保留状态；release build 与 `.deb` 组装成功，核对 amd64 ELF、desktop entry、图标和运行依赖。未启动、未安装、未运行 Flutter 测试；工作区恢复由用户实测 |
 | Ubuntu 22.04 X11 | `1cf593f6` app + `c25e22aa` package script / `build/linux-noshim` | 用隔离 Flutter 配置和全新 CMake build-dir 构建；系统 Clang/GNU ld 完成 Linux release，无 `/tmp` shim 引用。`ECHO_LINUX_BUNDLE_DIR` 将隔离 bundle 打成 `.deb`，核对 amd64、依赖、ELF、desktop entry、图标和 SHA-256。未安装、未启动、未运行 Flutter 测试；实际桌面验收仍待用户执行 |
-| Android universal APK | `79310b27` checkout / `app-release.apk` | Flutter release 构建成功；以本机 `echo-release` keystore 签名，`apksigner` v2 校验通过；核对 `com.az1n.echoes`、version `1.1.0+26`、min SDK 24、target SDK 36 和 arm64/armeabi-v7a/x86_64。未安装、未启动、未运行 Flutter 测试；设备回归见 [Android release build evidence](evidence/260923-android-release-build/README.md) |
+| 初始 Android universal APK（已废弃） | `79310b27` checkout / `app-release.apk` | 初次打包错误沿用 `1.1.0+26` 和全 ABI 输出，不能作为用户现装 `2026` 的升级包；已由下方 arm64 APK 取代 |
+| Android ARM64 APK | `c9db7c96` 基线加 `pubspec.yaml` `1.1.0+2027` / `app-arm64-v8a-release.apk` | `--split-per-abi --target-platform android-arm64` 构建；APK version name/code 为 `1.1.0` / `4027`（Flutter 的 arm64 ABI version offset），仅含 `arm64-v8a`；本机 `echo-release` 证书签名，`apksigner` v2 校验通过；核对 `com.az1n.echoes`、min SDK 24、target SDK 36。未安装、未启动、未运行 Flutter 测试；设备回归见 [Android release build evidence](evidence/260923-android-release-build/README.md) |
 | Ubuntu 24.04 / Wayland | — | 待提供环境与结果 |
 | Windows | — | Windows CI 暂缓；未编译/未实机验收 |
 | Android 回归 | 本任务 Flutter 测试 431 项通过 | artwork/shared player 自动回归通过；最终 Android 真机锁屏/通知栏/封面验证待完成 |

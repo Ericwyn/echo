@@ -1,26 +1,28 @@
-# Android release APK build
+# Android ARM64 release APK build
 
 日期：2026-09-23
 
-范围：确认桌面适配后的共享 Flutter 工程仍可构建正式 Android APK，并交给用户在设备上做回归。此记录只证明构建与签名，不证明安装、启动或 Android 功能行为。
+范围：确认桌面适配后的共享 Flutter 工程仍可生成一个可供 arm64 Android 设备安装的正式 APK。此记录只证明构建与签名，不证明安装、启动或 Android 功能行为。
 
 ## 构建
 
-- Checkout：`79310b27`（应用代码基线 `1cf593f6`）。
 - Flutter：3.41.7；JDK：17；Android SDK/compile SDK：36。
-- 命令：`flutter build apk --release --no-pub`。
+- `pubspec.yaml` 版本：`1.1.0+2027`。
+- 命令：`flutter build apk --release --no-pub --split-per-abi --target-platform android-arm64`。
 - 使用本机 release keystore（alias `echo-release`）。签名密码从本机密码文件读入构建进程环境；密码、keystore 内容及可复用密钥材料未写入仓库、命令输出或本记录。
-- 产物：`build/app/outputs/flutter-apk/app-release.apk`，75,134,279 bytes。
-- APK SHA-256：`e43b04214fcd12e6e2a82cd20ac6a41bfc78a1294e867ad73e0808170ba8a4ee`。
+- 产物：`build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`，29,675,389 bytes。
+- APK SHA-256：`b87ce7486cad79cc8c8653387772af7cbe8a215947debc82c274af3ac7542e5c`。
 
 ## APK 校验
 
-- Package：`com.az1n.echoes`；version name/code：`1.1.0` / `26`。
+- Package：`com.az1n.echoes`；version name：`1.1.0`；APK version code：`4027`。
+- Flutter 的 `--split-per-abi` 将 arm64 ABI 编号 `4` 加到 version code 的千位，因此 `1.1.0+2027` 对应 arm64 APK version code `4027`；高于用户设备上报告的 `2026`。
 - min SDK：24；target SDK：36。
-- ABI：`arm64-v8a`、`armeabi-v7a`、`x86_64`。
+- APK 中仅有 `arm64-v8a` native libraries。
 - `apksigner verify`：通过，1 个 signer，APK Signature Scheme v2。
 - Signer certificate：`CN=Echoes Personal`，RSA 3072；SHA-256：`8604465c3ee1282b48a1b2759801f784ace32447d1188e0481fab0fe8ac74c94`。
-- 构建输出有 SDK XML v4 版本提示，但 Gradle release 构建成功。
+
+此前使用旧 `1.1.0+26` 生成的通用 APK 已被此单架构构建取代，不应再用于安装。
 
 ## 未完成验收
 

@@ -2,7 +2,7 @@
 
 [返回 spec](README.md) · [需求/决策编号](decisions.md)
 
-状态：首轮桌面实现正在验收。历史工作树有 437 项 Flutter 测试、项目级 `flutter analyze` 和 Ubuntu 22.04 Linux release 编译通过记录；近期新增的桌面导航、播放器工作区状态恢复、右键队列、动态背景和窗口几何测试未运行。应用代码 `1cf593f6` 已在全新 CMake build-dir 构建，确认使用系统 Clang/GNU ld、无 `/tmp` linker shim；打包脚本 `c25e22aa` 从该 bundle 生成 amd64 `.deb`。当前 checkout 另已构建 Android release APK，使用本机 `echo-release` keystore，`apksigner` v2 验证通过；APK SHA-256：`e43b04214fcd12e6e2a82cd20ac6a41bfc78a1294e867ad73e0808170ba8a4ee`。两端产物均未安装或启动；Android/Ubuntu 实机交互由用户验收。环境和产物证据见 [Linux build baseline](evidence/260923-linux-build-baseline/README.md) 与 [Android release build](evidence/260923-android-release-build/README.md)。此前 libmpv 0.34.1 HTTP 音频 smoke test 通过；这些证据不替代 GNOME 完整交互、Android 真机回归或干净安装。
+状态：首轮桌面实现正在验收。历史工作树有 437 项 Flutter 测试、项目级 `flutter analyze` 和 Ubuntu 22.04 Linux release 编译通过记录；近期新增的桌面导航、播放器工作区状态恢复、右键队列、动态背景和窗口几何测试未运行。应用代码 `1cf593f6` 已在全新 CMake build-dir 构建，确认使用系统 Clang/GNU ld、无 `/tmp` linker shim；打包脚本 `c25e22aa` 从该 bundle 生成 amd64 `.deb`。当前 checkout 另已构建 Android arm64 release APK，使用本机 `echo-release` keystore，`apksigner` v2 验证通过；APK version name/code 为 `1.1.0` / `4027`（`pubspec.yaml` 为 `1.1.0+2027`），SHA-256：`b87ce7486cad79cc8c8653387772af7cbe8a215947debc82c274af3ac7542e5c`。两端产物均未安装或启动；Android/Ubuntu 实机交互由用户验收。环境和产物证据见 [Linux build baseline](evidence/260923-linux-build-baseline/README.md) 与 [Android release build](evidence/260923-android-release-build/README.md)。此前 libmpv 0.34.1 HTTP 音频 smoke test 通过；这些证据不替代 GNOME 完整交互、Android 真机回归或干净安装。
 
 ## 功能与责任阶段
 
@@ -20,7 +20,7 @@
 | A10 | 单实例与恢复（R4） | 第二次启动只恢复同一窗口；多屏变化不丢窗，休眠唤醒后行为明确，用户暂停不被取消 | P0/P4 | 部分实现（Linux GTK runner 已改为唯一实例；窗口逻辑尺寸/最大化状态代码已随 `4015f879` 编译，但未实机验证；多屏/休眠/播放意图恢复未验） |
 | A11 | 尺寸与系统缩放（R3/R4） | 指定窗口/DPI/大字体/明暗组合无关键遮挡和重复 UI，连续重排不重建播放器 | P2/P3/P5 | 部分实现（工作区按宽/高空间切入紧凑布局，720×460 回归用例已添加但未运行；实际 840×560 app 窗口和 DPI 等待用户验收） |
 | A12 | Windows 等效能力（R1） | 在实际 Windows 桌面会话验证 SMTC/媒体键/托盘/退出/单实例，不只依赖 CI | P0-B/P4/P5 | 未测（当前 Linux 优先，Windows CI 暂缓） |
-| A13 | Android 不退化（R1） | 手机导航/MiniPlayer/歌词/队列和通知栏、锁屏后台、转码 seek、恢复流程通过 | P1–P5 | Android universal release APK 已构建并用本机 `echo-release` keystore 签名；`apksigner` 和 package metadata 校验通过。尚未安装/启动，通知栏、锁屏、共享播放器与数据恢复仍待用户真机回归；密钥说明提示这把个人证书可能不能覆盖原版 release，卸载原版会清空本地数据。
+| A13 | Android 不退化（R1） | 手机导航/MiniPlayer/歌词/队列和通知栏、锁屏后台、转码 seek、恢复流程通过 | P1–P5 | arm64-only release APK 已用本机 `echo-release` keystore 签名；version name/code 为 `1.1.0` / `4027`，高于用户现装的 `2026`；`apksigner` 和 package metadata 校验通过。尚未安装/启动，通知栏、锁屏、共享播放器与数据恢复仍待用户真机回归；密钥说明提示这把个人证书可能不能覆盖原版 release，卸载原版会清空本地数据。
 | A14 | 可安装可运行（R4） | 干净环境由安装包满足 native 依赖，应用菜单启动并实际播放；升级保留用户状态 | P5 | 部分实现（包含 `1cf593f6` 的 bundle 与 `c25e22aa` 打包脚本已生成；全新 CMake 构建、ELF、desktop entry、图标和依赖元数据检查通过；干净安装/实际播放/升级保留状态未测） |
 | A15 | 桌面性能（R3/R4） | release/profile 记录帧耗时/内存/隐藏 CPU；满足阶段预算，进度不全量重建队列 | P3/P5 | 待验证 |
 | A16 | Linux 自绘窗口顶栏与桌面宽度下限（R9） | GNOME 原生 GTK 标题栏隐藏；Echo 顶栏能拖动、最小化、最大化/还原、关闭；840 逻辑像素以下无法缩窗；Android 尺寸/路由不变 | P2/P5 | 用户曾报告上一版按钮不可点/闪烁且窗口缩放异常；已移除根 Overlay 外的 Tooltip、启动时清除置顶并显式恢复窗口缩放/最大化。当前 `1cf593f6` bundle 已构建但未启动，等用户复测；Wayland 未测 |
