@@ -14,6 +14,7 @@ Source commit: `9abb3e09` (window recovery fallback), including lifecycle recove
 - Command: `flutter build linux --release --no-pub`, then `scripts/package_linux_deb.sh`
 - Package: `build/linux-lldtmp-2064/packages/echoes_1.1.0+2053_amd64.deb`
 - Package metadata: `echoes`, version `1.1.0+2053`, architecture `amd64`
+- Declared runtime dependencies: `libgtk-3-0`, `libayatana-appindicator3-1`, `libmpv1`
 - SHA-256: `ab02302777cf8d9b94b9baebbb2ff053441be3e57978cb3bee3022dfbc6fc349`
 - Standalone bundle: `build/linux-lldtmp-2064/packages/echoes_1.1.0+2053_linux-x64-bundle.zip`
 - Bundle ZIP SHA-256: `69417c0ef87a1f4630328a95a1b06ad8694d5b4ec19ee8327ecd42e72232f4b2`
@@ -22,6 +23,8 @@ Source commit: `9abb3e09` (window recovery fallback), including lifecycle recove
 ## Verification and remaining work
 
 - Linux release compilation, DEB packaging, and standalone bundle packaging succeeded; package metadata, hashes, and ZIP integrity were checked.
+- The app executable and bundled media-kit plugin are ELF64 x86-64. `ldd` resolved the executable's direct dependencies on this build host. The package declares system `libmpv1`, which the media-kit plugin loads at runtime.
+- This is host-side static dependency evidence; a clean Ubuntu install/playback check remains outstanding.
 - Dart formatting and `git diff --check` succeeded.
 - Reconnect-delay and window-recovery fallback Flutter tests were added but not run. `flutter test` and `flutter analyze` were not run at the user's request.
 - The package was not installed and the application was not launched. Ubuntu manual checks remain for StatusNotifier host restart, hidden-window recovery, normal close/quit, and destroy failure recovery.
