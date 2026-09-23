@@ -400,7 +400,8 @@ class _AlbumAsyncSection extends StatelessWidget {
     Navigator.of(context).push<void>(
       EchoPageRoute<void>(
         context: context,
-        builder: (context) => AlbumDetailPage(albumId: albumId),
+        builder: (context) =>
+            AlbumDetailPage(albumId: albumId, branchIndex: discoverBranchIndex),
       ),
     );
   }

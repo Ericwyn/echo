@@ -9,9 +9,12 @@ import '../core/design/echo_design.dart';
 import '../core/network/connectivity_monitor.dart';
 import '../core/utils/logger.dart';
 import '../data/models/server_address.dart';
+import '../features/discover/pages/discover_page.dart';
+import '../features/explore/pages/explore_page.dart';
 import '../features/download/pages/download_manager_page.dart';
 import '../features/library/pages/album_list_page.dart';
 import '../features/library/pages/artist_list_page.dart';
+import '../features/library/pages/library_page.dart';
 import '../features/library/pages/song_list_page.dart';
 import '../features/library/pages/starred_page.dart';
 import '../features/offline/pages/offline_download_status_page.dart';
@@ -76,6 +79,8 @@ enum EchoBackAction {
   switchToDiscover,
   moveAppToBackground,
 }
+
+const _desktopDestinationRoutePrefix = 'desktop-destination:';
 
 @visibleForTesting
 EchoBackAction resolveEchoBackAction({
@@ -146,6 +151,8 @@ class MainScaffold extends ConsumerStatefulWidget {
     this.showMiniPlayerOverride,
     this.showExploreTabOverride,
     this.networkStatusOverride,
+    this.desktopRootOverride,
+    this.desktopPageBuilderOverride,
   });
 
   @visibleForTesting
@@ -163,6 +170,12 @@ class MainScaffold extends ConsumerStatefulWidget {
   @visibleForTesting
   final EchoNetworkStatus? networkStatusOverride;
 
+  @visibleForTesting
+  final Widget? desktopRootOverride;
+
+  @visibleForTesting
+  final Widget Function(String destinationId)? desktopPageBuilderOverride;
+
   @override
   ConsumerState<MainScaffold> createState() => _MainScaffoldState();
 }
@@ -173,13 +186,20 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     'com.az1n.echoes/app_lifecycle',
   );
   int? _lastSyncedBranchIndex;
+  EchoWindowClass? _lastWindowClass;
   bool _branchFallbackScheduled = false;
+  bool _desktopNavigatorMounted = false;
   StreamSubscription<NetworkType>? _networkTypeSubscription;
   Timer? _initialNetworkStateTimer;
   NetworkType? _observedNetworkType;
   bool _showDesktopPlayerWorkspace = false;
   DesktopPlayerPanel _desktopPlayerPanel = DesktopPlayerPanel.lyrics;
   String? _desktopSelectedActionId;
+  int _desktopRouteSelectionRevision = 0;
+  final GlobalKey<NavigatorState> _desktopNavigatorKey =
+      GlobalKey<NavigatorState>();
+  late final _DesktopNavigationObserver _desktopNavigationObserver =
+      _DesktopNavigationObserver(_handleDesktopRouteChanged);
 
   @override
   void initState() {
@@ -201,6 +221,22 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
         _stopNetworkObservation();
       }
     }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final windowClass = context.echoBreakpoints.classify(
+      MediaQuery.sizeOf(context).width,
+    );
+    if (_lastWindowClass != windowClass) {
+      _lastWindowClass = windowClass;
+      _lastSyncedBranchIndex = null;
+    }
+    if (windowClass == EchoWindowClass.expanded) {
+      _desktopNavigatorMounted = true;
+    }
+    _scheduleVisibleBranchSync();
   }
 
   @override
@@ -246,6 +282,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
   }
 
   void _scheduleVisibleBranchSync() {
+    if (_lastWindowClass == EchoWindowClass.expanded) return;
     final currentIndex = widget.navigationShell.currentIndex;
     if (_lastSyncedBranchIndex == currentIndex) {
       return;
@@ -253,6 +290,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     _lastSyncedBranchIndex = currentIndex;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      if (_lastWindowClass == EchoWindowClass.expanded) return;
       if (widget.navigationShell.currentIndex != currentIndex) return;
       _syncVisibleBranch(currentIndex);
     });
@@ -268,6 +306,85 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     widget.navigationShell.goBranch(
       branchIndex,
       initialLocation: initialLocation,
+    );
+  }
+
+  void _handleDesktopRouteChanged(String? destinationId, int branchIndex) {
+    final revision = ++_desktopRouteSelectionRevision;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || revision != _desktopRouteSelectionRevision) return;
+      ref.read(currentVisibleBranchIndexProvider.notifier).state = branchIndex;
+      if (_desktopSelectedActionId == destinationId) return;
+      setState(() => _desktopSelectedActionId = destinationId);
+    });
+  }
+
+  Route<void> _desktopDestinationRoute({
+    required String destinationId,
+    required int branchIndex,
+    required Widget page,
+  }) {
+    return EchoPageRoute<void>(
+      context: context,
+      settings: RouteSettings(
+        name: '$_desktopDestinationRoutePrefix$destinationId',
+        arguments: <String, Object>{
+          'destinationId': destinationId,
+          'branchIndex': branchIndex,
+        },
+      ),
+      builder: (_) => page,
+    );
+  }
+
+  Widget _buildDesktopNavigator() {
+    return Navigator(
+      key: _desktopNavigatorKey,
+      observers: <NavigatorObserver>[_desktopNavigationObserver],
+      onGenerateRoute: (_) => _desktopDestinationRoute(
+        destinationId: 'music-flow',
+        branchIndex: discoverBranchIndex,
+        page: widget.desktopRootOverride ?? DiscoverPage(),
+      ),
+    );
+  }
+
+  Widget _desktopPage(String destinationId, Widget page) {
+    return widget.desktopPageBuilderOverride?.call(destinationId) ?? page;
+  }
+
+  void _selectDesktopDestination({
+    required String destinationId,
+    required int branchIndex,
+    required Widget page,
+  }) {
+    final navigator = _desktopNavigatorKey.currentState;
+    if (navigator == null) return;
+    if (_showDesktopPlayerWorkspace) {
+      setState(() => _showDesktopPlayerWorkspace = false);
+    }
+
+    if (destinationId == 'music-flow') {
+      navigator.popUntil((route) => route.isFirst);
+      return;
+    }
+
+    final destinationRouteName =
+        '$_desktopDestinationRoutePrefix$destinationId';
+    if (_desktopSelectedActionId == destinationId) {
+      navigator.popUntil(
+        (route) => route.isFirst || route.settings.name == destinationRouteName,
+      );
+      return;
+    }
+
+    navigator.pushAndRemoveUntil<void>(
+      _desktopDestinationRoute(
+        destinationId: destinationId,
+        branchIndex: branchIndex,
+        page: _desktopPage(destinationId, page),
+      ),
+      (route) => route.isFirst,
     );
   }
 
@@ -298,9 +415,27 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     final windowClass = context.echoBreakpoints.classify(
       MediaQuery.sizeOf(context).width,
     );
-    if (windowClass == EchoWindowClass.expanded &&
-        _showDesktopPlayerWorkspace) {
-      setState(() => _showDesktopPlayerWorkspace = false);
+    if (windowClass == EchoWindowClass.expanded) {
+      if (_showDesktopPlayerWorkspace) {
+        setState(() => _showDesktopPlayerWorkspace = false);
+        return;
+      }
+      final scaffold = scaffoldKey.currentState;
+      if (scaffold?.isDrawerOpen ?? false) {
+        scaffold?.closeDrawer();
+        return;
+      }
+      final rootNavigator = Navigator.of(context);
+      if (rootNavigator.canPop()) {
+        rootNavigator.pop();
+        return;
+      }
+      final desktopNavigator = _desktopNavigatorKey.currentState;
+      if (desktopNavigator?.canPop() ?? false) {
+        desktopNavigator?.pop();
+      }
+      // The desktop root is Music Flow. Window close, rather than the
+      // Android move-to-background action, exits or hides the desktop app.
       return;
     }
     final index = widget.navigationShell.currentIndex;
@@ -369,25 +504,6 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     });
   }
 
-  void _pushDesktopBranchPage(int branchIndex, Widget page) {
-    if (_showDesktopPlayerWorkspace) {
-      setState(() => _showDesktopPlayerWorkspace = false);
-    }
-    _goToBranch(branchIndex);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted ||
-          branchIndex < 0 ||
-          branchIndex >= widget.branchNavigatorKeys.length) {
-        return;
-      }
-      final navigator = widget.branchNavigatorKeys[branchIndex].currentState;
-      if (navigator == null || !navigator.mounted) return;
-      navigator.push<void>(
-        EchoPageRoute<void>(context: navigator.context, builder: (_) => page),
-      );
-    });
-  }
-
   List<EchoDesktopSidebarAction> _desktopSidebarActions({
     required bool showExploreTab,
   }) {
@@ -403,10 +519,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
       label: label,
       icon: icon,
       selected: _desktopSelectedActionId == id,
-      onPressed: () {
-        setState(() => _desktopSelectedActionId = id);
-        onPressed();
-      },
+      onPressed: onPressed,
     );
 
     return <EchoDesktopSidebarAction>[
@@ -415,10 +528,10 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
         section: '发现',
         label: '音乐流',
         icon: AppIcons.musicFlow,
-        onPressed: () => _goToBranch(
-          discoverBranchIndex,
-          initialLocation:
-              widget.navigationShell.currentIndex == discoverBranchIndex,
+        onPressed: () => _selectDesktopDestination(
+          destinationId: 'music-flow',
+          branchIndex: discoverBranchIndex,
+          page: DiscoverPage(),
         ),
       ),
       if (showExploreTab)
@@ -427,10 +540,10 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
           section: '发现',
           label: '探索',
           icon: AppIcons.discover,
-          onPressed: () => _goToBranch(
-            exploreBranchIndex,
-            initialLocation:
-                widget.navigationShell.currentIndex == exploreBranchIndex,
+          onPressed: () => _selectDesktopDestination(
+            destinationId: 'explore',
+            branchIndex: exploreBranchIndex,
+            page: ExplorePage(),
           ),
         ),
       action(
@@ -438,49 +551,65 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
         section: '发现',
         label: '搜索',
         icon: AppIcons.search,
-        onPressed: () =>
-            _pushDesktopBranchPage(discoverBranchIndex, const SearchPage()),
+        onPressed: () => _selectDesktopDestination(
+          destinationId: 'search',
+          branchIndex: discoverBranchIndex,
+          page: const SearchPage(),
+        ),
       ),
       action(
         id: 'songs',
         section: '资料库',
         label: '全部歌曲',
         icon: AppIcons.music,
-        onPressed: () =>
-            _pushDesktopBranchPage(catalogBranchIndex, const SongListPage()),
+        onPressed: () => _selectDesktopDestination(
+          destinationId: 'songs',
+          branchIndex: catalogBranchIndex,
+          page: const SongListPage(),
+        ),
       ),
       action(
         id: 'artists',
         section: '资料库',
         label: '歌手',
         icon: AppIcons.profile,
-        onPressed: () =>
-            _pushDesktopBranchPage(catalogBranchIndex, const ArtistListPage()),
+        onPressed: () => _selectDesktopDestination(
+          destinationId: 'artists',
+          branchIndex: catalogBranchIndex,
+          page: const ArtistListPage(),
+        ),
       ),
       action(
         id: 'albums',
         section: '资料库',
         label: '专辑',
         icon: AppIcons.albumOutline,
-        onPressed: () =>
-            _pushDesktopBranchPage(catalogBranchIndex, const AlbumListPage()),
+        onPressed: () => _selectDesktopDestination(
+          destinationId: 'albums',
+          branchIndex: catalogBranchIndex,
+          page: const AlbumListPage(),
+        ),
       ),
       action(
         id: 'favorite-songs',
         section: '个人收藏',
         label: '收藏歌曲',
         icon: AppIcons.heartOutline,
-        onPressed: () =>
-            _pushDesktopBranchPage(libraryBranchIndex, const StarredPage()),
+        onPressed: () => _selectDesktopDestination(
+          destinationId: 'favorite-songs',
+          branchIndex: libraryBranchIndex,
+          page: const StarredPage(initialTab: StarredTab.songs),
+        ),
       ),
       action(
         id: 'favorite-albums',
         section: '个人收藏',
         label: '收藏专辑',
         icon: AppIcons.albumOutline,
-        onPressed: () => _pushDesktopBranchPage(
-          libraryBranchIndex,
-          const StarredPage(initialTab: StarredTab.albums),
+        onPressed: () => _selectDesktopDestination(
+          destinationId: 'favorite-albums',
+          branchIndex: libraryBranchIndex,
+          page: const StarredPage(initialTab: StarredTab.albums),
         ),
       ),
       action(
@@ -488,9 +617,10 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
         section: '个人收藏',
         label: '收藏歌手',
         icon: AppIcons.profile,
-        onPressed: () => _pushDesktopBranchPage(
-          libraryBranchIndex,
-          const StarredPage(initialTab: StarredTab.artists),
+        onPressed: () => _selectDesktopDestination(
+          destinationId: 'favorite-artists',
+          branchIndex: libraryBranchIndex,
+          page: const StarredPage(initialTab: StarredTab.artists),
         ),
       ),
       action(
@@ -498,16 +628,21 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
         section: '个人收藏',
         label: '我的歌单',
         icon: AppIcons.queue,
-        onPressed: () => _goToBranch(libraryBranchIndex, initialLocation: true),
+        onPressed: () => _selectDesktopDestination(
+          destinationId: 'my-playlists',
+          branchIndex: libraryBranchIndex,
+          page: const LibraryPage(showStarredSection: false, pageTitle: '我的歌单'),
+        ),
       ),
       action(
         id: 'downloads',
         section: '管理',
         label: '下载管理',
         icon: AppIcons.downloadOutline,
-        onPressed: () => _pushDesktopBranchPage(
-          libraryBranchIndex,
-          const DownloadManagerPage(),
+        onPressed: () => _selectDesktopDestination(
+          destinationId: 'downloads',
+          branchIndex: libraryBranchIndex,
+          page: const DownloadManagerPage(),
         ),
       ),
       action(
@@ -515,9 +650,10 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
         section: '管理',
         label: '离线下载',
         icon: AppIcons.offline,
-        onPressed: () => _pushDesktopBranchPage(
-          libraryBranchIndex,
-          const OfflineDownloadStatusPage(),
+        onPressed: () => _selectDesktopDestination(
+          destinationId: 'offline',
+          branchIndex: libraryBranchIndex,
+          page: const OfflineDownloadStatusPage(),
         ),
       ),
       action(
@@ -525,8 +661,11 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
         section: '管理',
         label: '设置',
         icon: AppIcons.settings,
-        onPressed: () =>
-            _pushDesktopBranchPage(libraryBranchIndex, const AppSettingsPage()),
+        onPressed: () => _selectDesktopDestination(
+          destinationId: 'settings',
+          branchIndex: libraryBranchIndex,
+          page: const AppSettingsPage(),
+        ),
       ),
     ];
   }
@@ -612,7 +751,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
       (destination) => destination.branchIndex == currentBranchIndex,
     );
 
-    if (!currentBranchIsVisible) {
+    if (!isDesktop && !currentBranchIsVisible) {
       _scheduleHiddenBranchFallback();
     }
 
@@ -631,12 +770,20 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
                 fit: StackFit.expand,
                 children: <Widget>[
                   TickerMode(
-                    enabled: !desktopWorkspaceVisible,
+                    enabled: false,
                     child: Offstage(
-                      offstage: desktopWorkspaceVisible,
+                      offstage: true,
                       child: widget.navigationShell,
                     ),
                   ),
+                  if (_desktopNavigatorMounted)
+                    TickerMode(
+                      enabled: !desktopWorkspaceVisible,
+                      child: Offstage(
+                        offstage: desktopWorkspaceVisible,
+                        child: _buildDesktopNavigator(),
+                      ),
+                    ),
                   if (desktopWorkspaceVisible)
                     DesktopPlayerWorkspace(
                       panel: _desktopPlayerPanel,
@@ -648,7 +795,20 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
                     ),
                 ],
               )
-            : widget.navigationShell,
+            : Stack(
+                fit: StackFit.expand,
+                children: <Widget>[
+                  widget.navigationShell,
+                  if (_desktopNavigatorMounted)
+                    TickerMode(
+                      enabled: false,
+                      child: Offstage(
+                        offstage: true,
+                        child: _buildDesktopNavigator(),
+                      ),
+                    ),
+                ],
+              ),
         destinations: destinations,
         selectedBranchIndex: currentBranchIsVisible
             ? currentBranchIndex
@@ -685,5 +845,97 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
         ].join(' · '),
       ),
     );
+  }
+}
+
+class _DesktopRouteSelection {
+  const _DesktopRouteSelection({
+    required this.destinationId,
+    required this.branchIndex,
+  });
+
+  final String destinationId;
+  final int branchIndex;
+}
+
+class _DesktopNavigationObserver extends NavigatorObserver {
+  _DesktopNavigationObserver(this.onCurrentChanged);
+
+  final void Function(String? destinationId, int branchIndex) onCurrentChanged;
+  final Map<Route<dynamic>, _DesktopRouteSelection> _selections =
+      <Route<dynamic>, _DesktopRouteSelection>{};
+  Route<dynamic>? _currentRoute;
+
+  _DesktopRouteSelection _selectionFor(
+    Route<dynamic> route,
+    Route<dynamic>? previousRoute,
+  ) {
+    final arguments = route.settings.arguments;
+    if (arguments is Map<String, Object>) {
+      final destinationId = arguments['destinationId'];
+      final branchIndex = arguments['branchIndex'];
+      if (destinationId is String && branchIndex is int) {
+        return _DesktopRouteSelection(
+          destinationId: destinationId,
+          branchIndex: branchIndex,
+        );
+      }
+    }
+    return _selections[previousRoute] ??
+        const _DesktopRouteSelection(
+          destinationId: 'music-flow',
+          branchIndex: discoverBranchIndex,
+        );
+  }
+
+  void _setCurrent(Route<dynamic>? route) {
+    _currentRoute = route;
+    final selection = route == null
+        ? null
+        : _selections[route] ??
+              const _DesktopRouteSelection(
+                destinationId: 'music-flow',
+                branchIndex: discoverBranchIndex,
+              );
+    onCurrentChanged(
+      selection?.destinationId,
+      selection?.branchIndex ?? discoverBranchIndex,
+    );
+  }
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _selections[route] = _selectionFor(route, previousRoute);
+    _setCurrent(route);
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _selections.remove(route);
+    if (identical(_currentRoute, route)) _setCurrent(previousRoute);
+  }
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _selections.remove(route);
+    if (identical(_currentRoute, route)) _setCurrent(previousRoute);
+  }
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    final oldSelection = oldRoute == null ? null : _selections.remove(oldRoute);
+    if (newRoute == null) return;
+    final settings = newRoute.settings.arguments;
+    if (settings is Map<String, Object> &&
+        settings['destinationId'] is String &&
+        settings['branchIndex'] is int) {
+      _selections[newRoute] = _DesktopRouteSelection(
+        destinationId: settings['destinationId']! as String,
+        branchIndex: settings['branchIndex']! as int,
+      );
+    } else if (oldSelection != null) {
+      _selections[newRoute] = oldSelection;
+    }
+    if (identical(_currentRoute, oldRoute)) _setCurrent(newRoute);
   }
 }

@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart'
     show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -14,6 +13,7 @@ import '../../../core/utils/logger.dart';
 import '../../../data/models/music_library.dart';
 import '../../../data/models/server_address.dart';
 import '../../../data/sources/local_storage.dart';
+import '../../library/pages/edit_library_page.dart';
 import '../../../providers/api_provider.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/crossfade_provider.dart';
@@ -289,7 +289,13 @@ class _AppSettingsPageState extends ConsumerState<AppSettingsPage> {
                         : '管理服务器地址、认证方式与音乐库能力。',
                     onPressed: library == null
                         ? null
-                        : () => context.push('/library/edit/${library.id}'),
+                        : () => Navigator.of(context).push<void>(
+                            EchoPageRoute<void>(
+                              context: context,
+                              builder: (_) =>
+                                  EditLibraryPage(libraryId: library.id),
+                            ),
+                          ),
                   ),
                 ],
               ),

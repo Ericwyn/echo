@@ -24,7 +24,14 @@ import '../widgets/playlist_options_sheet.dart';
 
 /// 我的页面：收藏与个人歌单。
 class LibraryPage extends ConsumerStatefulWidget {
-  const LibraryPage({super.key});
+  const LibraryPage({
+    super.key,
+    this.showStarredSection = true,
+    this.pageTitle = '我的',
+  });
+
+  final bool showStarredSection;
+  final String pageTitle;
 
   @override
   ConsumerState<LibraryPage> createState() => _LibraryPageState();
@@ -256,8 +263,12 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
   Widget build(BuildContext context) {
     final playlistsAsync = ref.watch(playlistsProvider);
     final playlistsLoadFailed = ref.watch(playlistsLoadFailedProvider);
-    final starredAsync = ref.watch(starredProvider);
-    final starredLoadFailed = ref.watch(starredLoadFailedProvider);
+    final starredAsync = widget.showStarredSection
+        ? ref.watch(starredProvider)
+        : null;
+    final starredLoadFailed = widget.showStarredSection
+        ? ref.watch(starredLoadFailedProvider)
+        : false;
     final hasActiveLibrary = ref.watch(
       authStateProvider.select((s) => (s.currentLibrary?.id ?? '').isNotEmpty),
     );
@@ -267,16 +278,16 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
       debugLabel: 'library_page',
       shouldRetry: (ref) =>
           playlistsLoadFailed ||
-          starredLoadFailed ||
+          (widget.showStarredSection && starredLoadFailed) ||
           playlistsAsync.hasError ||
-          starredAsync.hasError,
+          (widget.showStarredSection && starredAsync!.hasError),
       onRetry: (ref) {
         ref.invalidate(playlistsProvider);
-        ref.invalidate(starredProvider);
+        if (widget.showStarredSection) ref.invalidate(starredProvider);
       },
       child: EchoScaffold(
         topBar: EchoTopBar(
-          title: '我的',
+          title: widget.pageTitle,
           leading: shouldShowPageDrawerTrigger(context)
               ? EchoIconButton(
                   icon: AppIcons.menu,
@@ -288,10 +299,11 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
         body: EchoRefreshView(
           onRefresh: () async {
             ref.invalidate(playlistsProvider);
-            ref.invalidate(starredProvider);
+            if (widget.showStarredSection) ref.invalidate(starredProvider);
             await Future.wait<void>(<Future<void>>[
               ref.read(playlistsProvider.future).then((_) {}),
-              ref.read(starredProvider.future).then((_) {}),
+              if (widget.showStarredSection)
+                ref.read(starredProvider.future).then((_) {}),
             ]);
           },
           child: Align(
@@ -306,49 +318,51 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                   context.echoSpacing.xxl + context.echoShellBottomObstruction,
                 ),
                 children: <Widget>[
-                  const EchoSectionHeader(title: '收藏'),
-                  starredAsync.when(
-                    data: (starred) => Column(
-                      children: <Widget>[
-                        LibraryDestinationRow(
-                          icon: AppIcons.heart,
-                          title: '收藏歌曲',
-                          detail: '${starred.songs.length} 首',
-                          onPressed: () => _push(
-                            context,
-                            const StarredPage(initialTab: StarredTab.songs),
+                  if (widget.showStarredSection) ...<Widget>[
+                    const EchoSectionHeader(title: '收藏'),
+                    starredAsync!.when(
+                      data: (starred) => Column(
+                        children: <Widget>[
+                          LibraryDestinationRow(
+                            icon: AppIcons.heart,
+                            title: '收藏歌曲',
+                            detail: '${starred.songs.length} 首',
+                            onPressed: () => _push(
+                              context,
+                              const StarredPage(initialTab: StarredTab.songs),
+                            ),
                           ),
-                        ),
-                        LibraryDestinationRow(
-                          icon: AppIcons.album,
-                          title: '收藏专辑',
-                          detail: '${starred.albums.length} 张',
-                          onPressed: () => _push(
-                            context,
-                            const StarredPage(initialTab: StarredTab.albums),
+                          LibraryDestinationRow(
+                            icon: AppIcons.album,
+                            title: '收藏专辑',
+                            detail: '${starred.albums.length} 张',
+                            onPressed: () => _push(
+                              context,
+                              const StarredPage(initialTab: StarredTab.albums),
+                            ),
                           ),
-                        ),
-                        LibraryDestinationRow(
-                          icon: AppIcons.profile,
-                          title: '收藏歌手',
-                          detail: '${starred.artists.length} 位',
-                          onPressed: () => _push(
-                            context,
-                            const StarredPage(initialTab: StarredTab.artists),
+                          LibraryDestinationRow(
+                            icon: AppIcons.profile,
+                            title: '收藏歌手',
+                            detail: '${starred.artists.length} 位',
+                            onPressed: () => _push(
+                              context,
+                              const StarredPage(initialTab: StarredTab.artists),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
+                      loading: () => const _LibraryRowsSkeleton(count: 3),
+                      error: (_, _) => EchoErrorState(
+                        title: '收藏加载失败',
+                        description: '无法读取收藏内容，请检查网络后重试。',
+                        actionLabel: '重试',
+                        onAction: () => ref.invalidate(starredProvider),
+                        padding: const EdgeInsets.all(24),
+                      ),
                     ),
-                    loading: () => const _LibraryRowsSkeleton(count: 3),
-                    error: (_, _) => EchoErrorState(
-                      title: '收藏加载失败',
-                      description: '无法读取收藏内容，请检查网络后重试。',
-                      actionLabel: '重试',
-                      onAction: () => ref.invalidate(starredProvider),
-                      padding: const EdgeInsets.all(24),
-                    ),
-                  ),
-                  SizedBox(height: context.echoSpacing.lg),
+                    SizedBox(height: context.echoSpacing.lg),
+                  ],
                   const EchoSectionHeader(title: '我的歌单'),
                   SizedBox(height: context.echoSpacing.xs),
                   Row(

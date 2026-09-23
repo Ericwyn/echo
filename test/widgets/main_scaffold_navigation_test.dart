@@ -141,6 +141,8 @@ void main() {
     ) async {
       await _pumpMainScaffold(tester, size: const Size(1440, 900));
 
+      expect(find.text('Desktop Music Flow'), findsOneWidget);
+
       for (final label in <String>[
         '发现',
         '音乐流',
@@ -175,6 +177,65 @@ void main() {
       expect(find.text('设置'), findsOneWidget);
       expect(find.bySemanticsLabel('我的'), findsNothing);
       expect(find.bySemanticsLabel('曲库'), findsNothing);
+    });
+
+    testWidgets(
+      'desktop sidebar replaces primary destinations and back returns to Music Flow',
+      (tester) async {
+        await _pumpMainScaffold(tester, size: const Size(1440, 900));
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('echo-desktop-sidebar-songs')),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Desktop songs'), findsOneWidget);
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('echo-desktop-sidebar-artists')),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Desktop artists'), findsOneWidget);
+        expect(find.text('Desktop songs'), findsNothing);
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('echo-desktop-sidebar-songs')),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Desktop songs'), findsOneWidget);
+
+        await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
+        expect(find.text('Desktop Music Flow'), findsOneWidget);
+        expect(find.text('Desktop songs'), findsNothing);
+
+        await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
+        expect(find.text('Desktop Music Flow'), findsOneWidget);
+      },
+    );
+
+    testWidgets('desktop detail routes share the global back stack', (
+      tester,
+    ) async {
+      await _pumpMainScaffold(tester, size: const Size(1440, 900));
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('echo-desktop-sidebar-songs')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey<String>('open-desktop-detail')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Desktop detail'), findsOneWidget);
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.text('Desktop songs'), findsOneWidget);
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.text('Desktop Music Flow'), findsOneWidget);
     });
 
     testWidgets('preserves branch stacks and resets a reselected branch', (
@@ -284,6 +345,9 @@ Future<_MainScaffoldHarness> _pumpMainScaffold(
                 networkStatusOverride: EchoNetworkStatus.online,
                 drawerOverride: const SizedBox(width: 320),
                 miniPlayerOverride: const SizedBox(height: 72),
+                desktopRootOverride: const _BranchPage('Desktop Music Flow'),
+                desktopPageBuilderOverride: (destinationId) =>
+                    _DesktopDestinationPage(destinationId: destinationId),
               );
             },
           );
@@ -387,5 +451,36 @@ class _BranchPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(body: Center(child: Text(label)));
+  }
+}
+
+class _DesktopDestinationPage extends StatelessWidget {
+  const _DesktopDestinationPage({required this.destinationId});
+
+  final String destinationId;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Text('Desktop $destinationId'),
+            ElevatedButton(
+              key: const ValueKey<String>('open-desktop-detail'),
+              onPressed: () => Navigator.of(context).push<void>(
+                MaterialPageRoute<void>(
+                  builder: (_) => const Scaffold(
+                    body: Center(child: Text('Desktop detail')),
+                  ),
+                ),
+              ),
+              child: const Text('Open detail'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

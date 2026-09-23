@@ -325,8 +325,10 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                         Navigator.of(context).push<void>(
                           EchoPageRoute<void>(
                             context: context,
-                            builder: (context) =>
-                                AlbumDetailPage(albumId: album.id),
+                            builder: (context) => AlbumDetailPage(
+                              albumId: album.id,
+                              branchIndex: discoverBranchIndex,
+                            ),
                           ),
                         );
                       },
@@ -355,8 +357,10 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                         Navigator.of(context).push<void>(
                           EchoPageRoute<void>(
                             context: context,
-                            builder: (context) =>
-                                ArtistDetailPage(artistId: artist.id),
+                            builder: (context) => ArtistDetailPage(
+                              artistId: artist.id,
+                              branchIndex: discoverBranchIndex,
+                            ),
                           ),
                         );
                       },

@@ -107,6 +107,7 @@ class _VisibleRemoteRetryScopeState
   }
 
   bool _isPageVisible() {
+    if (!TickerMode.valuesOf(context).enabled) return false;
     final route = ModalRoute.of(context);
     if (route != null && !route.isCurrent) {
       return false;

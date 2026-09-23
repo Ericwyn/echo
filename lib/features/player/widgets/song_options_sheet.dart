@@ -13,6 +13,7 @@ import '../../../providers/api_provider.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/download_provider.dart';
 import '../../../providers/offline_download_provider.dart';
+import '../../../providers/navigation_provider.dart';
 import '../../../providers/player_provider.dart';
 import '../../../providers/playlist_provider.dart';
 import '../../../widgets/echo_artwork.dart';
@@ -243,8 +244,12 @@ class _SongOptionsSheet extends ConsumerWidget {
                     await Navigator.of(hostContext).push<void>(
                       EchoPageRoute<void>(
                         context: hostContext,
-                        builder: (_) =>
-                            ArtistDetailPage(artistId: song.artistId!),
+                        builder: (_) => ArtistDetailPage(
+                          artistId: song.artistId!,
+                          branchIndex: ref.read(
+                            currentVisibleBranchIndexProvider,
+                          ),
+                        ),
                       ),
                     );
                   }),
@@ -264,7 +269,12 @@ class _SongOptionsSheet extends ConsumerWidget {
                     await Navigator.of(hostContext).push<void>(
                       EchoPageRoute<void>(
                         context: hostContext,
-                        builder: (_) => AlbumDetailPage(albumId: song.albumId!),
+                        builder: (_) => AlbumDetailPage(
+                          albumId: song.albumId!,
+                          branchIndex: ref.read(
+                            currentVisibleBranchIndexProvider,
+                          ),
+                        ),
                       ),
                     );
                   }),
