@@ -121,7 +121,7 @@ class SongActionFactory {
         isSelected: song.starred,
         onPressed: () async {
           final newStarred = await container
-              .read(playbackCommandsProvider)
+              .read(playerProvider.notifier)
               .toggleSongFavorite(song);
           if (newStarred == null) {
             NetworkErrorNotifier.show('操作失败');
