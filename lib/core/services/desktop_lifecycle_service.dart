@@ -250,10 +250,17 @@ class DesktopLifecycleService with WindowListener, TrayListener {
   Future<void> showWindow() async {
     try {
       await windowManager.show();
-      await windowManager.focus();
       _windowHidden = false;
     } catch (error) {
       Logger.warnWithTag('DESKTOP', 'failed to show main window', error);
+      return;
+    }
+    try {
+      await windowManager.focus();
+    } catch (error) {
+      // Wayland compositors may deny focus requests even after showing the
+      // window. Keep the visible state accurate and leave focus to the user.
+      Logger.warnWithTag('DESKTOP', 'window shown but focus was denied', error);
     }
   }
 
@@ -389,6 +396,7 @@ class DesktopLifecycleService with WindowListener, TrayListener {
       Logger.warnWithTag('DESKTOP', 'close-to-tray action failed', error);
       try {
         await windowManager.show();
+        _windowHidden = false;
       } catch (_) {
         // Keep the close failure local to the desktop shell.
       }
