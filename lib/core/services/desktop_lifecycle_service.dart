@@ -17,6 +17,9 @@ const _statusNotifierWatchers = <String>[
   'org.kde.StatusNotifierWatcher',
   'org.freedesktop.StatusNotifierWatcher',
 ];
+const _exitCleanupTimeout = Duration(seconds: 4);
+const _playerQuitTimeout = Duration(seconds: 15);
+const _windowDestroyTimeout = Duration(seconds: 8);
 
 /// Owns desktop window/tray lifetime only. Playback remains in PlayerNotifier.
 class DesktopLifecycleService with WindowListener, TrayListener {
@@ -206,21 +209,54 @@ class DesktopLifecycleService with WindowListener, TrayListener {
     if (!approved) return;
 
     _exitRequested = true;
-    try {
-      await DesktopWindowStateService.instance.dispose();
-      await _onQuit?.call();
-      await _watcherSubscription?.cancel();
-      _watcherSubscription = null;
-      await _sessionBusClient?.close();
-      _sessionBusClient = null;
-      await trayManager.destroy();
+    await _runExitStep(
+      'save window state',
+      DesktopWindowStateService.instance.dispose,
+    );
+    final onQuit = _onQuit;
+    if (onQuit != null) {
+      await _runExitStep('stop playback', onQuit, timeout: _playerQuitTimeout);
+    }
+
+    final watcherSubscription = _watcherSubscription;
+    _watcherSubscription = null;
+    if (watcherSubscription != null) {
+      await _runExitStep('stop tray host monitor', watcherSubscription.cancel);
+    }
+    final sessionBusClient = _sessionBusClient;
+    _sessionBusClient = null;
+    if (sessionBusClient != null) {
+      await _runExitStep('close session bus', sessionBusClient.close);
+    }
+    await _runExitStep('destroy tray icon', trayManager.destroy);
+    await _runExitStep('remove tray listener', () async {
       trayManager.removeListener(this);
+    });
+    await _runExitStep('remove window listener', () async {
       windowManager.removeListener(this);
-      await windowManager.setPreventClose(false);
-      await windowManager.destroy();
+    });
+    await _runExitStep(
+      'release close guard',
+      () => windowManager.setPreventClose(false),
+    );
+    try {
+      await windowManager.destroy().timeout(_windowDestroyTimeout);
     } catch (error) {
       _exitRequested = false;
-      Logger.errorWithTag('DESKTOP', 'failed to exit cleanly', error);
+      Logger.errorWithTag('DESKTOP', 'failed to destroy main window', error);
+    }
+  }
+
+  Future<void> _runExitStep(
+    String label,
+    Future<void> Function() operation, {
+    Duration timeout = _exitCleanupTimeout,
+  }) async {
+    try {
+      await operation().timeout(timeout);
+    } catch (error, stackTrace) {
+      Logger.warnWithTag('DESKTOP', 'exit cleanup failed: $label', error);
+      Logger.debugWithTag('DESKTOP', 'exit cleanup stack: $label', stackTrace);
     }
   }
 
