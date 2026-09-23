@@ -92,6 +92,7 @@ abstract final class AppIcons {
   static const selectAll = Remix.list_check_3;
   static const edit = Remix.edit_line;
   static const editNote = Remix.file_edit_fill;
+  static const locate = Remix.crosshair_2_line;
   static const delete = Remix.delete_bin_6_line;
   static const clearAll = Remix.eraser_line;
   static const removeCircle = Remix.checkbox_indeterminate_line;

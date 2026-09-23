@@ -237,4 +237,64 @@ void main() {
     expect(tester.widget<EchoSongRow>(secondRow).selected, isTrue);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('desktop queue can locate the current row after browsing away', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1280, 640);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    final songs = List<Song>.generate(
+      40,
+      (index) => Song(id: 'locate-$index', title: 'Locate track $index'),
+      growable: false,
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          playerProvider.overrideWith(
+            (ref) => TestPlayerNotifier(
+              PlayerState(
+                currentSong: songs.first,
+                queue: songs,
+                currentIndex: 0,
+              ),
+            ),
+          ),
+          currentLyricsProvider.overrideWith((ref) async => null),
+          currentSongPaletteProvider.overrideWith((ref) async => null),
+          resolvedCurrentSongMediaVisualsProvider.overrideWithValue(
+            EchoMediaVisuals.fallback(seed: const Color(0xFF187EA5)),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: Scaffold(
+            body: DesktopPlayerWorkspace(
+              panel: DesktopPlayerPanel.queue,
+              onPanelChanged: (_) {},
+              onClose: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(songs.first.title), findsOneWidget);
+    await tester.fling(
+      find.byType(ReorderableListView),
+      const Offset(0, -1800),
+      3000,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text(songs.first.title), findsNothing);
+
+    await tester.tap(find.text('定位当前'));
+    await tester.pumpAndSettle();
+    expect(find.text(songs.first.title), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

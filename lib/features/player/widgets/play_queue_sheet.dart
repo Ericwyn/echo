@@ -290,6 +290,7 @@ class PlaybackQueueContent extends StatefulWidget {
     this.selectedEntryId,
     this.onEntrySelected,
     this.onDeleteEntry,
+    this.locateCurrentRequestId = 0,
   }) : assert(
          !desktopInteraction ||
              (onEntrySelected != null && onDeleteEntry != null),
@@ -304,6 +305,7 @@ class PlaybackQueueContent extends StatefulWidget {
   final String? selectedEntryId;
   final ValueChanged<String?>? onEntrySelected;
   final ValueChanged<String>? onDeleteEntry;
+  final int locateCurrentRequestId;
 
   @override
   State<PlaybackQueueContent> createState() => _PlaybackQueueContentState();
@@ -379,7 +381,8 @@ class _PlaybackQueueContentState extends State<PlaybackQueueContent> {
     }
     if (oldWidget.playerState.currentEntryId !=
             widget.playerState.currentEntryId ||
-        oldWidget.playerState.currentIndex != widget.playerState.currentIndex) {
+        oldWidget.playerState.currentIndex != widget.playerState.currentIndex ||
+        oldWidget.locateCurrentRequestId != widget.locateCurrentRequestId) {
       _positionScheduled = false;
       _positionedEntryId = null;
     }

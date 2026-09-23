@@ -381,7 +381,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('large queue locates after viewport history is recycled', (
+  testWidgets('large queue can restore and update current-row location', (
     tester,
   ) async {
     tester.view.devicePixelRatio = 1;
@@ -403,6 +403,7 @@ void main() {
     final scrollController = ScrollController();
     addTearDown(scrollController.dispose);
     late StateSetter updateHost;
+    var locateCurrentRequestId = 0;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -415,6 +416,7 @@ void main() {
                 scrollController: scrollController,
                 playerState: playerState,
                 desktopInteraction: true,
+                locateCurrentRequestId: locateCurrentRequestId,
                 selectedEntryId: null,
                 onEntrySelected: (_) {},
                 onDeleteEntry: (_) {},
@@ -438,6 +440,16 @@ void main() {
     }
     expect(find.text(queue.last.title), findsOneWidget);
 
+    updateHost(() => locateCurrentRequestId++);
+    for (var frame = 0; frame < 10; frame++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(find.text(queue.first.title), findsOneWidget);
+
+    scrollController.jumpTo(scrollController.position.maxScrollExtent);
+    for (var frame = 0; frame < 10; frame++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
     updateHost(() {
       playerState = playerState.copyWith(
         playbackQueue: playerState.playbackQueue.selectIndex(nextCurrentIndex),

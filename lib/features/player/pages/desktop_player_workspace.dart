@@ -393,6 +393,7 @@ class _DesktopQueuePanel extends ConsumerStatefulWidget {
 class _DesktopQueuePanelState extends ConsumerState<_DesktopQueuePanel> {
   final ScrollController _scrollController = ScrollController();
   String? _selectedEntryId;
+  int _locateCurrentRequestId = 0;
 
   @override
   void dispose() {
@@ -451,6 +452,13 @@ class _DesktopQueuePanelState extends ConsumerState<_DesktopQueuePanel> {
                 ),
               ),
               TextButton.icon(
+                onPressed: currentIndex < 0
+                    ? null
+                    : () => setState(() => _locateCurrentRequestId++),
+                icon: const Icon(AppIcons.locate, size: 18),
+                label: const Text('定位当前'),
+              ),
+              TextButton.icon(
                 onPressed: playerState.queue.isEmpty
                     ? null
                     : () => unawaited(notifier.clearQueue()),
@@ -471,6 +479,7 @@ class _DesktopQueuePanelState extends ConsumerState<_DesktopQueuePanel> {
                   scrollController: _scrollController,
                   playerState: playerState,
                   desktopInteraction: true,
+                  locateCurrentRequestId: _locateCurrentRequestId,
                   selectedEntryId: _selectedEntryId,
                   onEntrySelected: (entryId) {
                     setState(() => _selectedEntryId = entryId);
