@@ -102,6 +102,18 @@ typedef QueueSongAction =
       String entryId,
     );
 
+class _QueueEntryAnchor {
+  const _QueueEntryAnchor({
+    required this.key,
+    required this.index,
+    required this.queueRevision,
+  });
+
+  final GlobalKey key;
+  final int index;
+  final int queueRevision;
+}
+
 /// Provider-free queue surface for deterministic gesture and a11y tests.
 @visibleForTesting
 class PlayQueueSheetView extends StatelessWidget {
@@ -298,15 +310,26 @@ class PlaybackQueueContent extends StatefulWidget {
 }
 
 class _PlaybackQueueContentState extends State<PlaybackQueueContent> {
-  final Map<String, GlobalKey> _entryKeys = <String, GlobalKey>{};
+  // Row anchors are pruned when their sliver children leave the cache extent;
+  // retaining every visited GlobalKey makes long queues grow with scroll history.
+  final Map<String, _QueueEntryAnchor> _entryKeys =
+      <String, _QueueEntryAnchor>{};
   final FocusNode _focusNode = FocusNode(debugLabel: 'playback_queue');
   bool _positionScheduled = false;
+  bool _entryKeyCleanupScheduled = false;
   String? _positionedEntryId;
   int? _dragRevision;
   bool? _dragShuffleEnabled;
 
   @override
+  void initState() {
+    super.initState();
+    widget.scrollController.addListener(_scheduleEntryKeyCleanup);
+  }
+
+  @override
   void dispose() {
+    widget.scrollController.removeListener(_scheduleEntryKeyCleanup);
     _focusNode.dispose();
     super.dispose();
   }
@@ -350,6 +373,10 @@ class _PlaybackQueueContentState extends State<PlaybackQueueContent> {
   @override
   void didUpdateWidget(covariant PlaybackQueueContent oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.scrollController != widget.scrollController) {
+      oldWidget.scrollController.removeListener(_scheduleEntryKeyCleanup);
+      widget.scrollController.addListener(_scheduleEntryKeyCleanup);
+    }
     if (oldWidget.playerState.currentEntryId !=
             widget.playerState.currentEntryId ||
         oldWidget.playerState.currentIndex != widget.playerState.currentIndex) {
@@ -361,8 +388,9 @@ class _PlaybackQueueContentState extends State<PlaybackQueueContent> {
   @override
   Widget build(BuildContext context) {
     final state = widget.playerState;
-    final activeIds = state.queueEntryIds.toSet();
-    _entryKeys.removeWhere((id, _) => !activeIds.contains(id));
+    final activeEntries = state.playbackQueue.entries;
+    _entryKeys.removeWhere((id, _) => !activeEntries.containsKey(id));
+    _scheduleEntryKeyCleanup();
     _scheduleInitialPosition(context);
 
     return Focus(
@@ -425,6 +453,13 @@ class _PlaybackQueueContentState extends State<PlaybackQueueContent> {
         itemBuilder: (context, index) {
           final song = state.queue[index];
           final entryId = state.queueEntryIds[index];
+          final previousAnchor = _entryKeys[entryId];
+          final rowKey = previousAnchor?.key ?? GlobalKey();
+          _entryKeys[entryId] = _QueueEntryAnchor(
+            key: rowKey,
+            index: index,
+            queueRevision: state.playbackQueue.revision,
+          );
           final isCurrent = index == state.currentIndex;
           final statusLabel = state.isLoading
               ? '正在加载'
@@ -512,7 +547,7 @@ class _PlaybackQueueContentState extends State<PlaybackQueueContent> {
                 );
 
           return GestureDetector(
-            key: _entryKeys.putIfAbsent(entryId, GlobalKey.new),
+            key: rowKey,
             onSecondaryTapDown: widget.desktopInteraction
                 ? (details) => unawaited(
                     _showDesktopQueueContextMenu(
@@ -626,9 +661,11 @@ class _PlaybackQueueContentState extends State<PlaybackQueueContent> {
 
     final state = widget.playerState;
     final entryId = state.currentEntryId;
-    final targetContext = entryId == null
-        ? null
-        : _entryKeys[entryId]?.currentContext;
+    final targetAnchor = entryId == null ? null : _entryKeys[entryId];
+    final targetContext =
+        targetAnchor?.queueRevision == state.playbackQueue.revision
+        ? targetAnchor?.key.currentContext
+        : null;
     if (targetContext != null) {
       unawaited(Scrollable.ensureVisible(targetContext, alignment: 0.35));
       _positionedEntryId = entryId;
@@ -639,8 +676,9 @@ class _PlaybackQueueContentState extends State<PlaybackQueueContent> {
     final position = widget.scrollController.position;
     final samples = <({int index, double extent})>[];
     for (final entry in _entryKeys.entries) {
-      final index = state.queueEntryIds.indexOf(entry.key);
-      final rowContext = entry.value.currentContext;
+      final index = entry.value.index;
+      if (entry.value.queueRevision != state.playbackQueue.revision) continue;
+      final rowContext = entry.value.key.currentContext;
       final renderObject = rowContext?.findRenderObject();
       if (index < 0 || renderObject is! RenderBox || !renderObject.hasSize) {
         continue;
@@ -673,6 +711,22 @@ class _PlaybackQueueContentState extends State<PlaybackQueueContent> {
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _positionCurrentEntry(context, attempt: attempt + 1);
+    });
+  }
+
+  void _scheduleEntryKeyCleanup() {
+    if (_entryKeyCleanupScheduled) return;
+    _entryKeyCleanupScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _entryKeyCleanupScheduled = false;
+      if (!mounted) return;
+      final activeEntries = widget.playerState.playbackQueue.entries;
+      final currentRevision = widget.playerState.playbackQueue.revision;
+      _entryKeys.removeWhere((entryId, anchor) {
+        return !activeEntries.containsKey(entryId) ||
+            anchor.queueRevision != currentRevision ||
+            anchor.key.currentContext == null;
+      });
     });
   }
 }
