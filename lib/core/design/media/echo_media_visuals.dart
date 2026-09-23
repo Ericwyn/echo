@@ -122,6 +122,21 @@ class EchoMediaVisuals {
     return EchoMediaVisuals.fromPalette(null, fallbackSeed: seed);
   }
 
+  /// Neutral player colours that follow the active Echo theme instead of
+  /// extracting accent colours from the current artwork.
+  factory EchoMediaVisuals.fromThemeColors(EchoColors colors) {
+    return EchoMediaVisuals._(
+      stageBase: colors.canvas,
+      stageGlow: colors.raised,
+      stageBottom: colors.canvas,
+      foreground: colors.ink,
+      mutedForeground: colors.muted,
+      controlAccent: colors.accent,
+      miniSurface: colors.surface,
+      panelSurface: colors.surface,
+    );
+  }
+
   final Color stageBase;
   final Color stageGlow;
   final Color stageBottom;

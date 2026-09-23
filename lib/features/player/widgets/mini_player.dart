@@ -52,7 +52,9 @@ class MiniPlayer extends ConsumerWidget {
       shuffleEnabled: snapshot.shuffleEnabled,
       duration: snapshot.duration,
     );
-    final visuals = ref.watch(resolvedCurrentSongMediaVisualsProvider);
+    final visuals =
+        ref.watch(playerSurfaceMediaVisualsProvider) ??
+        EchoMediaVisuals.fromThemeColors(context.echoColors);
     final currentSong = playerState.currentSong;
     if (currentSong == null) return const SizedBox.shrink();
 

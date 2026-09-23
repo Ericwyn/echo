@@ -88,6 +88,19 @@ void main() {
       _expectAccessibleVisuals(missing);
     });
 
+    test('static player visuals follow the active Echo theme tokens', () {
+      final colors = EchoColors.light();
+      final visuals = EchoMediaVisuals.fromThemeColors(colors);
+
+      expect(visuals.stageBase, colors.canvas);
+      expect(visuals.stageGlow, colors.raised);
+      expect(visuals.stageBottom, colors.canvas);
+      expect(visuals.foreground, colors.ink);
+      expect(visuals.controlAccent, colors.accent);
+      expect(visuals.miniSurface, colors.surface);
+      expect(visuals.panelSurface, colors.surface);
+    });
+
     test('different bright covers retain distinct media identities', () {
       final amber = EchoMediaVisuals.fromPalette(
         _palette(<(Color, int)>[(const Color(0xFFFFC857), 100)]),

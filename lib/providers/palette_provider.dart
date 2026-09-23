@@ -10,6 +10,7 @@ import '../core/design/media/echo_media_visuals.dart';
 import '../core/utils/cover_ref_security.dart';
 import 'api_provider.dart';
 import 'library_provider.dart';
+import 'player_appearance_provider.dart';
 import 'player_provider.dart';
 
 export '../core/design/media/echo_media_visuals.dart';
@@ -194,6 +195,13 @@ final resolvedCurrentSongMediaVisualsProvider = Provider<EchoMediaVisuals>((
 ) {
   final visuals = ref.watch(currentSongMediaVisualsProvider);
   return visuals.valueOrNull ?? EchoMediaVisuals.fallback();
+});
+
+/// Artwork-derived visuals for player surfaces when the user has enabled
+/// dynamic cover colours. A null value lets consumers use their active theme.
+final playerSurfaceMediaVisualsProvider = Provider<EchoMediaVisuals?>((ref) {
+  if (!ref.watch(dynamicPlayerBackgroundProvider)) return null;
+  return ref.watch(resolvedCurrentSongMediaVisualsProvider);
 });
 
 _MediaPaletteResource? _resolvePaletteResource(

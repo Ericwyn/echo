@@ -22,6 +22,7 @@ import '../../../providers/auth_provider.dart';
 import '../../../providers/crossfade_provider.dart';
 import '../../../providers/library_provider.dart';
 import '../../../providers/music_provider.dart';
+import '../../../providers/player_appearance_provider.dart';
 import '../../../providers/player_provider.dart';
 import '../../../providers/playlist_provider.dart';
 import '../../../providers/theme_provider.dart';
@@ -241,6 +242,7 @@ class _AppSettingsPageState extends ConsumerState<AppSettingsPage> {
     final activeAddress = ref.watch(activeAddressProvider);
     final autoFallback = ref.watch(autoFallbackProvider);
     final themeSettings = ref.watch(themeSettingsProvider);
+    final dynamicPlayerBackground = ref.watch(dynamicPlayerBackgroundProvider);
     final crossfadeMs = ref.watch(crossfadeDurationMsProvider);
     final availableLibraries = librariesAsync.valueOrNull;
     final switchDescription = librariesAsync.when(
@@ -380,6 +382,17 @@ class _AppSettingsPageState extends ConsumerState<AppSettingsPage> {
                         '${_themeModeText(themeSettings.mode)} · ${_colorHex(themeSettings.seedColor)}',
                     description: '明暗模式与 Echo 强调色',
                     onPressed: () => _pushPage(const ThemeSettingsPage()),
+                  ),
+                  EchoToggleSettingRow(
+                    icon: AppIcons.image,
+                    title: '封面动态背景',
+                    description: '播放器背景跟随封面取色；关闭后使用当前主题颜色。',
+                    value: dynamicPlayerBackground,
+                    onChanged: (value) => unawaited(
+                      ref
+                          .read(dynamicPlayerBackgroundProvider.notifier)
+                          .setEnabled(value),
+                    ),
                   ),
                   EchoSettingRow(
                     icon: AppIcons.quality,

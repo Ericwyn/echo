@@ -45,7 +45,9 @@ class PlayQueueSheet extends ConsumerWidget {
         ),
       ),
     );
-    final visuals = ref.watch(resolvedCurrentSongMediaVisualsProvider);
+    final visuals =
+        ref.watch(playerSurfaceMediaVisualsProvider) ??
+        EchoMediaVisuals.fromThemeColors(context.echoColors);
     final playerState = PlayerState(
       playbackQueue: queueSnapshot.playbackQueue,
       isPlaying: queueSnapshot.isPlaying,

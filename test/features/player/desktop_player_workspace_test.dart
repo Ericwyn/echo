@@ -1,4 +1,5 @@
 import 'package:echoes/core/theme/app_theme.dart';
+import 'package:echoes/core/design/tokens/echo_colors.dart';
 import 'package:echoes/data/models/song.dart';
 import 'package:echoes/features/player/pages/desktop_player_workspace.dart';
 import 'package:echoes/features/player/widgets/player_backdrop.dart';
@@ -67,6 +68,57 @@ void main() {
     expect(title.style?.color, visuals.foreground);
     final emptyLyrics = tester.widget<Text>(find.text('暂无歌词'));
     expect(emptyLyrics.style?.color, visuals.foreground);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('disabled dynamic background follows the active theme', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1280, 800);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    final song = Song(
+      id: 'desktop-static-background',
+      title: 'Static background song',
+    );
+    final theme = AppTheme.light();
+    final themeColors = theme.extension<EchoColors>()!;
+    final themeVisuals = EchoMediaVisuals.fromThemeColors(themeColors);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          playerProvider.overrideWith(
+            (ref) => TestPlayerNotifier(
+              PlayerState(
+                currentSong: song,
+                queue: <Song>[song],
+                currentIndex: 0,
+              ),
+            ),
+          ),
+          currentLyricsProvider.overrideWith((ref) async => null),
+          playerSurfaceMediaVisualsProvider.overrideWithValue(null),
+        ],
+        child: MaterialApp(
+          theme: theme,
+          home: Scaffold(
+            body: DesktopPlayerWorkspace(
+              panel: DesktopPlayerPanel.lyrics,
+              onPanelChanged: (_) {},
+              onClose: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final backdrop = tester.widget<EchoPlayerBackdrop>(
+      find.byType(EchoPlayerBackdrop),
+    );
+    expect(backdrop.visuals, themeVisuals);
     expect(tester.takeException(), isNull);
   });
 

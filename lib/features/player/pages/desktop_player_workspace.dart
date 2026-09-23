@@ -33,7 +33,9 @@ class DesktopPlayerWorkspace extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final song = ref.watch(playerProvider.select((state) => state.currentSong));
-    final visuals = ref.watch(resolvedCurrentSongMediaVisualsProvider);
+    final visuals =
+        ref.watch(playerSurfaceMediaVisualsProvider) ??
+        EchoMediaVisuals.fromThemeColors(context.echoColors);
 
     if (song == null) {
       return const EchoEmptyState(

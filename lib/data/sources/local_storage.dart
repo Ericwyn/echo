@@ -15,6 +15,8 @@ class LocalStorage {
   static const String _keyPlaybackSessionV2 = 'playback_session_v2';
   static const String _keyThemeMode = 'theme_mode';
   static const String _keyThemeSeedColor = 'theme_seed_color';
+  static const String _keyDynamicPlayerBackground =
+      'dynamic_player_background_v1';
   static const String _keyMobileCacheSavedBytesByLibrary =
       'mobile_cache_saved_bytes_by_library_v1';
   static const String _keyMaxCacheSizeBytes = 'max_cache_size_bytes';
@@ -232,6 +234,17 @@ class LocalStorage {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyThemeMode, mode);
     Logger.infoWithTag(_logTag, 'theme mode saved: $mode');
+  }
+
+  /// Whether player surfaces follow colours extracted from the current cover.
+  static Future<bool> getDynamicPlayerBackground() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyDynamicPlayerBackground) ?? true;
+  }
+
+  static Future<void> setDynamicPlayerBackground(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyDynamicPlayerBackground, enabled);
   }
 
   /// 读取主题主色（ARGB int）

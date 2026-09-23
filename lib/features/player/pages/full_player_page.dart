@@ -244,7 +244,9 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage>
   }
 
   void _showSongActions(Song song) {
-    final mediaVisuals = ref.read(resolvedCurrentSongMediaVisualsProvider);
+    final mediaVisuals =
+        ref.read(playerSurfaceMediaVisualsProvider) ??
+        EchoMediaVisuals.fromThemeColors(context.echoColors);
     if (song.isPreview) {
       unawaited(
         showSongOptionsSheet(
@@ -325,7 +327,9 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage>
       );
     }
 
-    final visuals = ref.watch(resolvedCurrentSongMediaVisualsProvider);
+    final visuals =
+        ref.watch(playerSurfaceMediaVisualsProvider) ??
+        EchoMediaVisuals.fromThemeColors(context.echoColors);
     final subtitle = _buildSubtitle(currentSong);
     final foregroundBrightness = visuals.foreground.computeLuminance() > 0.5
         ? Brightness.light
