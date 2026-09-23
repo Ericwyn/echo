@@ -84,7 +84,7 @@ class _EchoDesktopWindowChromeState extends State<EchoDesktopWindowChrome>
           key: const ValueKey<String>('echo-desktop-window-chrome'),
           decoration: BoxDecoration(
             color: colors.surface,
-            border: Border(bottom: BorderSide(color: colors.controlBoundary)),
+            border: Border(bottom: BorderSide(color: colors.divider)),
           ),
           child: SizedBox(
             height: 42,

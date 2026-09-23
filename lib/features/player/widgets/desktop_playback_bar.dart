@@ -63,7 +63,7 @@ class DesktopPlaybackBar extends ConsumerWidget {
             height: height,
             decoration: BoxDecoration(
               border: Border(
-                top: BorderSide(color: context.echoColors.controlBoundary),
+                top: BorderSide(color: context.echoColors.divider),
               ),
             ),
             padding: EdgeInsets.symmetric(

@@ -73,20 +73,22 @@ class _DiscoverPageState extends ConsumerState<DiscoverPage> {
                         onPressed: openEchoAppDrawer,
                       )
                     : null,
-                actions: <Widget>[
-                  EchoIconButton(
-                    icon: AppIcons.search,
-                    label: '搜索音乐库',
-                    onPressed: () {
-                      Navigator.of(context).push<void>(
-                        EchoPageRoute<void>(
-                          context: context,
-                          builder: (context) => const SearchPage(),
+                actions: context.echoWindowClass == EchoWindowClass.expanded
+                    ? const <Widget>[]
+                    : <Widget>[
+                        EchoIconButton(
+                          icon: AppIcons.search,
+                          label: '搜索音乐库',
+                          onPressed: () {
+                            Navigator.of(context).push<void>(
+                              EchoPageRoute<void>(
+                                context: context,
+                                builder: (context) => const SearchPage(),
+                              ),
+                            );
+                          },
                         ),
-                      );
-                    },
-                  ),
-                ],
+                      ],
               ),
               Expanded(
                 child: EchoRefreshView(

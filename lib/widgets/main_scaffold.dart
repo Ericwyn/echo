@@ -731,7 +731,11 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
         onPressed: () => _selectDesktopDestination(
           destinationId: 'my-playlists',
           branchIndex: libraryBranchIndex,
-          page: const LibraryPage(showStarredSection: false, pageTitle: '我的歌单'),
+          page: const LibraryPage(
+            showStarredSection: false,
+            pageTitle: '我的歌单',
+            showPlaylistSectionHeader: false,
+          ),
         ),
       ),
       action(

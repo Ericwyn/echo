@@ -116,11 +116,13 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             children: <Widget>[
               EchoPageHeader(
                 title: '搜索',
-                leading: EchoIconButton(
-                  icon: AppIcons.back,
-                  label: '返回音乐流',
-                  onPressed: () => Navigator.of(context).maybePop(),
-                ),
+                leading: context.echoWindowClass == EchoWindowClass.expanded
+                    ? null
+                    : EchoIconButton(
+                        icon: AppIcons.back,
+                        label: '返回音乐流',
+                        onPressed: () => Navigator.of(context).maybePop(),
+                      ),
               ),
               Padding(
                 padding: EdgeInsets.fromLTRB(

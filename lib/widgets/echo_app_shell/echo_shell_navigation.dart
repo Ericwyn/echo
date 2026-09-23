@@ -307,9 +307,7 @@ class EchoExpandedNavigationSidebar extends StatelessWidget {
                       child: Container(
                         decoration: BoxDecoration(
                           border: Border(
-                            top: BorderSide(
-                              color: context.echoColors.controlBoundary,
-                            ),
+                            top: BorderSide(color: context.echoColors.divider),
                           ),
                         ),
                         padding: EdgeInsets.fromLTRB(

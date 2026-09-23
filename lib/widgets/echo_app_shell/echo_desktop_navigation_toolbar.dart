@@ -28,7 +28,7 @@ class EchoDesktopNavigationToolbar extends StatelessWidget {
       key: const ValueKey<String>('echo-desktop-navigation-toolbar'),
       decoration: BoxDecoration(
         color: colors.surface,
-        border: Border(bottom: BorderSide(color: colors.controlBoundary)),
+        border: Border(bottom: BorderSide(color: colors.divider)),
       ),
       child: SizedBox(
         height: 48,

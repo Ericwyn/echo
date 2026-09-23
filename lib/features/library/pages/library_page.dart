@@ -28,10 +28,12 @@ class LibraryPage extends ConsumerStatefulWidget {
     super.key,
     this.showStarredSection = true,
     this.pageTitle = '我的',
+    this.showPlaylistSectionHeader = true,
   });
 
   final bool showStarredSection;
   final String pageTitle;
+  final bool showPlaylistSectionHeader;
 
   @override
   ConsumerState<LibraryPage> createState() => _LibraryPageState();
@@ -363,7 +365,8 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
                     ),
                     SizedBox(height: context.echoSpacing.lg),
                   ],
-                  const EchoSectionHeader(title: '我的歌单'),
+                  if (widget.showPlaylistSectionHeader)
+                    const EchoSectionHeader(title: '我的歌单'),
                   SizedBox(height: context.echoSpacing.xs),
                   Row(
                     key: const ValueKey<String>('playlist-section-actions'),
