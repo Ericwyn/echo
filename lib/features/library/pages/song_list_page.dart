@@ -37,6 +37,9 @@ class _SongListPageState extends ConsumerState<SongListPage> {
   List<Song> _displaySongs = [];
   SongSortOption _sortOption = SongSortOption.alphabeticalAsc;
   int _songsSignature = 0;
+  List<Song>? _signatureSourceSongs;
+  SongSortOption? _signatureSortOption;
+  int _cachedSongsSignature = 0;
   late final ItemPositionsListener _itemPositionsListener;
   int _coverLoadStart = 0;
   int _coverLoadEnd = -1;
@@ -135,6 +138,22 @@ class _SongListPageState extends ConsumerState<SongListPage> {
         ),
       ),
     );
+  }
+
+  int _signatureForSongs(List<Song> songs) {
+    // Cover-window updates rebuild this page while scrolling. allSongsProvider
+    // publishes replacement snapshots, so identity plus sort mode is enough
+    // to reuse the expensive content signature for those local rebuilds.
+    if (identical(_signatureSourceSongs, songs) &&
+        _signatureSortOption == _sortOption) {
+      return _cachedSongsSignature;
+    }
+
+    final signature = _buildSongsSignature(songs);
+    _signatureSourceSongs = songs;
+    _signatureSortOption = _sortOption;
+    _cachedSongsSignature = signature;
+    return signature;
   }
 
   void _processSongs(List<Song> songs, int signature) {
@@ -241,7 +260,7 @@ class _SongListPageState extends ConsumerState<SongListPage> {
               );
             }
 
-            final signature = _buildSongsSignature(songs);
+            final signature = _signatureForSongs(songs);
             final processedLength = _sortOption.usesAlphabeticalIndexBar
                 ? _azSongs.length
                 : _displaySongs.length;
