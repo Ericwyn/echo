@@ -79,9 +79,8 @@ class EchoAppShell extends StatelessWidget {
       key: scaffoldKey,
       backgroundColor: colors.canvas,
       extendBody: windowClass == EchoWindowClass.compact,
-      // Expanded desktop keeps one permanent navigation sidebar. Account,
-      // server, library, and settings actions are presented in a dialog from
-      // that sidebar instead of adding a second left-hand drawer.
+      // Expanded desktop uses its permanent sidebar and does not expose the
+      // modal drawer. Narrow layouts retain the drawer for overflow actions.
       drawer: windowClass == EchoWindowClass.expanded ? null : drawer,
       drawerScrimColor: colors.scrim,
       body: shellBody,
