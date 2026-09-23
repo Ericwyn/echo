@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:dbus/dbus.dart';
 import 'package:flutter/foundation.dart'
-    show TargetPlatform, defaultTargetPlatform;
+    show TargetPlatform, defaultTargetPlatform, visibleForTesting;
 import 'package:flutter/material.dart' show Size;
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
@@ -248,20 +248,18 @@ class DesktopLifecycleService with WindowListener, TrayListener {
   );
 
   Future<void> showWindow() async {
-    try {
-      await windowManager.show();
-      _windowHidden = false;
-    } catch (error) {
-      Logger.warnWithTag('DESKTOP', 'failed to show main window', error);
-      return;
-    }
-    try {
-      await windowManager.focus();
-    } catch (error) {
-      // Wayland compositors may deny focus requests even after showing the
-      // window. Keep the visible state accurate and leave focus to the user.
-      Logger.warnWithTag('DESKTOP', 'window shown but focus was denied', error);
-    }
+    await showWindowWithBestEffortFocus(
+      show: windowManager.show,
+      focus: windowManager.focus,
+      onShown: () => _windowHidden = false,
+      onShowFailure: (error) =>
+          Logger.warnWithTag('DESKTOP', 'failed to show main window', error),
+      onFocusFailure: (error) => Logger.warnWithTag(
+        'DESKTOP',
+        'window shown but focus was denied',
+        error,
+      ),
+    );
   }
 
   Future<void> requestExit() async {
@@ -371,25 +369,21 @@ class DesktopLifecycleService with WindowListener, TrayListener {
 
   Future<bool> _hideOrMinimize() async {
     try {
-      if (_trayAvailable) {
-        await windowManager.hide();
-        _windowHidden = true;
-        if (!_trayAvailable) {
-          // The host can disappear after the availability check but before
-          // hide completes. Recover a taskbar path instead of stranding the
-          // process in an unobservable hidden state.
-          Logger.warnWithTag(
-            'DESKTOP',
-            'tray host disappeared while hiding; falling back to minimize',
-          );
-          await windowManager.show();
-          _windowHidden = false;
-          await windowManager.minimize();
-        }
-      } else {
-        // Keep a taskbar/dock recovery path when no StatusNotifier host exists.
-        await windowManager.minimize();
-        _windowHidden = false;
+      final trayAvailableAtStart = _trayAvailable;
+      final result = await closeWindowWithTrayRecovery(
+        trayAvailableAtStart: trayAvailableAtStart,
+        trayAvailableNow: () => _trayAvailable,
+        hideWindow: windowManager.hide,
+        showWindow: windowManager.show,
+        minimizeWindow: windowManager.minimize,
+        onHiddenChanged: (hidden) => _windowHidden = hidden,
+      );
+      if (trayAvailableAtStart &&
+          result == DesktopWindowCloseResult.minimized) {
+        Logger.warnWithTag(
+          'DESKTOP',
+          'tray host disappeared while hiding; fell back to minimize',
+        );
       }
       return true;
     } catch (error) {
@@ -432,4 +426,60 @@ class DesktopLifecycleService with WindowListener, TrayListener {
         unawaited(requestExit());
     }
   }
+}
+
+enum DesktopWindowCloseResult { hidden, minimized }
+
+@visibleForTesting
+Future<bool> showWindowWithBestEffortFocus({
+  required Future<void> Function() show,
+  required Future<void> Function() focus,
+  required void Function() onShown,
+  required void Function(Object error) onShowFailure,
+  required void Function(Object error) onFocusFailure,
+}) async {
+  try {
+    await show();
+    onShown();
+  } catch (error) {
+    onShowFailure(error);
+    return false;
+  }
+
+  try {
+    await focus();
+  } catch (error) {
+    // Wayland compositors may deny focus requests even after showing the
+    // window. Keep the visible state accurate and leave focus to the user.
+    onFocusFailure(error);
+  }
+  return true;
+}
+
+@visibleForTesting
+Future<DesktopWindowCloseResult> closeWindowWithTrayRecovery({
+  required bool trayAvailableAtStart,
+  required bool Function() trayAvailableNow,
+  required Future<void> Function() hideWindow,
+  required Future<void> Function() showWindow,
+  required Future<void> Function() minimizeWindow,
+  required void Function(bool hidden) onHiddenChanged,
+}) async {
+  if (!trayAvailableAtStart) {
+    // Keep a taskbar/dock recovery path when no StatusNotifier host exists.
+    await minimizeWindow();
+    onHiddenChanged(false);
+    return DesktopWindowCloseResult.minimized;
+  }
+
+  await hideWindow();
+  onHiddenChanged(true);
+  if (trayAvailableNow()) return DesktopWindowCloseResult.hidden;
+
+  // The host can disappear after the availability check but before hide
+  // completes. Recover a taskbar path instead of stranding the process.
+  await showWindow();
+  onHiddenChanged(false);
+  await minimizeWindow();
+  return DesktopWindowCloseResult.minimized;
 }
