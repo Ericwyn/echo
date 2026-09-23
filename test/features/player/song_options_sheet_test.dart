@@ -190,6 +190,50 @@ void main() {
     expect(hostContext.mounted, isTrue);
   });
 
+  testWidgets('full mode presents host actions once after built-in actions', (
+    tester,
+  ) async {
+    final notifier = TestPlayerNotifier(
+      PlayerState(currentSong: song, queue: <Song>[song]),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(libraryRepository),
+          playerProvider.overrideWith((ref) => notifier),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => showSongOptionsSheet(
+                  context: context,
+                  song: song,
+                  extraActions: <SongAction>[
+                    SongAction(
+                      id: 'test.presenter-action',
+                      icon: AppIcons.info,
+                      title: '宿主附加操作',
+                      onPressed: () {},
+                    ),
+                  ],
+                ),
+                child: const Text('打开操作'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('打开操作'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('宿主附加操作'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'preview mode keeps queue actions but hides library-only actions',
     (tester) async {
