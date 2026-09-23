@@ -4,7 +4,7 @@
 
 状态：首轮桌面实现正在验收。历史工作树有 437 项 Flutter 测试、项目级 `flutter analyze` 和 Ubuntu 22.04 Linux release 编译通过记录；近期新增的桌面导航、播放器工作区状态恢复、右键队列、动态背景和窗口几何测试未运行。
 
-当前应用代码 `cab6fe11` 已在全新 `build/linux-lldtmp-2061` CMake build-dir 构建，使用系统 Clang 与 Ubuntu LLD 14。当前 `.deb` 为 `1.1.0+2053`/amd64，DEB SHA-256：`1a2537c13606144a0b55c11d6bdffe04f5c486b8628f5792c68f5b58097af119`；同一 release bundle 的独立 ZIP SHA-256：`1ba2dd3399b223c0b8f481a58d97f437d40901572fbbac5d869cdc3909286ea9`，归档完整性通过。Android arm64-only APK version name/code 为 `1.1.0`/`2051`，高于设备报告的 `2026`；release 证书校验通过，SHA-256：`4b53b3c8414ac701a950706aa783b6e5a416f503284bdf1c2bfbfc60463b2a77`。产物未安装或启动，Flutter tests/analyze 未运行；手动交互由用户验收。详见 [音乐库删除历史修复构建证据](evidence/260924-library-delete-history-build/README.md)。
+当前应用代码 `b12aa608` 已在全新 `build/linux-lldtmp-2062` CMake build-dir 构建，使用系统 Clang 与 Ubuntu LLD 14。当前 `.deb` 为 `1.1.0+2053`/amd64，SHA-256：`f7d6e9f3ffe9bd44a59841628ef322bbe0aca17526e7341deb0b15c8cfdc742f`；standalone bundle ZIP SHA-256：`7e06b94cf5ba7128b8ffc964ef5fff65838267cba1815d1aeade132e715bcbc9`，归档完整性通过。Android arm64-only APK version name/code 为 `1.1.0`/`2053`，高于设备报告的 `2026`；release 证书校验通过，SHA-256：`3626dfd31c0b7bd364618d78e23cfc6b04afbc8970110188af55f16506605ed5`。产物未安装或启动，Flutter tests/analyze 未运行；手动交互由用户验收。详见 [共享播放命令统一构建证据](evidence/260924-playback-command-unification-build/README.md)。
 
 ## 功能与责任阶段
 
@@ -22,8 +22,8 @@
 | A10 | 单实例与恢复（R4） | 第二次启动只恢复同一窗口；多屏变化不丢窗，休眠唤醒后行为明确，用户暂停不被取消 | P0/P4 | 部分实现（Linux GTK runner 已改为唯一实例；窗口逻辑尺寸/最大化状态代码已随 `4015f879` 编译，但未实机验证；多屏/休眠/播放意图恢复未验） |
 | A11 | 尺寸与系统缩放（R3/R4） | 指定窗口/DPI/大字体/明暗组合无关键遮挡和重复 UI，连续重排不重建播放器 | P2/P3/P5 | 部分实现（工作区按宽/高空间切入紧凑布局并加入系统全屏，720×460/全屏窗口状态回归定义已添加但未运行；实际 840×560、全屏、窗口几何和 DPI 等待用户验收） |
 | A12 | Windows 等效能力（R1） | 在实际 Windows 桌面会话验证 SMTC/媒体键/托盘/退出/单实例，不只依赖 CI | P0-B/P4/P5 | 未测（当前 Linux 优先，Windows CI 暂缓） |
-| A13 | Android 不退化（R1） | 手机导航/MiniPlayer/歌词/队列和通知栏、锁屏后台、转码 seek、恢复流程通过 | P1–P5 | 最新 arm64-only release APK 已用本机签名脚本构建；version name/code 为 `1.1.0` / `2051`，高于用户设备报告的 `2026`；仅包含 `arm64-v8a`，签名和 package metadata 校验通过。尚未安装/启动，通知栏、锁屏、共享播放器与数据恢复仍待用户真机回归。 |
-| A14 | 可安装可运行（R4） | 干净环境由安装包满足 native 依赖，应用菜单启动并实际播放；升级保留用户状态 | P5 | 部分实现（`cab6fe11` 最新 Linux bundle 与 `.deb` 在全新 `build/linux-lldtmp-2061` 构建；DEB 元数据为 `echoes`/`1.1.0+2053`/`amd64`；本机 ARM64 APK 为 `1.1.0`/versionCode `2051`，签名/ABI/包信息和 Linux bundle ZIP 完整性通过。未安装或启动，干净环境依赖、实际播放和升级状态仍待用户验证） |
+| A13 | Android 不退化（R1） | 手机导航/MiniPlayer/歌词/队列和通知栏、锁屏后台、转码 seek、恢复流程通过 | P1–P5 | 最新 arm64-only release APK 已用本机签名脚本构建；version name/code 为 `1.1.0` / `2053`，高于用户设备报告的 `2026`；仅包含 `arm64-v8a`，签名和 package metadata 校验通过。尚未安装/启动，通知栏、锁屏、共享播放器与数据恢复仍待用户真机回归。 |
+| A14 | 可安装可运行（R4） | 干净环境由安装包满足 native 依赖，应用菜单启动并实际播放；升级保留用户状态 | P5 | 部分实现（最新 Linux bundle 与 `.deb` 在全新 `build/linux-lldtmp-2062` 构建；DEB 元数据为 `echoes`/`1.1.0+2053`/`amd64`，standalone bundle ZIP 完整性通过；本机 ARM64 APK 为 `1.1.0`/versionCode `2053`，签名/ABI/包信息通过。未安装或启动，干净环境依赖、实际播放和升级状态仍待用户验证） |
 | A15 | 桌面性能（R3/R4） | release/profile 记录帧耗时/内存/隐藏 CPU；满足阶段预算，进度不全量重建队列 | P3/P5 | 代码优化部分实现（PlaybackQueueContent 只订阅低频队列字段；SongListPage 滚动时重用歌曲签名；队列定位用锚点缓存可见 index/revision，离屏后清理 GlobalKey，避免每个样本线性扫描和锚点随滚动历史积累；1654/5000 首 release/profile 帧耗时、内存和隐藏 CPU 仍待用户采样） |
 | A16 | Linux 自绘窗口顶栏与桌面宽度下限（R9） | GNOME 原生 GTK 标题栏隐藏；Echo 顶栏能拖动、最小化、最大化/还原、关闭；840 逻辑像素以下无法缩窗；Android 尺寸/路由不变 | P2/P5 | 用户曾报告上一版按钮不可点/闪烁且窗口缩放异常；已移除根 Overlay 外的 Tooltip、启动时清除置顶并显式恢复缩放/最大化能力。`ce6a8ddd` 新增点击用例和全屏状态用例未运行；`bb8d9af3` 最新 app 已构建但未启动，普通窗口/全屏和 Wayland 均待用户复测 |
 | A17 | 桌面导航层级与分隔线（R9） | expanded 桌面音乐流仅有一个搜索入口；搜索页仅用全局历史返回；我的歌单只显示一个页面标题；窗口栏/历史工具栏/播放条分隔线使用弱化颜色，侧栏不显示账户底栏；手机页面仍保留自己的搜索/返回 | P2 | 搜索/返回/重复标题在 `4015f879` 修正；`88ecf672` 移除桌面账户底栏和离线状态入口，并对齐标题区、弱化分隔线。当前 Linux 包已包含这些代码，尚未由用户实机检查 |

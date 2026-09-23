@@ -12,7 +12,7 @@
 
 `bb8d9af3` 把“托盘不可用/隐藏期间消失”和“显示成功但 focus 被拒绝”的决策抽成可单测 helper，并添加 5 条回归用例；按用户要求未运行。最新 Linux `1.1.0+2053` 与 Android ARM64 versionCode `2050` release 已编译。
 
-`cab6fe11` 还修复了删除音乐库后前进历史恢复失效页面的问题；最新 Linux `1.1.0+2053` 与 Android ARM64 versionCode `2051` release 已编译，交互和回归用例仍待用户验证。
+`cab6fe11` 还修复了删除音乐库后前进历史恢复失效页面的问题；对应 Linux `1.1.0+2053` 与 Android ARM64 versionCode `2051` release 已编译。后续 `b12aa608` 又统一了队列播放命令，当前 release versionCode `2053`；交互和回归用例仍待用户验证。
 
 ## 目标与拆分
 
