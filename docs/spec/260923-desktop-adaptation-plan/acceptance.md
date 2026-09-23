@@ -2,7 +2,7 @@
 
 [返回 spec](README.md) · [需求/决策编号](decisions.md)
 
-状态：首轮桌面实现正在验收。历史工作树有 437 项 Flutter 测试、项目级 `flutter analyze` 和 Ubuntu 22.04 Linux release 编译通过记录；近期新增的桌面导航、播放器工作区状态恢复、右键队列、动态背景和窗口几何测试未运行。当前代码提交 `1cf593f6` 已构建 Linux release bundle 与 `.deb`；`.deb` 为 amd64，依赖 `libgtk-3-0`、`libayatana-appindicator3-1`、`libmpv1`，SHA-256：`705722c43ff0d138670c1141a9b656e8c28eab16e6735374491745a79c68bddd`。未安装或启动，Ubuntu 界面和交互由用户实机验收。环境基线见 [Linux build baseline](evidence/260923-linux-build-baseline/README.md)。此前 libmpv 0.34.1 HTTP 音频 smoke test 通过；这些证据不替代 GNOME 完整交互或干净安装。
+状态：首轮桌面实现正在验收。历史工作树有 437 项 Flutter 测试、项目级 `flutter analyze` 和 Ubuntu 22.04 Linux release 编译通过记录；近期新增的桌面导航、播放器工作区状态恢复、右键队列、动态背景和窗口几何测试未运行。应用代码 `1cf593f6` 已在全新 CMake build-dir 构建，确认使用系统 Clang/GNU ld、无 `/tmp` linker shim；打包脚本 `c25e22aa` 从该 bundle 生成 amd64 `.deb`，依赖 `libgtk-3-0`、`libayatana-appindicator3-1`、`libmpv1`，SHA-256：`f568c47d47841ad7d696391067a31ca6331c0dfd63fb269d4f0bb2755773c42d`。产物位于 `build/linux-noshim`，未安装或启动；Ubuntu 界面和交互由用户实机验收。环境基线见 [Linux build baseline](evidence/260923-linux-build-baseline/README.md)。此前 libmpv 0.34.1 HTTP 音频 smoke test 通过；这些证据不替代 GNOME 完整交互或干净安装。
 
 ## 功能与责任阶段
 
@@ -21,7 +21,7 @@
 | A11 | 尺寸与系统缩放（R3/R4） | 指定窗口/DPI/大字体/明暗组合无关键遮挡和重复 UI，连续重排不重建播放器 | P2/P3/P5 | 部分实现（工作区按宽/高空间切入紧凑布局，720×460 回归用例已添加但未运行；实际 840×560 app 窗口和 DPI 等待用户验收） |
 | A12 | Windows 等效能力（R1） | 在实际 Windows 桌面会话验证 SMTC/媒体键/托盘/退出/单实例，不只依赖 CI | P0-B/P4/P5 | 未测（当前 Linux 优先，Windows CI 暂缓） |
 | A13 | Android 不退化（R1） | 手机导航/MiniPlayer/歌词/队列和通知栏、锁屏后台、转码 seek、恢复流程通过 | P1–P5 | 待验证（此前共享 artwork/player 自动回归有通过记录；最新 shared metadata 用例未运行，通知栏/锁屏最终真机回归未完成） |
-| A14 | 可安装可运行（R4） | 干净环境由安装包满足 native 依赖，应用菜单启动并实际播放；升级保留用户状态 | P5 | 部分实现（包含 `1cf593f6` 的 bundle 与 `.deb` 已生成；ELF、desktop entry、图标和依赖元数据检查通过；干净安装/实际播放/升级保留状态未测） |
+| A14 | 可安装可运行（R4） | 干净环境由安装包满足 native 依赖，应用菜单启动并实际播放；升级保留用户状态 | P5 | 部分实现（包含 `1cf593f6` 的 bundle 与 `c25e22aa` 打包脚本已生成；全新 CMake 构建、ELF、desktop entry、图标和依赖元数据检查通过；干净安装/实际播放/升级保留状态未测） |
 | A15 | 桌面性能（R3/R4） | release/profile 记录帧耗时/内存/隐藏 CPU；满足阶段预算，进度不全量重建队列 | P3/P5 | 待验证 |
 | A16 | Linux 自绘窗口顶栏与桌面宽度下限（R9） | GNOME 原生 GTK 标题栏隐藏；Echo 顶栏能拖动、最小化、最大化/还原、关闭；840 逻辑像素以下无法缩窗；Android 尺寸/路由不变 | P2/P5 | 用户曾报告上一版按钮不可点/闪烁且窗口缩放异常；已移除根 Overlay 外的 Tooltip、启动时清除置顶并显式恢复窗口缩放/最大化。当前 `1cf593f6` bundle 已构建但未启动，等用户复测；Wayland 未测 |
 | A17 | 桌面导航层级与分隔线（R9） | expanded 桌面音乐流仅有一个搜索入口；搜索页仅用全局历史返回；我的歌单只显示一个页面标题；窗口栏/历史工具栏/播放条分隔线使用弱化颜色，侧栏不显示账户底栏；手机页面仍保留自己的搜索/返回 | P2 | 搜索/返回/重复标题在 `4015f879` 修正；`88ecf672` 移除桌面账户底栏和离线状态入口，并对齐标题区、弱化分隔线。当前 Linux 包已包含这些代码，尚未由用户实机检查 |

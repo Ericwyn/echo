@@ -2,7 +2,7 @@
 
 [返回 spec](README.md) · [验收矩阵](acceptance.md) · [决策](decisions.md)
 
-状态：`1cf593f6` 的 Linux release bundle 与 Ubuntu `.deb` 已构建；已核对 ELF x64、desktop entry、图标及 GTK/AppIndicator/libmpv 依赖，尚未安装或实播。前置：P0–P4 仍有完整系统操作、恢复和安装场景待验证。当前优先 Ubuntu/Linux；Windows CI 暂缓，不能据此宣称 Windows 发布支持。
+状态：`1cf593f6` 的 Linux 应用代码已在全新 `build/linux-noshim` CMake 目录中构建，使用系统 Clang/GNU ld，无临时 linker shim；`c25e22aa` 支持从该目录生成 Ubuntu `.deb`。已核对 ELF x64、desktop entry、图标及 GTK/AppIndicator/libmpv 依赖，尚未安装或实播。前置：P0–P4 仍有完整系统操作、恢复和安装场景待验证。当前优先 Ubuntu/Linux；Windows CI 暂缓，不能据此宣称 Windows 发布支持。
 
 ## 目标与交付范围
 
@@ -14,7 +14,7 @@ Ubuntu 交付可安装 `.deb` 与完整 bundle 压缩包；Windows 交付 releas
 
 1. 使用 Ubuntu 22.04 构建环境和 Flutter 3.41.7；PR Linux job 固定 runner 并运行 Linux release build。当前不增加 Windows CI job。
 2. 固定 pub 依赖锁文件和 native 依赖，补齐 clang/lld、GTK、CMake、Ninja 与选定托盘实现要求。构建过程不依赖开发者机器绝对路径、手工 symlink 或旧缓存。
-3. Linux bundle 检查 `echoes`、`lib/`、`data/` 和插件资源完整；不能只分发可执行文件。扫描直接动态依赖，同时确认运行时动态加载的 libmpv 与编解码依赖。
+3. Linux bundle 检查 `echoes`、`lib/`、`data/` 和插件资源完整；不能只分发可执行文件。扫描直接动态依赖，同时确认运行时动态加载的 libmpv 与编解码依赖。`scripts/package_linux_deb.sh` 默认读取 Flutter 标准 bundle；设置 `ECHO_LINUX_BUNDLE_DIR` 可直接打包非默认 build-dir 的 bundle。
 4. `.deb` 与 bundle 仍需明确系统 libmpv 运行依赖；本地 smoke test 已在 Ubuntu 22.04/libmpv 0.34.1 上通过，但还需在干净环境验证包依赖、实际播放和 ABI。
 5. 添加 `.desktop`、图标、分类、应用名称和身份；安装后从应用列表、Dock 和命令行启动指向同一应用，重复启动能恢复窗口。按实际设计申明 D-Bus 激活能力，不能只加 DesktopEntry 字段就当激活实现完成。当前 `scripts/package_linux_deb.sh` 将完整 bundle 安装到 `/opt/echoes`，安装 `.desktop` 与 hicolor 图标；明确 `DBusActivatable=false`，因为首版没有桌面文件 D-Bus 激活服务。
 6. Windows 包与 SMTC 验证暂缓，不纳入当前 Linux 交付门槛。
@@ -81,6 +81,7 @@ Ubuntu 24.04/Wayland 若仍未验收，只能先发布明确限定 22.04/X11 的
 | Ubuntu 22.04 X11 | `eaa77d13` / 2026-09-23 release bundle 与 `.deb` | 另包含 album/playlist detail 排序选择的 route-local 状态恢复，并将搜索状态保存改为输入时写入；release build 与 `.deb` 组装成功，核对 amd64 ELF、desktop entry、图标和运行依赖。未启动、未安装、未运行 Flutter 测试；详情筛选恢复由用户实测 |
 | Ubuntu 22.04 X11 | `52463122` / 2026-09-23 release bundle 与 `.deb` | 另包含收藏夹 tab 与 artist detail 当前内容区的路由状态恢复；release build 与 `.deb` 组装成功，核对 amd64 ELF、desktop entry、图标和运行依赖。未启动、未安装、未运行 Flutter 测试；收藏/歌手页面恢复由用户实测 |
 | Ubuntu 22.04 X11 | `1cf593f6` / 2026-09-23 release bundle 与 `.deb` | 另包含歌词/队列面板和整个播放工作区在切换/收起后保留状态；release build 与 `.deb` 组装成功，核对 amd64 ELF、desktop entry、图标和运行依赖。未启动、未安装、未运行 Flutter 测试；工作区恢复由用户实测 |
+| Ubuntu 22.04 X11 | `1cf593f6` app + `c25e22aa` package script / `build/linux-noshim` | 用隔离 Flutter 配置和全新 CMake build-dir 构建；系统 Clang/GNU ld 完成 Linux release，无 `/tmp` shim 引用。`ECHO_LINUX_BUNDLE_DIR` 将隔离 bundle 打成 `.deb`，核对 amd64、依赖、ELF、desktop entry、图标和 SHA-256。未安装、未启动、未运行 Flutter 测试；实际桌面验收仍待用户执行 |
 | Ubuntu 24.04 / Wayland | — | 待提供环境与结果 |
 | Windows | — | Windows CI 暂缓；未编译/未实机验收 |
 | Android 回归 | 本任务 Flutter 测试 431 项通过 | artwork/shared player 自动回归通过；最终 Android 真机锁屏/通知栏/封面验证待完成 |
