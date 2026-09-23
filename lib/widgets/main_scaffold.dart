@@ -10,19 +10,11 @@ import '../core/network/connectivity_monitor.dart';
 import '../core/utils/logger.dart';
 import '../data/models/server_address.dart';
 import '../features/discover/pages/discover_page.dart';
-import '../features/explore/pages/explore_page.dart';
-import '../features/download/pages/download_manager_page.dart';
-import '../features/library/pages/album_list_page.dart';
-import '../features/library/pages/artist_list_page.dart';
-import '../features/library/pages/library_page.dart';
-import '../features/library/pages/song_list_page.dart';
-import '../features/library/pages/starred_page.dart';
-import '../features/offline/pages/offline_download_status_page.dart';
 import '../features/player/widgets/mini_player.dart';
 import '../features/player/pages/desktop_player_workspace.dart';
 import '../features/player/widgets/desktop_playback_bar.dart';
-import '../features/settings/pages/app_settings_page.dart';
 import '../features/discover/pages/search_page.dart';
+import '../features/navigation/app_navigation_model.dart';
 import '../providers/api_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/navigation_provider.dart';
@@ -159,45 +151,19 @@ EchoBackAction resolveEchoBackAction({
   return EchoBackAction.moveAppToBackground;
 }
 
-const EchoShellDestination _discoverDestination = EchoShellDestination(
-  branchIndex: discoverBranchIndex,
-  label: '音乐流',
-  icon: AppIcons.musicFlow,
-  selectedIcon: AppIcons.musicFlowFilled,
-);
-
-const EchoShellDestination _exploreDestination = EchoShellDestination(
-  branchIndex: exploreBranchIndex,
-  label: '探索',
-  icon: AppIcons.discover,
-  selectedIcon: AppIcons.discoverFilled,
-);
-
-const EchoShellDestination _libraryDestination = EchoShellDestination(
-  branchIndex: libraryBranchIndex,
-  label: '我的',
-  icon: AppIcons.personal,
-  selectedIcon: AppIcons.personalFilled,
-);
-
-const EchoShellDestination _catalogDestination = EchoShellDestination(
-  branchIndex: catalogBranchIndex,
-  label: '曲库',
-  icon: AppIcons.catalog,
-  selectedIcon: AppIcons.catalogFilled,
-);
-
 @visibleForTesting
 List<EchoShellDestination> echoMainDestinations({
   required bool showExploreTab,
-}) {
-  return <EchoShellDestination>[
-    _discoverDestination,
-    if (showExploreTab) _exploreDestination,
-    _libraryDestination,
-    _catalogDestination,
-  ];
-}
+}) => AppNavigationModel.primaryDestinations(showExploreTab: showExploreTab)
+    .map(
+      (item) => EchoShellDestination(
+        branchIndex: item.branchIndex!,
+        label: item.primaryLabel!,
+        icon: item.icon,
+        selectedIcon: item.selectedIcon!,
+      ),
+    )
+    .toList(growable: false);
 
 class MainScaffold extends ConsumerStatefulWidget {
   final StatefulNavigationShell navigationShell;
@@ -606,173 +572,27 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
 
   List<EchoDesktopSidebarAction> _desktopSidebarActions({
     required bool showExploreTab,
-  }) {
-    EchoDesktopSidebarAction action({
-      required String id,
-      required String section,
-      required String label,
-      required IconData icon,
-      required VoidCallback onPressed,
-    }) => EchoDesktopSidebarAction(
-      id: id,
-      section: section,
-      label: label,
-      icon: icon,
-      selected: _desktopSelectedActionId == id,
-      onPressed: onPressed,
-    );
-
-    return <EchoDesktopSidebarAction>[
-      action(
-        id: 'music-flow',
-        section: '发现',
-        label: '音乐流',
-        icon: AppIcons.musicFlow,
-        onPressed: () => _selectDesktopDestination(
-          destinationId: 'music-flow',
-          branchIndex: discoverBranchIndex,
-          page: DiscoverPage(),
-        ),
-      ),
-      if (showExploreTab)
-        action(
-          id: 'explore',
-          section: '发现',
-          label: '探索',
-          icon: AppIcons.discover,
+  }) => AppNavigationModel.desktopSidebar(showExploreTab: showExploreTab)
+      .map((item) {
+        final section = item.desktopSection;
+        final label = item.desktopLabel;
+        final branchIndex = item.branchIndex;
+        final pageBuilder = item.pageBuilder;
+        assert(item.isDesktopDestination);
+        return EchoDesktopSidebarAction(
+          id: item.id,
+          section: section!,
+          label: label!,
+          icon: item.icon,
+          selected: _desktopSelectedActionId == item.id,
           onPressed: () => _selectDesktopDestination(
-            destinationId: 'explore',
-            branchIndex: exploreBranchIndex,
-            page: ExplorePage(),
+            destinationId: item.id,
+            branchIndex: branchIndex!,
+            page: pageBuilder!(),
           ),
-        ),
-      action(
-        id: 'search',
-        section: '发现',
-        label: '搜索',
-        icon: AppIcons.search,
-        onPressed: () => _selectDesktopDestination(
-          destinationId: 'search',
-          branchIndex: discoverBranchIndex,
-          page: const SearchPage(),
-        ),
-      ),
-      action(
-        id: 'songs',
-        section: '资料库',
-        label: '全部歌曲',
-        icon: AppIcons.music,
-        onPressed: () => _selectDesktopDestination(
-          destinationId: 'songs',
-          branchIndex: catalogBranchIndex,
-          page: const SongListPage(),
-        ),
-      ),
-      action(
-        id: 'artists',
-        section: '资料库',
-        label: '歌手',
-        icon: AppIcons.profile,
-        onPressed: () => _selectDesktopDestination(
-          destinationId: 'artists',
-          branchIndex: catalogBranchIndex,
-          page: const ArtistListPage(),
-        ),
-      ),
-      action(
-        id: 'albums',
-        section: '资料库',
-        label: '专辑',
-        icon: AppIcons.albumOutline,
-        onPressed: () => _selectDesktopDestination(
-          destinationId: 'albums',
-          branchIndex: catalogBranchIndex,
-          page: const AlbumListPage(),
-        ),
-      ),
-      action(
-        id: 'favorite-songs',
-        section: '个人收藏',
-        label: '收藏歌曲',
-        icon: AppIcons.heartOutline,
-        onPressed: () => _selectDesktopDestination(
-          destinationId: 'favorite-songs',
-          branchIndex: libraryBranchIndex,
-          page: const StarredPage(initialTab: StarredTab.songs),
-        ),
-      ),
-      action(
-        id: 'favorite-albums',
-        section: '个人收藏',
-        label: '收藏专辑',
-        icon: AppIcons.albumOutline,
-        onPressed: () => _selectDesktopDestination(
-          destinationId: 'favorite-albums',
-          branchIndex: libraryBranchIndex,
-          page: const StarredPage(initialTab: StarredTab.albums),
-        ),
-      ),
-      action(
-        id: 'favorite-artists',
-        section: '个人收藏',
-        label: '收藏歌手',
-        icon: AppIcons.profile,
-        onPressed: () => _selectDesktopDestination(
-          destinationId: 'favorite-artists',
-          branchIndex: libraryBranchIndex,
-          page: const StarredPage(initialTab: StarredTab.artists),
-        ),
-      ),
-      action(
-        id: 'my-playlists',
-        section: '个人收藏',
-        label: '我的歌单',
-        icon: AppIcons.queue,
-        onPressed: () => _selectDesktopDestination(
-          destinationId: 'my-playlists',
-          branchIndex: libraryBranchIndex,
-          page: const LibraryPage(
-            showStarredSection: false,
-            pageTitle: '我的歌单',
-            showPlaylistSectionHeader: false,
-          ),
-        ),
-      ),
-      action(
-        id: 'downloads',
-        section: '管理',
-        label: '下载管理',
-        icon: AppIcons.downloadOutline,
-        onPressed: () => _selectDesktopDestination(
-          destinationId: 'downloads',
-          branchIndex: libraryBranchIndex,
-          page: const DownloadManagerPage(),
-        ),
-      ),
-      action(
-        id: 'offline',
-        section: '管理',
-        label: '离线下载',
-        icon: AppIcons.offline,
-        onPressed: () => _selectDesktopDestination(
-          destinationId: 'offline',
-          branchIndex: libraryBranchIndex,
-          page: const OfflineDownloadStatusPage(),
-        ),
-      ),
-      action(
-        id: 'settings',
-        section: '管理',
-        label: '设置',
-        icon: AppIcons.settings,
-        onPressed: () => _selectDesktopDestination(
-          destinationId: 'settings',
-          branchIndex: libraryBranchIndex,
-          page: const AppSettingsPage(),
-        ),
-      ),
-    ];
-  }
+        );
+      })
+      .toList(growable: false);
 
   Future<void> _moveAppToBackground() async {
     try {

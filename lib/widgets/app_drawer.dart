@@ -3,10 +3,8 @@ import 'dart:async';
 import 'package:echoes/core/design/echo_design.dart';
 import 'package:echoes/data/models/music_library.dart';
 import 'package:echoes/data/models/server_address.dart';
-import 'package:echoes/features/download/pages/download_manager_page.dart';
-import 'package:echoes/features/offline/pages/offline_download_status_page.dart';
-import 'package:echoes/features/settings/pages/app_settings_page.dart';
 import 'package:echoes/features/settings/widgets/route_selection_sheet.dart';
+import 'package:echoes/features/navigation/app_navigation_model.dart';
 import 'package:echoes/providers/api_provider.dart';
 import 'package:echoes/providers/library_provider.dart';
 import 'package:flutter/material.dart';
@@ -143,49 +141,25 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
   Widget _buildNavigationList(ServerAddress? activeAddress) {
     final downloadSummary = ref.watch(offlineDownloadSummaryProvider);
     final routeLabel = activeAddress?.label.trim();
-    final entries = <_DrawerNavigationEntry?>[
-      _DrawerNavigationEntry(
-        title: '切换线路',
-        icon: AppIcons.router,
-        subtitle: routeLabel == null || routeLabel.isEmpty
-            ? '自动选择'
-            : routeLabel,
-        onPressed: _closeDrawerAndShowRouteSelection,
-      ),
-      null,
-      _DrawerNavigationEntry(
-        icon: AppIcons.downloadOutline,
-        title: '下载管理',
-        onPressed: () =>
-            _closeDrawerAndPushPage((context) => const DownloadManagerPage()),
-      ),
-      _DrawerNavigationEntry(
-        icon: AppIcons.offline,
-        title: '离线下载状态',
-        subtitle: downloadSummary.total == 0
-            ? '暂无任务'
-            : '进行中 ${downloadSummary.active} · 完成 ${downloadSummary.completed} · '
-                  '失败 ${downloadSummary.failed}',
-        onPressed: () => _closeDrawerAndPushPage(
-          (context) => const OfflineDownloadStatusPage(),
-        ),
-      ),
-      null,
-      _DrawerNavigationEntry(
-        icon: AppIcons.settings,
-        title: '设置',
-        onPressed: () =>
-            _closeDrawerAndPushPage((context) => const AppSettingsPage()),
-      ),
-    ];
+    final navigationItems = AppNavigationModel.drawerActions;
+    final entries = <AppNavigationItem?>[];
+    String? previousSection;
+    for (final item in navigationItems) {
+      final section = item.drawerSection;
+      if (previousSection != null && section != previousSection) {
+        entries.add(null);
+      }
+      entries.add(item);
+      previousSection = section;
+    }
 
     return ListView.builder(
       key: const PageStorageKey<String>('echo-drawer-navigation'),
       padding: EdgeInsets.symmetric(vertical: context.echoSpacing.xs),
       itemCount: entries.length,
       itemBuilder: (context, index) {
-        final entry = entries[index];
-        if (entry == null) {
+        final item = entries[index];
+        if (item == null) {
           return Padding(
             padding: EdgeInsets.fromLTRB(
               context.echoSpacing.md,
@@ -197,6 +171,21 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
           );
         }
 
+        final String? subtitle = switch (item.id) {
+          'route-selection' =>
+            routeLabel == null || routeLabel.isEmpty ? '自动选择' : routeLabel,
+          'offline' =>
+            downloadSummary.total == 0
+                ? '暂无任务'
+                : '进行中 ${downloadSummary.active} · 完成 ${downloadSummary.completed} · '
+                      '失败 ${downloadSummary.failed}',
+          _ => null,
+        };
+        final VoidCallback onPressed = switch (item.id) {
+          'route-selection' => _closeDrawerAndShowRouteSelection,
+          _ => () => _closeDrawerAndPushPage((_) => item.pageBuilder!()),
+        };
+
         return Padding(
           padding: EdgeInsets.fromLTRB(
             context.echoSpacing.xs,
@@ -205,15 +194,15 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
             context.echoSpacing.xs,
           ),
           child: EchoActionRow(
-            icon: entry.icon,
-            title: entry.title,
-            subtitle: entry.subtitle,
+            icon: item.icon,
+            title: item.drawerTitle,
+            subtitle: subtitle,
             trailing: Icon(
               AppIcons.chevronRight,
               size: context.echoInteraction.smallIconSize,
               color: context.echoColors.muted,
             ),
-            onPressed: entry.onPressed,
+            onPressed: onPressed,
           ),
         );
       },
@@ -284,20 +273,6 @@ EchoDrawerConnectionState _connectionState(ServerAddress? address) {
     ServerAddressStatus.failed => EchoDrawerConnectionState.failed,
     ServerAddressStatus.unknown => EchoDrawerConnectionState.unknown,
   };
-}
-
-class _DrawerNavigationEntry {
-  const _DrawerNavigationEntry({
-    required this.icon,
-    required this.title,
-    required this.onPressed,
-    this.subtitle,
-  });
-
-  final IconData icon;
-  final String title;
-  final String? subtitle;
-  final VoidCallback onPressed;
 }
 
 class _DrawerSkeletonList extends StatelessWidget {
