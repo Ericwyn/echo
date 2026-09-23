@@ -57,6 +57,78 @@ void main() {
     });
   });
 
+  group('showWindowWithMinimizeFallback', () {
+    test('minimizes when the window cannot be shown', () async {
+      final actions = <String>[];
+      final showErrors = <Object>[];
+      final minimizeErrors = <Object>[];
+      var visible = false;
+
+      final shown = await showWindowWithMinimizeFallback(
+        show: () async {
+          actions.add('show');
+          throw StateError('show unavailable');
+        },
+        focus: () async {
+          actions.add('focus');
+        },
+        minimize: () async {
+          actions.add('minimize');
+        },
+        onShown: () => visible = true,
+        onShowFailure: showErrors.add,
+        onFocusFailure: (_) {},
+        onMinimizeFailure: minimizeErrors.add,
+      );
+
+      expect(shown, isFalse);
+      expect(visible, isFalse);
+      expect(actions, <String>['show', 'minimize']);
+      expect(showErrors, hasLength(1));
+      expect(minimizeErrors, isEmpty);
+    });
+
+    test('keeps a shown window visible when focus is denied', () async {
+      final actions = <String>[];
+      var visible = false;
+
+      final shown = await showWindowWithMinimizeFallback(
+        show: () async {
+          actions.add('show');
+        },
+        focus: () async => throw StateError('focus denied'),
+        minimize: () async {
+          actions.add('minimize');
+        },
+        onShown: () => visible = true,
+        onShowFailure: (_) {},
+        onFocusFailure: (_) => actions.add('focus-denied'),
+        onMinimizeFailure: (_) {},
+      );
+
+      expect(shown, isTrue);
+      expect(visible, isTrue);
+      expect(actions, <String>['show', 'focus-denied']);
+    });
+
+    test('reports a failed minimize without throwing', () async {
+      final minimizeErrors = <Object>[];
+
+      final shown = await showWindowWithMinimizeFallback(
+        show: () async => throw StateError('show unavailable'),
+        focus: () async {},
+        minimize: () async => throw StateError('minimize unavailable'),
+        onShown: () {},
+        onShowFailure: (_) {},
+        onFocusFailure: (_) {},
+        onMinimizeFailure: minimizeErrors.add,
+      );
+
+      expect(shown, isFalse);
+      expect(minimizeErrors, hasLength(1));
+    });
+  });
+
   group('closeWindowWithTrayRecovery', () {
     test('minimizes when no tray host is available', () async {
       var hidden = true;

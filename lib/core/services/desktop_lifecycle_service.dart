@@ -473,9 +473,10 @@ class DesktopLifecycleService with WindowListener, TrayListener {
       await _runRecoveryStep('restore tray icon', _installTrayIcon);
     }
 
-    final shown = await showWindowWithBestEffortFocus(
+    await showWindowWithMinimizeFallback(
       show: windowManager.show,
       focus: windowManager.focus,
+      minimize: windowManager.minimize,
       onShown: () => _windowHidden = false,
       onShowFailure: (error) => Logger.warnWithTag(
         'DESKTOP',
@@ -487,13 +488,12 @@ class DesktopLifecycleService with WindowListener, TrayListener {
         'restored window but could not focus it after exit failure',
         error,
       ),
+      onMinimizeFailure: (error) => Logger.warnWithTag(
+        'DESKTOP',
+        'could not minimize window after failed restore',
+        error,
+      ),
     );
-    if (!shown) {
-      await _runRecoveryStep(
-        'minimize window after failed restore',
-        windowManager.minimize,
-      );
-    }
   }
 
   Future<void> _runRecoveryStep(
@@ -658,6 +658,33 @@ Future<bool> showWindowWithBestEffortFocus({
     onFocusFailure(error);
   }
   return true;
+}
+
+@visibleForTesting
+Future<bool> showWindowWithMinimizeFallback({
+  required Future<void> Function() show,
+  required Future<void> Function() focus,
+  required Future<void> Function() minimize,
+  required void Function() onShown,
+  required void Function(Object error) onShowFailure,
+  required void Function(Object error) onFocusFailure,
+  required void Function(Object error) onMinimizeFailure,
+}) async {
+  final shown = await showWindowWithBestEffortFocus(
+    show: show,
+    focus: focus,
+    onShown: onShown,
+    onShowFailure: onShowFailure,
+    onFocusFailure: onFocusFailure,
+  );
+  if (shown) return true;
+
+  try {
+    await minimize();
+  } catch (error) {
+    onMinimizeFailure(error);
+  }
+  return false;
 }
 
 @visibleForTesting
