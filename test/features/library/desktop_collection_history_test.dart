@@ -91,8 +91,16 @@ void main() {
       find.byKey(const ValueKey<String>('open-starred-history-route')),
     );
     await tester.pumpAndSettle();
+    expect(
+      find.byKey(const PageStorageKey<String>('echo-starred-songs-scroll')),
+      findsOneWidget,
+    );
     await tester.tap(find.bySemanticsLabel('专辑收藏'));
     await tester.pumpAndSettle();
+    expect(
+      find.byKey(const PageStorageKey<String>('echo-starred-albums-scroll')),
+      findsOneWidget,
+    );
     expect(
       tester
           .getSemantics(find.bySemanticsLabel('专辑收藏'))
@@ -100,6 +108,16 @@ void main() {
           .isSelected,
       Tristate.isTrue,
     );
+
+    await tester.tap(find.bySemanticsLabel('歌手收藏'));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const PageStorageKey<String>('echo-starred-artists-scroll')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.bySemanticsLabel('专辑收藏'));
+    await tester.pumpAndSettle();
 
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();

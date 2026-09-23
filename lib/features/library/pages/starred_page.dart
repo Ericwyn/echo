@@ -124,6 +124,7 @@ class StarredPage extends ConsumerWidget {
       return _refreshableEmpty(
         context: context,
         ref: ref,
+        pageStorageKey: 'echo-starred-songs-empty-scroll',
         title: '暂无收藏歌曲',
         description: '在歌曲操作中点亮红心后，会显示在这里。',
         icon: AppIcons.heartOutline,
@@ -133,7 +134,7 @@ class StarredPage extends ConsumerWidget {
     return EchoRefreshView(
       onRefresh: () => _refresh(ref),
       child: ListView.builder(
-        key: const ValueKey<String>('starred-songs-scroll'),
+        key: const PageStorageKey<String>('echo-starred-songs-scroll'),
         physics: const AlwaysScrollableScrollPhysics(),
         padding: EdgeInsets.only(
           bottom: context.echoSpacing.xxl + context.echoShellBottomObstruction,
@@ -200,6 +201,7 @@ class StarredPage extends ConsumerWidget {
       return _refreshableEmpty(
         context: context,
         ref: ref,
+        pageStorageKey: 'echo-starred-albums-empty-scroll',
         title: '暂无收藏专辑',
         description: '长按专辑并点亮收藏后，会显示在这里。',
         icon: AppIcons.albumOutline,
@@ -210,7 +212,7 @@ class StarredPage extends ConsumerWidget {
     final largeText = textScale >= 1.6;
     final content = largeText
         ? ListView.builder(
-            key: const ValueKey<String>('starred-albums-list-scroll'),
+            key: const PageStorageKey<String>('echo-starred-albums-scroll'),
             physics: const AlwaysScrollableScrollPhysics(),
             padding: EdgeInsets.only(
               bottom:
@@ -231,7 +233,7 @@ class StarredPage extends ConsumerWidget {
             },
           )
         : GridView.builder(
-            key: const ValueKey<String>('starred-albums-grid-scroll'),
+            key: const PageStorageKey<String>('echo-starred-albums-scroll'),
             physics: const AlwaysScrollableScrollPhysics(),
             padding: EdgeInsets.fromLTRB(
               context.echoPageHorizontalPadding,
@@ -273,6 +275,7 @@ class StarredPage extends ConsumerWidget {
       return _refreshableEmpty(
         context: context,
         ref: ref,
+        pageStorageKey: 'echo-starred-artists-empty-scroll',
         title: '暂无收藏歌手',
         description: '收藏的歌手会集中显示在这里。',
         icon: AppIcons.profile,
@@ -282,7 +285,7 @@ class StarredPage extends ConsumerWidget {
     return EchoRefreshView(
       onRefresh: () => _refresh(ref),
       child: ListView.builder(
-        key: const ValueKey<String>('starred-artists-scroll'),
+        key: const PageStorageKey<String>('echo-starred-artists-scroll'),
         physics: const AlwaysScrollableScrollPhysics(),
         padding: EdgeInsets.only(
           bottom: context.echoSpacing.xxl + context.echoShellBottomObstruction,
@@ -307,6 +310,7 @@ class StarredPage extends ConsumerWidget {
   Widget _refreshableEmpty({
     required BuildContext context,
     required WidgetRef ref,
+    required String pageStorageKey,
     required String title,
     required String description,
     required IconData icon,
@@ -314,7 +318,7 @@ class StarredPage extends ConsumerWidget {
     return EchoRefreshView(
       onRefresh: () => _refresh(ref),
       child: CustomScrollView(
-        key: const ValueKey<String>('starred-empty-scroll'),
+        key: PageStorageKey<String>(pageStorageKey),
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: <Widget>[
           SliverPadding(
