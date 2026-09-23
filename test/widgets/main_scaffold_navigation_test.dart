@@ -271,6 +271,44 @@ void main() {
       },
     );
 
+    testWidgets('desktop Settings is a sidebar route with working back', (
+      tester,
+    ) async {
+      await _pumpMainScaffold(tester, size: const Size(1440, 900));
+
+      final sidebar = find.byKey(
+        const ValueKey<String>('echo-expanded-navigation'),
+      );
+      final settings = find.byKey(
+        const ValueKey<String>('echo-desktop-sidebar-settings'),
+      );
+      await tester.scrollUntilVisible(
+        settings,
+        120,
+        scrollable: find
+            .descendant(of: sidebar, matching: find.byType(Scrollable))
+            .first,
+      );
+      await tester.tap(settings);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Desktop settings'), findsOneWidget);
+      expect(
+        tester
+            .widget<EchoIconButton>(
+              find.byKey(const ValueKey<String>('echo-desktop-back')),
+            )
+            .onPressed,
+        isNotNull,
+      );
+
+      await tester.tap(find.byKey(const ValueKey<String>('echo-desktop-back')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Desktop Music Flow'), findsOneWidget);
+      expect(find.text('Desktop settings'), findsNothing);
+    });
+
     testWidgets('desktop detail routes share the global back stack', (
       tester,
     ) async {
