@@ -30,7 +30,7 @@ Ubuntu 交付可安装 `.deb` 与完整 bundle 压缩包；Windows 交付 releas
 - `scripts/package_linux_deb.sh` 从 `build/linux/x64/release/bundle` 组装 Debian 包，依赖声明面向当前 Ubuntu 22.04 基线：`libgtk-3-0`、`libayatana-appindicator3-1`、`libmpv1`。MPV 是运行时动态加载项，不会出现在主 ELF 的 `DT_NEEDED` 中，因此显式声明。
 - `.github/workflows/build_linux.yml` 在 release bundle 外再上传 `.deb`；`.github/workflows/pr_checks.yml` 加入包组装步骤。Windows workflow 未改。
 - 仓库 `README.md` 已增加 Linux `.deb` 安装命令、运行依赖、自绘窗口与托盘/MPRIS 说明，并明确 22.04/GNOME/X11 的验证范围；最新 Linux 桌面截图需待用户手动视觉验收后再刷新，避免把旧版界面图当作当前 release 证据。
-- 历史候选包已由后续构建替换。最新包为 `build/linux-lldtmp-2060/packages/echoes_1.1.0+2053_amd64.deb`，SHA-256 `ae3fd50bf02c758f663cd2fd5f41c3b935eb1d116299a87e31802f0f91bd8281`；`dpkg-deb` 元数据与完整 bundle preflight 通过，尚未安装验证。
+- 历史候选包已由后续构建替换。最新包为 `build/linux-lldtmp-2061/packages/echoes_1.1.0+2053_amd64.deb`，DEB SHA-256 `1a2537c13606144a0b55c11d6bdffe04f5c486b8628f5792c68f5b58097af119`；独立 bundle ZIP `build/linux-lldtmp-2061/packages/echoes_1.1.0+2053_linux-x64-bundle.zip` SHA-256 `1ba2dd3399b223c0b8f481a58d97f437d40901572fbbac5d869cdc3909286ea9`，38 个文件通过 `unzip -t`；`.deb` 元数据通过，尚未安装验证。
 
 ### 原生分发与网络通路的补充检查
 

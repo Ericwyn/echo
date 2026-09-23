@@ -8,7 +8,7 @@ a desktop-only inherited scope; Android keeps the existing nearest-Navigator
 return behavior. The delete flow invalidates the library list after deletion,
 continues if playback-session cleanup fails, and leaves the deleted editor
 instead of rethrowing an error into a stale route. A desktop navigation
-regression test was added but was not run.
+desktop forward-history regression and a mobile nested-Navigator fallback regression were added; neither was run.
 
 ## Linux release
 
@@ -18,9 +18,13 @@ regression test was added but was not run.
 - Executable SHA-256: `c30e034e4de92365d4b9f19a0d7a093500f72d3433c100396ffdd7c6d807ed5a`
 - `libapp.so` SHA-256: `24d97824f28fa8dd58c6f977e00cbe7872c2ed43756dc2f0abe7edc9856c05cc`
 - Package SHA-256: `1a2537c13606144a0b55c11d6bdffe04f5c486b8628f5792c68f5b58097af119`
+- Standalone bundle: `build/linux-lldtmp-2061/packages/echoes_1.1.0+2053_linux-x64-bundle.zip`
+- Bundle ZIP SHA-256: `1ba2dd3399b223c0b8f481a58d97f437d40901572fbbac5d869cdc3909286ea9`
+- Bundle ZIP size: `22,691,027` bytes; 38 files
 
-The release bundle compiled and the Debian package metadata was checked. The
-application was not installed or launched.
+The release bundle compiled, the Debian package metadata was checked, and the
+standalone archive passed `unzip -t`. The application was not installed or
+launched.
 
 ## Android ARM64 release
 
