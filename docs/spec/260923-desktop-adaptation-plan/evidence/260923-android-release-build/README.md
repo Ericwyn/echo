@@ -7,22 +7,22 @@
 ## 构建
 
 - Flutter：3.41.7；JDK：17；Android SDK/compile SDK：36。
-- `pubspec.yaml` 版本：`1.1.0+2028`。
+- `pubspec.yaml` 版本：`1.1.0+2029`。
 - 命令：`flutter build apk --release --no-pub --split-per-abi --target-platform android-arm64`。
 - 使用本机 release keystore（alias `echo-release`）。签名密码从本机密码文件读入构建进程环境；密码、keystore 内容及可复用密钥材料未写入仓库、命令输出或本记录。
 - 产物：`build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`，29,675,389 bytes。
-- APK SHA-256：`973c6e638d631e8df84bbf5ef55329d3d1ce416489b14085b4362661ffc8ab5e`。
+- APK SHA-256：`7c3153cb87fc5ec9f1aaaa4773a511dccfbe8341bfac263f4660cb86b8d23eb9`。
 
 ## APK 校验
 
-- Package：`com.az1n.echoes`；version name：`1.1.0`；APK version code：`4028`。
-- Flutter 的 `--split-per-abi` 将 arm64 ABI 编号 `4` 加到 version code 的千位，因此 `1.1.0+2028` 对应 arm64 APK version code `4028`；高于此前交付的 `4027` 候选和用户设备上报告的 `2026`。
+- Package：`com.az1n.echoes`；version name：`1.1.0`；APK version code：`4029`。
+- Flutter 的 `--split-per-abi` 将 arm64 ABI 编号 `4` 加到 version code 的千位，因此 `1.1.0+2029` 对应 arm64 APK version code `4029`；高于此前交付的 `4028` 候选和用户设备上报告的 `2026`。
 - min SDK：24；target SDK：36。
 - APK 中仅有 `arm64-v8a` native libraries。
 - `apksigner verify`：通过，1 个 signer，APK Signature Scheme v2。
 - Signer certificate：`CN=Echoes Personal`，RSA 3072；SHA-256：`8604465c3ee1282b48a1b2759801f784ace32447d1188e0481fab0fe8ac74c94`。
 
-此前使用旧 `1.1.0+26` 生成的通用 APK，以及后续 `1.1.0+2027` arm64 候选，均已被此 `1.1.0+2028` 单架构构建取代。
+此前使用旧 `1.1.0+26` 生成的通用 APK，以及后续 `1.1.0+2027` 和 `1.1.0+2028` arm64 候选，均已被此 `1.1.0+2029` 单架构构建取代。
 
 ## 未完成验收
 

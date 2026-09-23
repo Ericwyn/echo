@@ -27,7 +27,7 @@
 | --- | --- | --- |
 | 当前库/鉴权 | 现有 auth/library providers | 桌面设置页管理切库/新增/编辑与线路；切库清理旧库导航选择，播放处理沿用既有策略 |
 | destination/历史 cursor | 手机 StatefulShellRoute；桌面统一 Navigator/导航策略 | 返回/前进与侧栏高亮一致，刷新/重排不追加重复历史；前进重建后恢复对应页面状态 |
-| 搜索、筛选、滚动 | 页面/分支 | 搜索草稿/已提交查询、专辑/歌单排序、收藏页签、歌手内容区和滚动位置在桌面前进重建后恢复；其余页面局部状态继续逐页接入 |
+| 搜索、筛选、滚动 | 页面/分支 | 搜索草稿/已提交查询、音乐流随心听展开状态、曲库歌单排序、专辑/歌单详情排序、收藏页签、歌手内容区和滚动位置在桌面前进重建后恢复；其余页面局部状态继续逐页接入 |
 | 当前曲目/队列/进度 | PlayerNotifier/P1 | 与可见页面生命周期无关 |
 | 用户密度/音量 | 设置与 P1 | 不由临时窗口尺寸重设 |
 
@@ -65,3 +65,4 @@
 | 2026-09-23 / `eaa77d13`，bundle `eaa77d13` | 搜索状态改为输入/提交时即时写入 PageStorage，避免 dispose 阶段查找祖先；AlbumDetailPage 与 PlaylistDetailPage 保存/恢复 SongSortOption。新增两类页面的前进排序恢复 widget 用例。仅格式化与 diff 空白检查，未运行测试；Linux release build 和 `.deb` 构建成功 | 主列表滚动、搜索 query/draft、专辑/歌单歌曲排序已纳入桌面历史恢复；其他页面局部状态、回归用例执行及 Ubuntu 手动复测仍待完成 |
 | 2026-09-23 / `52463122`，bundle `52463122` | StarredPage 的当前页签和 ArtistDetailPage 的内容区/热门歌曲展开状态写入 PageStorage；新增收藏夹/歌手页面前进恢复 widget 用例。仅格式化与 diff 空白检查，未运行测试；Linux release build 与 `.deb` 构建成功 | 搜索、详情排序、收藏和歌手页面状态已纳入前进恢复；未覆盖的其他页面状态、回归用例执行及 Ubuntu 手动复测仍待完成 |
 | 2026-09-23 / `c9db7c96` | LibraryPage 的歌单排序选项写入/恢复 route-local PageStorage；新增 `desktop forward restores personal playlist sort` widget 回归用例。仅格式化和 diff 空白检查，未运行测试；当前 Linux release bundle 与 `.deb` 已包含该代码 | 曲库歌单排序现可跨桌面前进重建保留；仍待用户手动验收返回/前进及排序结果 |
+| 2026-09-23 / `801f2bcc` | DiscoverPage 的随心听“更多歌曲”展开状态写入/恢复 route-local PageStorage；新增 `random song expansion restores after discover route rebuild` widget 用例。仅格式化、diff 检查和 Linux release build，未运行测试；当前 Linux bundle 已包含该代码 | 前进重建音乐流页面时不再把已展开的歌曲列表收回；Ubuntu 手动验收与回归用例运行仍待完成 |
