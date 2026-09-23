@@ -12,7 +12,7 @@
 
 | 契约 | 必须包含的行为 |
 | --- | --- |
-| `PlaybackCommands` | play/pause/toggle、next/previous、逻辑 seek、userVolume/mute、随机/循环、按 entry ID 选择/移除队列项 |
+| `PlaybackCommands` | play/pause/toggle、next/previous、逻辑 seek、userVolume/mute、随机/循环、打开/替换播放队列、播放试听、下一曲插入、追加歌曲，以及按 entry ID 选择/移除和重排 |
 | `PlaybackSnapshot` | 当前 library/entry 身份、来源版本、元数据、逻辑 position/duration、显式 seek revision、播放意图/状态、错误/缓冲、userVolume/muted、可操作能力 |
 | `PlaybackQueueContent` | 渲染当前顺序与稳定条目，发出选择/播放/移除/排序意图；不知道自己在 Sheet 还是桌面容器 |
 | `AppNavigationModel` | 稳定 destination ID、路由目标、分组、可见性、当前状态；宽侧栏和手机抽屉消费同一份定义 |

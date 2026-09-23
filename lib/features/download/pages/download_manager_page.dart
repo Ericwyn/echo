@@ -155,11 +155,7 @@ class DownloadManagerPage extends ConsumerWidget {
       return;
     }
 
-    unawaited(
-      ref
-          .read(playerProvider.notifier)
-          .playSong(songs.first, queue: songs, index: 0),
-    );
+    unawaited(ref.read(playbackCommandsProvider).playQueue(songs));
     ToastNotifier.show('播放 ${songs.length} 首已下载歌曲');
   }
 }
@@ -669,7 +665,7 @@ Future<void> _playTask(
     ToastNotifier.show('无法获取歌曲信息');
     return;
   }
-  unawaited(ref.read(playerProvider.notifier).playSong(song));
+  unawaited(ref.read(playbackCommandsProvider).playQueue(<Song>[song]));
   ToastNotifier.show('正在播放：${task.title}');
 }
 

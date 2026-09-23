@@ -127,7 +127,7 @@ class _AlbumDetailPageState extends ConsumerState<AlbumDetailPage> {
                         onPlay: songs.isEmpty
                             ? null
                             : () => ref
-                                  .read(playerProvider.notifier)
+                                  .read(playbackCommandsProvider)
                                   .playQueue(songs),
                         onToggleStarred: () => _toggleStarred(album),
                         onDownload: songs.isEmpty
@@ -184,7 +184,7 @@ class _AlbumDetailPageState extends ConsumerState<AlbumDetailPage> {
                             index: index,
                             variant: SongListItemVariant.albumTrack,
                             onTap: () => ref
-                                .read(playerProvider.notifier)
+                                .read(playbackCommandsProvider)
                                 .playQueue(songs, startIndex: index),
                             onLongPress: () => showSongOptionsSheet(
                               context: context,

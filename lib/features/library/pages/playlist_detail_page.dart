@@ -219,7 +219,7 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
                           onPlay: songs.isEmpty
                               ? null
                               : () => ref
-                                    .read(playerProvider.notifier)
+                                    .read(playbackCommandsProvider)
                                     .playQueue(songs),
                         ),
                       ),
@@ -287,7 +287,7 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
                                 entry.originalIndex,
                               ),
                               onTap: () => ref
-                                  .read(playerProvider.notifier)
+                                  .read(playbackCommandsProvider)
                                   .playQueue(songs, startIndex: index),
                               onLongPress: () => _enterSelectionMode(
                                 playlist,
@@ -705,7 +705,7 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
       NetworkErrorNotifier.show('歌单暂无可用歌曲');
       return;
     }
-    ref.read(playerProvider.notifier).addAllToQueue(songs);
+    ref.read(playbackCommandsProvider).addAllToQueue(songs);
     ToastNotifier.show(
       '已添加 ${songs.length} 首到播放列表',
       kind: EchoMessageKind.success,

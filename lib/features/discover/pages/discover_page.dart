@@ -228,7 +228,7 @@ class _RandomSongsSectionState extends ConsumerState<RandomSongsSection> {
                           song: visibleSongs[index],
                           onPressed: () {
                             ref
-                                .read(playerProvider.notifier)
+                                .read(playbackCommandsProvider)
                                 .playQueue(songs, startIndex: index);
                           },
                           onOpenActions: () => showSongOptionsSheet(
@@ -285,7 +285,7 @@ class _RandomSongsSectionState extends ConsumerState<RandomSongsSection> {
                 onPressed: loadedSongs == null || loadedSongs.isEmpty
                     ? null
                     : () => ref
-                          .read(playerProvider.notifier)
+                          .read(playbackCommandsProvider)
                           .playQueue(loadedSongs),
               ),
             ),

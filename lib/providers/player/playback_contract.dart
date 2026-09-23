@@ -1,6 +1,7 @@
 import 'package:just_audio/just_audio.dart' show LoopMode, ProcessingState;
 import 'package:flutter/foundation.dart' show immutable;
 
+import '../../data/models/song.dart';
 import 'player_state.dart';
 import 'playback_metadata.dart';
 
@@ -21,6 +22,11 @@ abstract interface class PlaybackCommands {
   Future<void> cyclePlaybackMode();
   Future<void> setLoopMode(LoopMode mode);
   Future<void> setShuffleEnabled(bool enabled);
+  Future<void> playQueue(List<Song> songs, {int startIndex = 0});
+  Future<void> playPreviewSong(Song song);
+  Future<void> playNext(Song song);
+  void addToQueue(Song song);
+  void addAllToQueue(List<Song> songs);
   Future<void> clearQueue();
   Future<void> skipToQueueEntry(String entryId);
   void removeQueueEntry(String entryId);

@@ -228,7 +228,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
         suffix: resolved.suffix ?? song.suffix,
       );
 
-      await ref.read(playerProvider.notifier).playPreviewSong(playSong);
+      await ref.read(playbackCommandsProvider).playPreviewSong(playSong);
       Logger.infoWithTag(
         _logTag,
         'playPreview queued to player source=$source track=$trackId title="${song.title}"',
@@ -876,7 +876,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                   song: song,
                   onPressed: () {
                     ref
-                        .read(playerProvider.notifier)
+                        .read(playbackCommandsProvider)
                         .playQueue(result.songs, startIndex: index);
                   },
                 );

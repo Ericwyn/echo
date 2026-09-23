@@ -274,7 +274,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
     final songs = await _loadPlaylistSongs(ref, playlist);
     if (songs == null || songs.isEmpty) return;
 
-    ref.read(playerProvider.notifier).addAllToQueue(songs);
+    ref.read(playbackCommandsProvider).addAllToQueue(songs);
     if (context.mounted) {
       ToastNotifier.show(
         '已添加 ${songs.length} 首到播放列表',

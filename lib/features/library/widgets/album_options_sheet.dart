@@ -110,7 +110,7 @@ class _AlbumOptionsSheet extends ConsumerWidget {
               onPressed: () => _closeAndRun(context, () async {
                 final songs = await _loadAlbumSongs();
                 if (songs == null || songs.isEmpty) return;
-                hostRef.read(playerProvider.notifier).addAllToQueue(songs);
+                hostRef.read(playbackCommandsProvider).addAllToQueue(songs);
                 _showMessage('已添加 ${songs.length} 首到播放列表');
               }),
             ),

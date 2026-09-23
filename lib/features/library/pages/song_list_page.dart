@@ -350,7 +350,7 @@ class _SongListPageState extends ConsumerState<SongListPage> {
       ),
       onTap: () {
         ref
-            .read(playerProvider.notifier)
+            .read(playbackCommandsProvider)
             .playQueue(_displaySongs, startIndex: index);
       },
       onLongPress: () {

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dbus/dbus.dart';
 import 'package:echoes/core/services/linux_mpris_service.dart';
+import 'package:echoes/data/models/song.dart';
 import 'package:echoes/providers/player/playback_contract.dart';
 import 'package:echoes/providers/player/player_state.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -489,6 +490,21 @@ class _RecordingPlaybackCommands implements PlaybackCommands {
 
   @override
   Future<void> setShuffleEnabled(bool enabled) async {}
+
+  @override
+  Future<void> playQueue(List<Song> songs, {int startIndex = 0}) async {}
+
+  @override
+  Future<void> playPreviewSong(Song song) async {}
+
+  @override
+  Future<void> playNext(Song song) async {}
+
+  @override
+  void addToQueue(Song song) {}
+
+  @override
+  void addAllToQueue(List<Song> songs) {}
 
   @override
   Future<void> cyclePlaybackMode() async {}

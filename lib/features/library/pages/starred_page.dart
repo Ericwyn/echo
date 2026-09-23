@@ -163,7 +163,7 @@ class StarredPage extends ConsumerWidget {
                     label: '播放全部',
                     leadingIcon: AppIcons.play,
                     onPressed: () =>
-                        ref.read(playerProvider.notifier).playQueue(songs),
+                        ref.read(playbackCommandsProvider).playQueue(songs),
                   ),
                 ],
               ),
@@ -181,7 +181,7 @@ class StarredPage extends ConsumerWidget {
               vertical: context.echoSpacing.xs,
             ),
             onTap: () => ref
-                .read(playerProvider.notifier)
+                .read(playbackCommandsProvider)
                 .playQueue(songs, startIndex: index),
             onLongPress: () =>
                 showSongOptionsSheet(context: context, song: song),

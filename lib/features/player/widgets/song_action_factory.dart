@@ -70,7 +70,7 @@ class SongActionFactory {
             icon: AppIcons.queueAdd,
             title: '下一曲播放',
             onPressed: () async {
-              await container.read(playerProvider.notifier).playNext(song);
+              await container.read(playbackCommandsProvider).playNext(song);
               _showMessage(hostContext, '已添加试听歌曲到下一曲');
             },
           ),
@@ -121,7 +121,7 @@ class SongActionFactory {
         isSelected: song.starred,
         onPressed: () async {
           final newStarred = await container
-              .read(playerProvider.notifier)
+              .read(playbackCommandsProvider)
               .toggleSongFavorite(song);
           if (newStarred == null) {
             NetworkErrorNotifier.show('操作失败');
@@ -156,7 +156,7 @@ class SongActionFactory {
           icon: AppIcons.queueAdd,
           title: '下一曲播放',
           onPressed: () async {
-            await container.read(playerProvider.notifier).playNext(song);
+            await container.read(playbackCommandsProvider).playNext(song);
             _showMessage(hostContext, '已添加到下一曲');
           },
         ),

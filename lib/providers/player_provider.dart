@@ -2311,12 +2311,14 @@ class PlayerNotifier extends StateNotifier<PlayerState>
   }
 
   /// 播放队列
+  @override
   Future<void> playQueue(List<Song> songs, {int startIndex = 0}) async {
     if (songs.isEmpty) return;
     await playSong(songs[startIndex], queue: songs, index: startIndex);
   }
 
   /// 播放试听歌曲。
+  @override
   Future<void> playPreviewSong(Song song) async {
     await playSong(song);
   }
@@ -3372,6 +3374,7 @@ class PlayerNotifier extends StateNotifier<PlayerState>
   }
 
   /// 添加到队列末尾
+  @override
   void addToQueue(Song song) {
     state = state.copyWith(
       playbackQueue: state.playbackQueue.append(<Song>[song]),
@@ -3380,12 +3383,14 @@ class PlayerNotifier extends StateNotifier<PlayerState>
   }
 
   /// 添加多首到队列
+  @override
   void addAllToQueue(List<Song> songs) {
     state = state.copyWith(playbackQueue: state.playbackQueue.append(songs));
     _onQueueOrderChanged();
   }
 
   /// 添加到下一曲位置
+  @override
   Future<void> playNext(Song song) async {
     if (state.queue.isEmpty || state.currentSong == null) {
       await playSong(song, queue: [song], index: 0);

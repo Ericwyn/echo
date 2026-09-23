@@ -152,7 +152,7 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
                         onPlay: songs.isEmpty
                             ? null
                             : () => ref
-                                  .read(playerProvider.notifier)
+                                  .read(playbackCommandsProvider)
                                   .playQueue(songs),
                       ),
                     ),
@@ -261,7 +261,7 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
                           (song) => song.id == visibleSongs[index].id,
                         );
                         ref
-                            .read(playerProvider.notifier)
+                            .read(playbackCommandsProvider)
                             .playQueue(
                               topSongs,
                               startIndex: queueIndex < 0 ? index : queueIndex,
@@ -299,7 +299,7 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
           actionLabel: songs.isEmpty ? null : '播放全部',
           onAction: songs.isEmpty
               ? null
-              : () => ref.read(playerProvider.notifier).playQueue(songs),
+              : () => ref.read(playbackCommandsProvider).playQueue(songs),
           padding: EdgeInsets.fromLTRB(
             context.echoSpacing.md,
             context.echoSpacing.lg,
@@ -331,7 +331,7 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
               index: index,
               variant: SongListItemVariant.standard,
               onTap: () => ref
-                  .read(playerProvider.notifier)
+                  .read(playbackCommandsProvider)
                   .playQueue(songs, startIndex: index),
               onLongPress: () =>
                   showSongOptionsSheet(context: context, song: song),

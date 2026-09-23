@@ -328,7 +328,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                       isCurrent: result.songs[index].id == currentSongId,
                       onPressed: () {
                         ref
-                            .read(playerProvider.notifier)
+                            .read(playbackCommandsProvider)
                             .playQueue(result.songs, startIndex: index);
                       },
                       onLongPress: () => showSongOptionsSheet(
