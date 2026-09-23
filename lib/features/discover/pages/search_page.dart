@@ -64,10 +64,6 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   @override
   void dispose() {
     _searchTimer?.cancel();
-    PageStorage.maybeOf(context)?.writeState(context, <String, String>{
-      'draftQuery': _draftQuery,
-      'query': _query,
-    }, identifier: _pageStorageStateKey);
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
@@ -81,6 +77,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     if (_draftQuery != query) {
       setState(() => _draftQuery = query);
     }
+    _savePageStorageState();
     if (query.isEmpty) {
       _commitSearch('');
       return;
@@ -108,6 +105,14 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       _draftQuery = query;
       _query = query;
     });
+    _savePageStorageState();
+  }
+
+  void _savePageStorageState() {
+    PageStorage.maybeOf(context)?.writeState(context, <String, String>{
+      'draftQuery': _draftQuery,
+      'query': _query,
+    }, identifier: _pageStorageStateKey);
   }
 
   void _clearSearch() {

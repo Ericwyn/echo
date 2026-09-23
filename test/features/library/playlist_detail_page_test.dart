@@ -2,6 +2,7 @@ import 'dart:ui' show Tristate;
 
 import 'package:dio/dio.dart';
 import 'package:echoes/core/design/echo_design.dart';
+import 'package:echoes/core/design/components/echo_page_route.dart';
 import 'package:echoes/core/network/address_pool.dart';
 import 'package:echoes/core/network/connectivity_monitor.dart';
 import 'package:echoes/core/theme/app_theme.dart';
@@ -119,6 +120,7 @@ Future<void> _pumpPage(
   required _RecordingPlaylistRepository playlistRepository,
   Size size = const Size(800, 1200),
   double textScale = 1,
+  bool withRouteHistory = false,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = size;
@@ -132,6 +134,37 @@ Future<void> _pumpPage(
     () => libraryRepository.watchLibraries(),
   ).thenAnswer((_) => Stream.value(const <MusicLibrary>[]));
   addTearDown(connectivityMonitor.stop);
+
+  const playlistPage = PlaylistDetailPage(playlistId: _playlistId);
+  late EchoPageRoute<void> playlistRoute;
+  final Widget home = withRouteHistory
+      ? Builder(
+          builder: (context) => Scaffold(
+            body: Column(
+              children: <Widget>[
+                TextButton(
+                  key: const ValueKey<String>('open-playlist-history-route'),
+                  onPressed: () {
+                    playlistRoute = EchoPageRoute<void>(
+                      context: context,
+                      builder: (_) => playlistPage,
+                    );
+                    Navigator.of(context).push<void>(playlistRoute);
+                  },
+                  child: const Text('Open playlist'),
+                ),
+                TextButton(
+                  key: const ValueKey<String>('forward-playlist-history-route'),
+                  onPressed: () => Navigator.of(
+                    context,
+                  ).push<void>(playlistRoute.recreate(context)),
+                  child: const Text('Forward playlist'),
+                ),
+              ],
+            ),
+          ),
+        )
+      : playlistPage;
 
   await tester.pumpWidget(
     ProviderScope(
@@ -162,7 +195,7 @@ Future<void> _pumpPage(
           ).copyWith(textScaler: TextScaler.linear(textScale)),
           child: child!,
         ),
-        home: const PlaylistDetailPage(playlistId: _playlistId),
+        home: home,
       ),
     ),
   );
@@ -367,6 +400,40 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('desktop forward restores playlist sort selection', (
+    tester,
+  ) async {
+    final repository = _RecordingPlaylistRepository();
+    await _pumpPage(
+      tester,
+      playlistRepository: repository,
+      withRouteHistory: true,
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('open-playlist-history-route')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.bySemanticsLabel('歌曲排序：默认顺序'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('字母 A-Z'));
+    await tester.pumpAndSettle();
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey<String>('forward-playlist-history-route')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.bySemanticsLabel('歌曲排序：字母 A-Z'), findsOneWidget);
+    expect(
+      tester.getTopLeft(_playlistRow(1)).dy,
+      lessThan(tester.getTopLeft(_playlistRow(0)).dy),
+    );
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('failed removal keeps every selected playlist occurrence', (
     tester,

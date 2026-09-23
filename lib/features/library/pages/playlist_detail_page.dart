@@ -33,7 +33,10 @@ class PlaylistDetailPage extends ConsumerStatefulWidget {
 }
 
 class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
+  static const String _pageStorageSortKey = 'echo-playlist-detail-sort-option';
+
   SongSortOption _sortOption = SongSortOption.defaultOrder;
+  bool _restoredSortOption = false;
   final Set<int> _selectedSongIndexes = <int>{};
   bool _selectionMode = false;
   bool _isRemovingSongs = false;
@@ -42,10 +45,32 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
   int _mutationGeneration = 0;
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_restoredSortOption) return;
+    _restoredSortOption = true;
+    _sortOption = _readStoredSortOption();
+  }
+
+  SongSortOption _readStoredSortOption() {
+    final stored = PageStorage.maybeOf(
+      context,
+    )?.readState(context, identifier: _pageStorageSortKey);
+    return SongSortOption.values.firstWhere(
+      (option) => option.name == stored,
+      orElse: () => SongSortOption.defaultOrder,
+    );
+  }
+
+  @override
   void didUpdateWidget(covariant PlaylistDetailPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.playlistId == widget.playlistId) return;
     _mutationGeneration++;
+    _sortOption = SongSortOption.defaultOrder;
+    PageStorage.maybeOf(
+      context,
+    )?.writeState(context, _sortOption.name, identifier: _pageStorageSortKey);
     _selectionMode = false;
     _selectedSongIndexes.clear();
     _isRemovingSongs = false;
@@ -306,6 +331,9 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
     );
     if (!mounted || option == null || option == _sortOption) return;
     setState(() => _sortOption = option);
+    PageStorage.maybeOf(
+      context,
+    )?.writeState(context, _sortOption.name, identifier: _pageStorageSortKey);
   }
 
   void _retry() {

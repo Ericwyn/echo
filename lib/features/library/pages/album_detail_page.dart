@@ -32,7 +32,28 @@ class AlbumDetailPage extends ConsumerStatefulWidget {
 }
 
 class _AlbumDetailPageState extends ConsumerState<AlbumDetailPage> {
+  static const String _pageStorageSortKey = 'echo-album-detail-sort-option';
+
   SongSortOption _sortOption = SongSortOption.defaultOrder;
+  bool _restoredSortOption = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_restoredSortOption) return;
+    _restoredSortOption = true;
+    _sortOption = _readStoredSortOption();
+  }
+
+  SongSortOption _readStoredSortOption() {
+    final stored = PageStorage.maybeOf(
+      context,
+    )?.readState(context, identifier: _pageStorageSortKey);
+    return SongSortOption.values.firstWhere(
+      (option) => option.name == stored,
+      orElse: () => SongSortOption.defaultOrder,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -203,6 +224,9 @@ class _AlbumDetailPageState extends ConsumerState<AlbumDetailPage> {
     );
     if (!mounted || option == null || option == _sortOption) return;
     setState(() => _sortOption = option);
+    PageStorage.maybeOf(
+      context,
+    )?.writeState(context, _sortOption.name, identifier: _pageStorageSortKey);
   }
 
   void _retry() {

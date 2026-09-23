@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:echoes/core/network/address_pool.dart';
 import 'package:echoes/core/network/connectivity_monitor.dart';
+import 'package:echoes/core/design/components/echo_page_route.dart';
 import 'package:echoes/core/theme/app_theme.dart';
 import 'package:echoes/data/models/album.dart';
 import 'package:echoes/data/models/song.dart';
@@ -88,4 +89,109 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('desktop forward restores album detail sort selection', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1440, 900);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    final connectivityMonitor = ConnectivityMonitor(AddressPool(Dio()));
+    addTearDown(connectivityMonitor.stop);
+    final songs = <Song>[
+      Song(
+        id: 'zulu-track',
+        title: 'Zulu track',
+        artist: 'Test artist',
+        album: 'History album',
+        albumId: 'album-history',
+        track: 1,
+        duration: 180,
+      ),
+      Song(
+        id: 'alpha-track',
+        title: 'Alpha track',
+        artist: 'Test artist',
+        album: 'History album',
+        albumId: 'album-history',
+        track: 2,
+        duration: 181,
+      ),
+    ];
+    final album = Album(
+      id: 'album-history',
+      name: 'History album',
+      artist: 'Test artist',
+      songCount: songs.length,
+      duration: 361,
+    );
+    late EchoPageRoute<void> albumRoute;
+    const albumPage = AlbumDetailPage(albumId: 'album-history');
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: <Override>[
+          connectivityMonitorProvider.overrideWithValue(connectivityMonitor),
+          albumDetailProvider(album.id).overrideWith(
+            (ref) async => AlbumDetail(album: album, songs: songs),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Column(
+                children: <Widget>[
+                  TextButton(
+                    key: const ValueKey<String>('open-album-history-route'),
+                    onPressed: () {
+                      albumRoute = EchoPageRoute<void>(
+                        context: context,
+                        builder: (_) => albumPage,
+                      );
+                      Navigator.of(context).push<void>(albumRoute);
+                    },
+                    child: const Text('Open album'),
+                  ),
+                  TextButton(
+                    key: const ValueKey<String>('forward-album-history-route'),
+                    onPressed: () => Navigator.of(
+                      context,
+                    ).push<void>(albumRoute.recreate(context)),
+                    child: const Text('Forward album'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('open-album-history-route')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.bySemanticsLabel('歌曲排序：默认顺序'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('字母 A-Z'));
+    await tester.pumpAndSettle();
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey<String>('forward-album-history-route')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.bySemanticsLabel('歌曲排序：字母 A-Z'), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text('Alpha track')).dy,
+      lessThan(tester.getTopLeft(find.text('Zulu track')).dy),
+    );
+    expect(tester.takeException(), isNull);
+  });
 }
