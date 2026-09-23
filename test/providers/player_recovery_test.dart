@@ -257,6 +257,41 @@ void main() {
     });
   }
 
+  testWidgets(
+    'desktop exit preserves the last position through stop and dispose',
+    (tester) async {
+      createFixture();
+      var disposed = false;
+      try {
+        await notifier.initialized;
+        final initial = notifier.playSong(song);
+        await tester.pump();
+        await initial;
+        notifier.state = notifier.state.copyWith(
+          position: const Duration(seconds: 42),
+        );
+
+        when(() => engine.stop()).thenAnswer((_) async {
+          playing = false;
+          position = Duration.zero;
+          notifier.state = notifier.state.copyWith(position: Duration.zero);
+        });
+
+        await notifier.stopForDesktopExit();
+        container.dispose();
+        disposed = true;
+        await tester.pump();
+
+        final savedSession = await LocalStorage.getPlaybackSession();
+        expect(savedSession?['positionMs'], 42000);
+        expect(savedSession?['queue'], isNotEmpty);
+      } finally {
+        if (!disposed) container.dispose();
+        await tester.pump();
+      }
+    },
+  );
+
   playbackTest('seek retry internal pause does not cancel playback intent', (
     tester,
   ) async {

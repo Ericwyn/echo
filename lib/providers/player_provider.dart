@@ -168,8 +168,9 @@ class PlayerNotifier extends StateNotifier<PlayerState>
   double _fadeGain = 1;
   static const Duration _playbackSessionPersistInterval = Duration(seconds: 15);
   Timer? _playbackSessionPersistTimer;
-  bool _isPersistingPlaybackSession = false;
+  Future<void>? _playbackSessionPersistFuture;
   bool _playbackSessionPersistDirty = false;
+  bool _preservePlaybackSessionOnShutdown = false;
   bool _isRestoringPlaybackSession = false;
   NetworkType _lastObservedNetworkType = NetworkType.none;
   bool _retryCurrentPlaybackOnReconnect = false;
@@ -2588,6 +2589,36 @@ class PlayerNotifier extends StateNotifier<PlayerState>
     await _audioPlayer?.stop();
   }
 
+  /// Captures the last logical queue and position before desktop teardown stops
+  /// the native player. A native stop can reset its reported position to zero.
+  Future<void> stopForDesktopExit() async {
+    await initialized;
+
+    _playbackSessionPersistTimer?.cancel();
+    _playbackSessionPersistTimer = null;
+    await _persistPlaybackSession();
+    _playbackSessionPersistTimer?.cancel();
+    _playbackSessionPersistTimer = null;
+
+    final payload = _buildPlaybackSessionPayload();
+    _preservePlaybackSessionOnShutdown = true;
+    try {
+      if (payload == null) {
+        await LocalStorage.clearPlaybackSession();
+      } else {
+        await LocalStorage.savePlaybackSession(payload);
+      }
+    } catch (error) {
+      Logger.warnWithTag(
+        _playerLogTag,
+        'failed to save playback session before desktop exit',
+        error,
+      );
+    }
+
+    await stop();
+  }
+
   /// 暂停前的淡出：音量降到 0 后返回，由 pause() 执行实际暂停。
   Future<void> _fadeOutForPause() async {
     _cancelFade();
@@ -2970,7 +3001,11 @@ class PlayerNotifier extends StateNotifier<PlayerState>
   }
 
   void _schedulePersistPlaybackSession({bool immediate = false}) {
-    if (!mounted || _isRestoringPlaybackSession) return;
+    if (!mounted ||
+        _isRestoringPlaybackSession ||
+        _preservePlaybackSessionOnShutdown) {
+      return;
+    }
 
     if (immediate) {
       _playbackSessionPersistTimer?.cancel();
@@ -3001,11 +3036,20 @@ class PlayerNotifier extends StateNotifier<PlayerState>
   }
 
   Future<void> _persistPlaybackSession() async {
-    if (!mounted || _isRestoringPlaybackSession) return;
+    if (!mounted ||
+        _isRestoringPlaybackSession ||
+        _preservePlaybackSessionOnShutdown) {
+      return;
+    }
     _playbackSessionPersistDirty = true;
-    if (_isPersistingPlaybackSession) return;
+    final activePersist = _playbackSessionPersistFuture;
+    if (activePersist != null) {
+      await activePersist;
+      return;
+    }
 
-    _isPersistingPlaybackSession = true;
+    final completion = Completer<void>();
+    _playbackSessionPersistFuture = completion.future;
     final watch = Stopwatch()..start();
     try {
       while (_playbackSessionPersistDirty && mounted) {
@@ -3031,7 +3075,10 @@ class PlayerNotifier extends StateNotifier<PlayerState>
         e,
       );
     } finally {
-      _isPersistingPlaybackSession = false;
+      if (identical(_playbackSessionPersistFuture, completion.future)) {
+        _playbackSessionPersistFuture = null;
+      }
+      completion.complete();
     }
   }
 
@@ -4452,7 +4499,9 @@ class PlayerNotifier extends StateNotifier<PlayerState>
     _playbackSessionPersistTimer?.cancel();
     _playbackVolumePersistTimer?.cancel();
     unawaited(LocalStorage.setPlaybackVolume(state.userVolume));
-    unawaited(_persistPlaybackSession());
+    if (!_preservePlaybackSessionOnShutdown) {
+      unawaited(_persistPlaybackSession());
+    }
     _positionPollTimer?.cancel();
     _removeLinuxMprisStateListener?.call();
     _removeLinuxMprisStateListener = null;

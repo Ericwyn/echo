@@ -117,7 +117,7 @@ class _DesktopLifecycleHostState extends ConsumerState<_DesktopLifecycleHost> {
         onQuit: () async {
           final player = ref.read(playerProvider.notifier);
           await player.initialized;
-          await player.stop();
+          await player.stopForDesktopExit();
         },
         onBeforeQuit: _confirmDesktopQuit,
       );
