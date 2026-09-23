@@ -381,6 +381,77 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('large queue locates after viewport history is recycled', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1180, 720);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    const nextCurrentIndex = 4500;
+    final queue = List<Song>.generate(
+      5000,
+      (index) => Song(id: 'recycle-$index', title: 'Recycled track $index'),
+      growable: false,
+    );
+    var playerState = PlayerState(
+      currentSong: queue.first,
+      queue: queue,
+      currentIndex: 0,
+    );
+    final scrollController = ScrollController();
+    addTearDown(scrollController.dispose);
+    late StateSetter updateHost;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark(),
+        home: StatefulBuilder(
+          builder: (context, setState) {
+            updateHost = setState;
+            return Scaffold(
+              body: PlaybackQueueContent(
+                scrollController: scrollController,
+                playerState: playerState,
+                desktopInteraction: true,
+                selectedEntryId: null,
+                onEntrySelected: (_) {},
+                onDeleteEntry: (_) {},
+                onSelect: (_) async {},
+                onReorder: (_, _) {},
+                onOpenSongActions: (context, index, song, entryId) async {},
+              ),
+            );
+          },
+        ),
+      ),
+    );
+    for (var frame = 0; frame < 10; frame++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(find.text(queue.first.title), findsOneWidget);
+
+    scrollController.jumpTo(scrollController.position.maxScrollExtent);
+    for (var frame = 0; frame < 10; frame++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(find.text(queue.last.title), findsOneWidget);
+
+    updateHost(() {
+      playerState = playerState.copyWith(
+        playbackQueue: playerState.playbackQueue.selectIndex(nextCurrentIndex),
+      );
+    });
+    for (var frame = 0; frame < 10; frame++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+
+    expect(find.text(queue[nextCurrentIndex].title), findsOneWidget);
+    expect(find.byType(EchoSongRow).evaluate().length, lessThan(80));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('songs before the current one fade both lines of text', (
     tester,
   ) async {
