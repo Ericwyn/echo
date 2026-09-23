@@ -4,7 +4,7 @@
 
 状态：首轮桌面实现正在验收。历史工作树有 437 项 Flutter 测试、项目级 `flutter analyze` 和 Ubuntu 22.04 Linux release 编译通过记录；近期新增的桌面导航、播放器工作区状态恢复、右键队列、动态背景和窗口几何测试未运行。
 
-当前应用代码 `9cbc98fa` 已在全新 `build/linux-lldtmp-2044` CMake build-dir 构建，使用系统 Clang 与从 Ubuntu 包解压至 `/tmp` 的真实 LLD 14；当前 `.deb` 版本为 `1.1.0+2044`、架构 amd64，SHA-256：`a53fc7ae559a72f60908bfc64246e70b84065362e2e58f2afcefdecc7ca5492d`，包元数据已核对。Android arm64 release APK 使用本机 `echo-release` keystore 构建并签名校验通过；APK version name/code 为 `1.1.0` / `2033`，SHA-256：`a174cafa1a0c92ad5063c6c299df504541c1023c9d6210f94b49d4d1890c5d48`。两端产物未安装或启动；Android/Ubuntu 实机交互由用户验收。最新构建细节见 [桌面全屏构建证据](evidence/260924-desktop-fullscreen-build/README.md)。此前 libmpv 0.34.1 HTTP 音频 smoke test 通过；这些证据不替代 GNOME 完整交互、Android 真机回归或干净安装。
+当前应用代码 `f8b026cb` 已在全新 `build/linux-lldtmp-2045` CMake build-dir 构建，使用系统 Clang 与从 Ubuntu 包解压至 `/tmp` 的真实 LLD 14；当前 `.deb` 版本为 `1.1.0+2045`、架构 amd64，SHA-256：`3288dc4ffd72889b3cf4c5804f86e56355851665c64062b2ab2766a34212082a`，包元数据已核对。Android arm64 release APK 使用本机 `echo-release` keystore 构建并签名校验通过；APK version name/code 为 `1.1.0` / `2034`，SHA-256：`20ef29e0ab78aa5081b5df66c7a0c04cbb7022e4fb5d5f4eb0f19b0995bd3b7b`。两端产物未安装或启动；Android/Ubuntu 实机交互由用户验收。最新构建细节见 [共享歌曲操作构建证据](evidence/260924-shared-song-actions-build/README.md)。此前 libmpv 0.34.1 HTTP 音频 smoke test 通过；这些证据不替代 GNOME 完整交互、Android 真机回归或干净安装。
 
 ## 功能与责任阶段
 
@@ -22,10 +22,10 @@
 | A10 | 单实例与恢复（R4） | 第二次启动只恢复同一窗口；多屏变化不丢窗，休眠唤醒后行为明确，用户暂停不被取消 | P0/P4 | 部分实现（Linux GTK runner 已改为唯一实例；窗口逻辑尺寸/最大化状态代码已随 `4015f879` 编译，但未实机验证；多屏/休眠/播放意图恢复未验） |
 | A11 | 尺寸与系统缩放（R3/R4） | 指定窗口/DPI/大字体/明暗组合无关键遮挡和重复 UI，连续重排不重建播放器 | P2/P3/P5 | 部分实现（工作区按宽/高空间切入紧凑布局并加入系统全屏，720×460/全屏窗口状态回归定义已添加但未运行；实际 840×560、全屏、窗口几何和 DPI 等待用户验收） |
 | A12 | Windows 等效能力（R1） | 在实际 Windows 桌面会话验证 SMTC/媒体键/托盘/退出/单实例，不只依赖 CI | P0-B/P4/P5 | 未测（当前 Linux 优先，Windows CI 暂缓） |
-| A13 | Android 不退化（R1） | 手机导航/MiniPlayer/歌词/队列和通知栏、锁屏后台、转码 seek、恢复流程通过 | P1–P5 | arm64-only release APK 已用本机 `echo-release` keystore 签名；version name/code 为 `1.1.0` / `2033`，高于用户设备报告的 `2026`；仅包含 `arm64-v8a`，签名和 package metadata 校验通过。尚未安装/启动，通知栏、锁屏、共享播放器与数据恢复仍待用户真机回归；本机密钥说明提示该个人证书可能与已安装版本不同，需实装确认签名升级兼容性。 |
-| A14 | 可安装可运行（R4） | 干净环境由安装包满足 native 依赖，应用菜单启动并实际播放；升级保留用户状态 | P5 | 部分实现（当前 `1.1.0+2044` bundle 与 `.deb` 已从全新 `build/linux-lldtmp-2044` 构建；ELF、amd64、desktop entry、图标和依赖元数据检查通过；干净安装/实际播放/升级保留状态未测） |
+| A13 | Android 不退化（R1） | 手机导航/MiniPlayer/歌词/队列和通知栏、锁屏后台、转码 seek、恢复流程通过 | P1–P5 | arm64-only release APK 已用本机 `echo-release` keystore 签名；version name/code 为 `1.1.0` / `2034`，高于用户设备报告的 `2026`；仅包含 `arm64-v8a`，签名和 package metadata 校验通过。尚未安装/启动，通知栏、锁屏、共享播放器与数据恢复仍待用户真机回归；本机密钥说明提示该个人证书可能与已安装版本不同，需实装确认签名升级兼容性。 |
+| A14 | 可安装可运行（R4） | 干净环境由安装包满足 native 依赖，应用菜单启动并实际播放；升级保留用户状态 | P5 | 部分实现（当前 `1.1.0+2045` bundle 与 `.deb` 已从全新 `build/linux-lldtmp-2045` 构建；ELF、amd64、desktop entry、图标和依赖元数据检查通过；干净安装/实际播放/升级保留状态未测） |
 | A15 | 桌面性能（R3/R4） | release/profile 记录帧耗时/内存/隐藏 CPU；满足阶段预算，进度不全量重建队列 | P3/P5 | 代码优化部分实现（PlaybackQueueContent 只订阅低频队列字段；SongListPage 滚动时重用歌曲签名；队列定位用锚点缓存可见 index/revision，离屏后清理 GlobalKey，避免每个样本线性扫描和锚点随滚动历史积累；1654/5000 首 release/profile 帧耗时、内存和隐藏 CPU 仍待用户采样） |
-| A16 | Linux 自绘窗口顶栏与桌面宽度下限（R9） | GNOME 原生 GTK 标题栏隐藏；Echo 顶栏能拖动、最小化、最大化/还原、关闭；840 逻辑像素以下无法缩窗；Android 尺寸/路由不变 | P2/P5 | 用户曾报告上一版按钮不可点/闪烁且窗口缩放异常；已移除根 Overlay 外的 Tooltip、启动时清除置顶并显式恢复缩放/最大化能力。`ce6a8ddd` 新增点击用例和全屏状态用例未运行；当前 `9cbc98fa` app 已构建但未启动，普通窗口/全屏和 Wayland 均待用户复测 |
+| A16 | Linux 自绘窗口顶栏与桌面宽度下限（R9） | GNOME 原生 GTK 标题栏隐藏；Echo 顶栏能拖动、最小化、最大化/还原、关闭；840 逻辑像素以下无法缩窗；Android 尺寸/路由不变 | P2/P5 | 用户曾报告上一版按钮不可点/闪烁且窗口缩放异常；已移除根 Overlay 外的 Tooltip、启动时清除置顶并显式恢复缩放/最大化能力。`ce6a8ddd` 新增点击用例和全屏状态用例未运行；当前 `f8b026cb` app 已构建但未启动，普通窗口/全屏和 Wayland 均待用户复测 |
 | A17 | 桌面导航层级与分隔线（R9） | expanded 桌面音乐流仅有一个搜索入口；搜索页仅用全局历史返回；我的歌单只显示一个页面标题；窗口栏/历史工具栏/播放条分隔线使用弱化颜色，侧栏不显示账户底栏；手机页面仍保留自己的搜索/返回 | P2 | 搜索/返回/重复标题在 `4015f879` 修正；`88ecf672` 移除桌面账户底栏和离线状态入口，并对齐标题区、弱化分隔线。当前 Linux 包已包含这些代码，尚未由用户实机检查 |
 | A18 | 账户操作入口与桌面历史 | 桌面无账户/服务器信息底栏或重复菜单；线路选择、音乐库新增/切换/编辑都能从设置页到达；添加流程退出后回到设置/桌面导航历史 | P2 | 账户底栏已移除；新设置返回回归用例已添加但未运行，添加流程和桌面历史仍待用户实机验证 |
 | A19 | 桌面壳层边界对齐 | 品牌区与主工具栏上下边界一致；桌面播放栏贴齐主面板左右与底边，Android/窄屏间距保持原样 | P2 | `88ecf672` 让品牌栏和导航工具栏共用 53px token，并让 expanded 播放栏贴齐主面板边缘；当前 Linux 包包含这些改动。布局回归用例未运行，Ubuntu 截图待验 |

@@ -2,7 +2,7 @@
 
 [返回 spec](README.md) · [验收矩阵](acceptance.md) · [决策](decisions.md)
 
-状态：应用代码 `9cbc98fa` 已在全新 `build/linux-lldtmp-2044` CMake 目录中构建，使用系统 Clang 与从 Ubuntu 包解压到 `/tmp` 的真实 LLD 14；`c25e22aa` 支持从该 bundle 生成 Ubuntu `.deb`。当前 checkout 另已构建并签名 Android arm64-only release APK，versionCode `2033`，签名与 package metadata 已校验；两端产物均未安装或启动。前置：P0–P4 仍有系统操作、恢复、性能和安装场景待验证。当前优先 Ubuntu/Linux；Windows CI 暂缓。
+状态：应用代码 `f8b026cb` 已在全新 `build/linux-lldtmp-2045` CMake 目录中构建，使用系统 Clang 与从 Ubuntu 包解压到 `/tmp` 的真实 LLD 14；`c25e22aa` 支持从该 bundle 生成 Ubuntu `.deb`。当前 checkout 另已构建并签名 Android arm64-only release APK，versionCode `2034`，签名与 package metadata 已校验；两端产物均未安装或启动。前置：P0–P4 仍有系统操作、恢复、性能和安装场景待验证。当前优先 Ubuntu/Linux；Windows CI 暂缓。
 
 ## 目标与交付范围
 
@@ -29,7 +29,7 @@ Ubuntu 交付可安装 `.deb` 与完整 bundle 压缩包；Windows 交付 releas
 - `packaging/linux/echoes.desktop` 使用 `echoes` desktop-file basename，与 Linux MPRIS 的 `DesktopEntry=echoes` 对齐；图标安装到 hicolor `192x192/apps`。
 - `scripts/package_linux_deb.sh` 从 `build/linux/x64/release/bundle` 组装 Debian 包，依赖声明面向当前 Ubuntu 22.04 基线：`libgtk-3-0`、`libayatana-appindicator3-1`、`libmpv1`。MPV 是运行时动态加载项，不会出现在主 ELF 的 `DT_NEEDED` 中，因此显式声明。
 - `.github/workflows/build_linux.yml` 在 release bundle 外再上传 `.deb`；`.github/workflows/pr_checks.yml` 加入包组装步骤。Windows workflow 未改。
-- 历史包 `build/linux/packages/echoes_1.1.0+26_amd64.deb` 与 `1.1.0+2027` 至 `+2043` 候选均已被后续构建替换。当前最新包为 `build/linux-lldtmp-2044/packages/echoes_1.1.0+2044_amd64.deb`，SHA-256 为 `a53fc7ae559a72f60908bfc64246e70b84065362e2e58f2afcefdecc7ca5492d`；`dpkg-deb` 元数据检查通过，仍未安装验证。干净系统播放依赖仍待 Ubuntu 实机记录。
+- 历史包 `build/linux/packages/echoes_1.1.0+26_amd64.deb` 与 `1.1.0+2027` 至 `+2044` 候选均已被后续构建替换。当前最新包为 `build/linux-lldtmp-2045/packages/echoes_1.1.0+2045_amd64.deb`，SHA-256 为 `3288dc4ffd72889b3cf4c5804f86e56355851665c64062b2ab2766a34212082a`；`dpkg-deb` 元数据检查通过，仍未安装验证。干净系统播放依赖仍待 Ubuntu 实机记录。
 
 ### 原生分发与网络通路的补充检查
 
@@ -100,6 +100,7 @@ Ubuntu 24.04/Wayland 若仍未验收，只能先发布明确限定 22.04/X11 的
 | Ubuntu 22.04 X11 | `76b964af` / `build/linux-lldtmp-2042` | 桌面播放条和共享 transport 改为选择 `PlaybackSnapshot` 后，以实际 LLD 14 在全新 CMake build-dir 构建 `1.1.0+2042` amd64 `.deb`；核对包名、版本、架构、依赖；bundle executable SHA-256 `f4ef507642f3a942a8a8755a7703ac7f225bd7d9b663ae4ec702a168d610593d`，`libapp.so` SHA-256 `67249fb9816c0ede6588d7cd8db10af09f8b77e06be4385552aa5e081d0a9a5b`，`.deb` SHA-256 `0a5a2053be47b9bdec8ed21111e260aee941b30977b703a38f35321464d90c2c`。未安装、未启动、未运行 Flutter 测试；release/profile 性能采样待用户执行 |
 | Ubuntu 22.04 X11 | `87b994e3` / `build/linux-lldtmp-2043` | 桌面队列增加双击播放后，以系统 Clang 与真实 LLD 14 在全新 CMake build-dir 构建 `1.1.0+2043` amd64 `.deb`；核对包名、版本、架构、依赖；bundle executable SHA-256 `1010965e1e473f41e5d9101286dffc103892992a7a0f13962a023f56779a2922`，`libapp.so` SHA-256 `c80937cd6c3630c5e91481e13ddbc9197894254d57fb210e6e36175d35fd6741`，`.deb` SHA-256 `1b76e5509199a1b0b3de70c0aa53aa1bcafbf86180f430fcd6b1a9be6954db63`。未安装、未启动、未运行 Flutter 测试；桌面交互和 release/profile 性能待用户执行 |
 | Ubuntu 22.04 X11 | `9cbc98fa` / `build/linux-lldtmp-2044` | 播放工作区加入系统全屏和尺寸持久化保护后，以系统 Clang 与真实 LLD 14 在全新 CMake build-dir 构建 `1.1.0+2044` amd64 `.deb`；核对包名、版本、架构、依赖；bundle executable SHA-256 `5bace48849f7779f3a200396b9b582213b74e0dff6c843b83adb168031651422`，`libapp.so` SHA-256 `44c6495d2fbfc8943e8508ffb41f0863eea5f145ad69a2d3269e4da597aecf46`，`.deb` SHA-256 `a53fc7ae559a72f60908bfc64246e70b84065362e2e58f2afcefdecc7ca5492d`。未安装、未启动、未运行 Flutter 测试；普通/全屏窗口几何及 release/profile 性能待用户执行 |
+| Ubuntu 22.04 X11 | `f8b026cb` / `build/linux-lldtmp-2045` | 抽出共享 `SongActionFactory`、由 sheet presenter 统一关闭动作后，以系统 Clang 与真实 LLD 14 在全新 CMake build-dir 构建 `1.1.0+2045` amd64 `.deb`；核对包名、版本、架构、依赖；bundle executable SHA-256 `0f5bd2390295be2cbef9fe52fe794044715aa1dd2da260c1add3e4a971b377ab`，`libapp.so` SHA-256 `6bfd094a9da526990064519587316b1e7448487dde56eed06c6d9e0aa3841c49`，`.deb` SHA-256 `3288dc4ffd72889b3cf4c5804f86e56355851665c64062b2ab2766a34212082a`。未安装、未启动、未运行 Flutter 测试；单次关闭和 Android/UI 回归待用户执行 |
 | 初始 Android universal APK（已废弃） | `79310b27` checkout / `app-release.apk` | 初次打包错误沿用 `1.1.0+26` 和全 ABI 输出，不能作为用户现装 `2026` 的升级包；已由下方 arm64 APK 取代 |
 | Android ARM64 APK | `1.1.0+2027` 候选（已替换） | version code `4027` 的 arm64-only APK 已签名校验，并由下方 `4028` 候选替换 |
 | Android ARM64 APK | `1.1.0+2028` 候选（已替换） | version code `4028` 的 arm64-only APK 已签名校验，并由下方 `4029` 候选替换 |
@@ -119,6 +120,7 @@ Ubuntu 24.04/Wayland 若仍未验收，只能先发布明确限定 22.04/X11 的
 | Android ARM64 APK | `76b964af` / Android build number override `31` / `app-arm64-v8a-release.apk` | 本机专用脚本产物；APK version name/code 为 `1.1.0` / `2031`，仅含 `arm64-v8a`；`apksigner` 验证通过，release 证书 SHA-256 `8604465c3ee1282b48a1b2759801f784ace32447d1188e0481fab0fe8ac74c94`；APK SHA-256 `0d11a2972907cd65c808a2e5281d44c9e0a65f5cb17e1324de57d90872744166`。未安装、未启动、未运行 Flutter 测试；设备回归见 [共享播放器构建证据](evidence/260924-shared-player-layer-build/README.md) |
 | Android ARM64 APK | `87b994e3` / Android build number override `32` / `app-arm64-v8a-release.apk` | 本机专用脚本产物；APK version name/code 为 `1.1.0` / `2032`，仅含 `arm64-v8a`；`apksigner` 验证通过，release 证书 SHA-256 `8604465c3ee1282b48a1b2759801f784ace32447d1188e0481fab0fe8ac74c94`；APK SHA-256 `603e45d9efadc328aa7a4a4fb44cd999acb77ea55dd15cce155806f645749ef1`。未安装、未启动、未运行 Flutter 测试；双击的桌面交互不改变手机点击策略，通知栏/锁屏/共享播放器仍待真机回归 |
 | Android ARM64 APK | `9cbc98fa` / Android build number override `33` / `app-arm64-v8a-release.apk` | 本机专用脚本产物；APK version name/code 为 `1.1.0` / `2033`，仅含 `arm64-v8a`；`apksigner` 验证通过，release 证书 SHA-256 `8604465c3ee1282b48a1b2759801f784ace32447d1188e0481fab0fe8ac74c94`；APK SHA-256 `a174cafa1a0c92ad5063c6c299df504541c1023c9d6210f94b49d4d1890c5d48`。未安装、未启动、未运行 Flutter 测试；宽屏 Android 不显示原生全屏操作，手机设备回归仍待执行 |
+| Android ARM64 APK | `f8b026cb` / Android build number override `34` / `app-arm64-v8a-release.apk` | 本机专用脚本产物；APK version name/code 为 `1.1.0` / `2034`，仅含 `arm64-v8a`；`apksigner` 验证通过，release 证书 SHA-256 `8604465c3ee1282b48a1b2759801f784ace32447d1188e0481fab0fe8ac74c94`；APK SHA-256 `20ef29e0ab78aa5081b5df66c7a0c04cbb7022e4fb5d5f4eb0f19b0995bd3b7b`。未安装、未启动、未运行 Flutter 测试；歌曲动作统一和 sheet 关闭行为待 Android 回归 |
 | Ubuntu 24.04 / Wayland | — | 待提供环境与结果 |
 | Windows | — | Windows CI 暂缓；未编译/未实机验收 |
 | Android 回归 | 先前检查点曾有 431 项 Flutter 测试通过；本次提交新增用例未运行 | 最新共享控件与歌曲操作改动的自动回归、Android 真机锁屏/通知栏/封面验证仍待完成 |
