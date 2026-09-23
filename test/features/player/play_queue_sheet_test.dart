@@ -6,6 +6,7 @@ import 'package:echoes/providers/player_provider.dart';
 import 'package:echoes/widgets/cover_art_image.dart';
 import 'package:echoes/widgets/song_list_item.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -182,19 +183,27 @@ void main() {
     addTearDown(scrollController.dispose);
     final selected = <String>[];
     final played = <String>[];
+    final deleted = <String>[];
+    String? selectedEntryId;
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.dark(),
-        home: Scaffold(
-          body: PlaybackQueueContent(
-            scrollController: scrollController,
-            playerState: state,
-            desktopInteraction: true,
-            onEntrySelected: selected.add,
-            selectedEntryId: selected.isEmpty ? null : selected.last,
-            onSelect: (index) async => played.add(state.queueEntryIds[index]),
-            onReorder: (_, _) {},
-            onOpenSongActions: (context, index, song, entryId) async {},
+        home: StatefulBuilder(
+          builder: (context, setState) => Scaffold(
+            body: PlaybackQueueContent(
+              scrollController: scrollController,
+              playerState: state,
+              desktopInteraction: true,
+              onEntrySelected: (entryId) {
+                if (entryId != null) selected.add(entryId);
+                setState(() => selectedEntryId = entryId);
+              },
+              selectedEntryId: selectedEntryId,
+              onDeleteEntry: deleted.add,
+              onSelect: (index) async => played.add(state.queueEntryIds[index]),
+              onReorder: (_, _) {},
+              onOpenSongActions: (context, index, song, entryId) async {},
+            ),
           ),
         ),
       ),
@@ -208,9 +217,17 @@ void main() {
     expect(selected, <String>[state.queueEntryIds[1]]);
     expect(played, isEmpty);
 
-    await tester.tap(find.bySemanticsLabel('播放 ${songs[1].title}'));
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pump();
     expect(played, <String>[state.queueEntryIds[1]]);
+
+    await tester.tap(find.bySemanticsLabel('播放 ${songs[1].title}'));
+    await tester.pump();
+    expect(played, <String>[state.queueEntryIds[1], state.queueEntryIds[1]]);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+    await tester.pump();
+    expect(deleted, <String>[state.queueEntryIds[1]]);
     expect(tester.takeException(), isNull);
   });
 

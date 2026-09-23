@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/design/echo_design.dart';
@@ -420,6 +421,7 @@ class _DesktopQueuePanelState extends ConsumerState<_DesktopQueuePanel> {
                   onEntrySelected: (entryId) {
                     setState(() => _selectedEntryId = entryId);
                   },
+                  onDeleteEntry: notifier.removeQueueEntry,
                   onSelect: (index) {
                     final entryId = playerState.queueEntryIds[index];
                     setState(() => _selectedEntryId = entryId);

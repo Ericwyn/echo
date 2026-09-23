@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -274,7 +275,11 @@ class PlaybackQueueContent extends StatefulWidget {
     this.desktopInteraction = false,
     this.selectedEntryId,
     this.onEntrySelected,
-  }) : assert(!desktopInteraction || onEntrySelected != null);
+    this.onDeleteEntry,
+  }) : assert(
+         !desktopInteraction ||
+             (onEntrySelected != null && onDeleteEntry != null),
+       );
 
   final ScrollController scrollController;
   final PlayerState playerState;
@@ -283,7 +288,8 @@ class PlaybackQueueContent extends StatefulWidget {
   final void Function(int oldIndex, int newIndex)? onReorder;
   final bool desktopInteraction;
   final String? selectedEntryId;
-  final ValueChanged<String>? onEntrySelected;
+  final ValueChanged<String?>? onEntrySelected;
+  final ValueChanged<String>? onDeleteEntry;
 
   @override
   State<PlaybackQueueContent> createState() => _PlaybackQueueContentState();
@@ -291,10 +297,53 @@ class PlaybackQueueContent extends StatefulWidget {
 
 class _PlaybackQueueContentState extends State<PlaybackQueueContent> {
   final Map<String, GlobalKey> _entryKeys = <String, GlobalKey>{};
+  final FocusNode _focusNode = FocusNode(debugLabel: 'playback_queue');
   bool _positionScheduled = false;
   String? _positionedEntryId;
   int? _dragRevision;
   bool? _dragShuffleEnabled;
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _selectEntry(String? entryId) {
+    widget.onEntrySelected?.call(entryId);
+    if (widget.desktopInteraction) _focusNode.requestFocus();
+  }
+
+  void _activateEntry(int index) {
+    if (index < 0 || index >= widget.playerState.queueEntryIds.length) return;
+    if (widget.desktopInteraction) {
+      _selectEntry(widget.playerState.queueEntryIds[index]);
+    }
+    unawaited(widget.onSelect(index));
+  }
+
+  KeyEventResult _handleKeyEvent(KeyEvent event) {
+    if (!widget.desktopInteraction || event is! KeyDownEvent) {
+      return KeyEventResult.ignored;
+    }
+    final entryId = widget.selectedEntryId;
+    if (entryId == null) return KeyEventResult.ignored;
+    final index = widget.playerState.queueEntryIds.indexOf(entryId);
+    if (index < 0) {
+      _selectEntry(null);
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.enter) {
+      _activateEntry(index);
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.delete) {
+      widget.onDeleteEntry?.call(entryId);
+      _selectEntry(null);
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
 
   @override
   void didUpdateWidget(covariant PlaybackQueueContent oldWidget) {
@@ -312,153 +361,161 @@ class _PlaybackQueueContentState extends State<PlaybackQueueContent> {
     _entryKeys.removeWhere((id, _) => !activeIds.contains(id));
     _scheduleInitialPosition(context);
 
-    return ReorderableListView.builder(
-      scrollController: widget.scrollController,
-      buildDefaultDragHandles: false,
-      proxyDecorator: (child, index, animation) {
-        return AnimatedBuilder(
-          animation: animation,
-          builder: (context, child) {
-            final progress = Curves.easeOut.transform(animation.value);
-            final accent = context.echoColors.accent;
-            return DecoratedBox(
-              decoration: BoxDecoration(
-                borderRadius: context.echoRadii.control,
-                border: Border.all(
-                  color: accent.withValues(alpha: 0.65 + 0.35 * progress),
-                  width: 1.5,
-                ),
-                boxShadow: <BoxShadow>[
-                  BoxShadow(
-                    color: accent.withValues(alpha: 0.08 * progress),
-                    blurRadius: 10 * progress,
-                    spreadRadius: progress,
+    return Focus(
+      focusNode: _focusNode,
+      onKeyEvent: (node, event) => _handleKeyEvent(event),
+      child: ReorderableListView.builder(
+        scrollController: widget.scrollController,
+        buildDefaultDragHandles: false,
+        proxyDecorator: (child, index, animation) {
+          return AnimatedBuilder(
+            animation: animation,
+            builder: (context, child) {
+              final progress = Curves.easeOut.transform(animation.value);
+              final accent = context.echoColors.accent;
+              return DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: context.echoRadii.control,
+                  border: Border.all(
+                    color: accent.withValues(alpha: 0.65 + 0.35 * progress),
+                    width: 1.5,
                   ),
-                ],
-              ),
-              child: child,
-            );
-          },
-          child: child,
-        );
-      },
-      padding: EdgeInsets.symmetric(vertical: context.echoSpacing.xs),
-      itemCount: state.queue.length,
-      onReorderStart: (_) {
-        _dragRevision = widget.playerState.playbackQueue.revision;
-        _dragShuffleEnabled = widget.playerState.shuffleEnabled;
-      },
-      onReorder: (oldIndex, newIndex) {
-        final startedAt = _dragRevision;
-        final startedWithShuffle = _dragShuffleEnabled;
-        _dragRevision = null;
-        _dragShuffleEnabled = null;
-        if (startedAt != null &&
-            (startedAt != widget.playerState.playbackQueue.revision ||
-                startedWithShuffle != widget.playerState.shuffleEnabled)) {
-          return;
-        }
-        widget.onReorder?.call(oldIndex, newIndex);
-      },
-      itemBuilder: (context, index) {
-        final song = state.queue[index];
-        final entryId = state.queueEntryIds[index];
-        final isCurrent = index == state.currentIndex;
-        final statusLabel = state.isLoading
-            ? '正在加载'
-            : state.isPlaying
-            ? '正在播放'
-            : '当前已暂停';
-        final semanticsActions = <CustomSemanticsAction, VoidCallback>{};
-        if (widget.onReorder != null && index > 0) {
-          semanticsActions[const CustomSemanticsAction(label: '上移')] = () {
-            widget.onReorder!(index, index - 1);
-          };
-        }
-        if (widget.onReorder != null && index < state.queue.length - 1) {
-          semanticsActions[const CustomSemanticsAction(label: '下移')] = () {
-            widget.onReorder!(index, index + 2);
-          };
-        }
+                  boxShadow: <BoxShadow>[
+                    BoxShadow(
+                      color: accent.withValues(alpha: 0.08 * progress),
+                      blurRadius: 10 * progress,
+                      spreadRadius: progress,
+                    ),
+                  ],
+                ),
+                child: child,
+              );
+            },
+            child: child,
+          );
+        },
+        padding: EdgeInsets.symmetric(vertical: context.echoSpacing.xs),
+        itemCount: state.queue.length,
+        onReorderStart: (_) {
+          _dragRevision = widget.playerState.playbackQueue.revision;
+          _dragShuffleEnabled = widget.playerState.shuffleEnabled;
+        },
+        onReorder: (oldIndex, newIndex) {
+          final startedAt = _dragRevision;
+          final startedWithShuffle = _dragShuffleEnabled;
+          _dragRevision = null;
+          _dragShuffleEnabled = null;
+          if (startedAt != null &&
+              (startedAt != widget.playerState.playbackQueue.revision ||
+                  startedWithShuffle != widget.playerState.shuffleEnabled)) {
+            return;
+          }
+          widget.onReorder?.call(oldIndex, newIndex);
+        },
+        itemBuilder: (context, index) {
+          final song = state.queue[index];
+          final entryId = state.queueEntryIds[index];
+          final isCurrent = index == state.currentIndex;
+          final statusLabel = state.isLoading
+              ? '正在加载'
+              : state.isPlaying
+              ? '正在播放'
+              : '当前已暂停';
+          final semanticsActions = <CustomSemanticsAction, VoidCallback>{};
+          if (widget.onReorder != null && index > 0) {
+            semanticsActions[const CustomSemanticsAction(label: '上移')] = () {
+              widget.onReorder!(index, index - 1);
+            };
+          }
+          if (widget.onReorder != null && index < state.queue.length - 1) {
+            semanticsActions[const CustomSemanticsAction(label: '下移')] = () {
+              widget.onReorder!(index, index + 2);
+            };
+          }
 
-        final songRow = EchoSongRow(
-          index: index,
-          song: song,
-          variant: EchoSongRowVariant.standard,
-          isCurrent: isCurrent,
-          isDimmed: state.currentIndex >= 0 && index < state.currentIndex,
-          currentStatusLabel: statusLabel,
-          currentIndicatorIcon: state.isPlaying
-              ? AppIcons.pause
-              : AppIcons.play,
-          isCurrentLoading: state.isLoading,
-          selected: widget.selectedEntryId == entryId,
-          contentPadding: EdgeInsetsDirectional.fromSTEB(
-            context.echoSpacing.md,
-            context.echoSpacing.xs,
-            context.echoSpacing.xs,
-            context.echoSpacing.xs,
-          ),
-          innerPadding: isCurrent
-              ? EdgeInsets.symmetric(vertical: context.echoSpacing.xxs)
-              : EdgeInsets.zero,
-          onPressed: widget.desktopInteraction
-              ? () => widget.onEntrySelected?.call(entryId)
-              : () => unawaited(widget.onSelect(index)),
-          onPlayPressed: widget.desktopInteraction
-              ? () => unawaited(widget.onSelect(index))
-              : null,
-          onMorePressed: () => unawaited(
-            widget.onOpenSongActions(context, index, song, entryId),
-          ),
-          moreSemanticLabel: '${song.title}，更多操作',
-        );
-        final rowContent = widget.desktopInteraction
-            ? Row(
-                children: <Widget>[
-                  Expanded(child: songRow),
-                  if (widget.onReorder != null)
-                    SizedBox(
-                      width: 40,
-                      height: 48,
-                      child: ReorderableDragStartListener(
-                        index: index,
-                        child: Semantics(
-                          button: true,
-                          label: '拖动调整 ${song.title} 的顺序',
-                          child: MouseRegion(
-                            cursor: SystemMouseCursors.grab,
-                            child: Icon(
-                              Icons.drag_indicator,
-                              size: 20,
-                              color: context.echoColors.muted,
+          final songRow = EchoSongRow(
+            index: index,
+            song: song,
+            variant: EchoSongRowVariant.standard,
+            isCurrent: isCurrent,
+            isDimmed: state.currentIndex >= 0 && index < state.currentIndex,
+            currentStatusLabel: statusLabel,
+            currentIndicatorIcon: state.isPlaying
+                ? AppIcons.pause
+                : AppIcons.play,
+            isCurrentLoading: state.isLoading,
+            selected: widget.selectedEntryId == entryId,
+            contentPadding: EdgeInsetsDirectional.fromSTEB(
+              context.echoSpacing.md,
+              context.echoSpacing.xs,
+              context.echoSpacing.xs,
+              context.echoSpacing.xs,
+            ),
+            innerPadding: isCurrent
+                ? EdgeInsets.symmetric(vertical: context.echoSpacing.xxs)
+                : EdgeInsets.zero,
+            onPressed: widget.desktopInteraction
+                ? () => _selectEntry(entryId)
+                : () => _activateEntry(index),
+            onKeyboardActivate: widget.desktopInteraction
+                ? () => _activateEntry(index)
+                : null,
+            keyboardSpaceActivates: !widget.desktopInteraction,
+            onPlayPressed: widget.desktopInteraction
+                ? () => _activateEntry(index)
+                : null,
+            onMorePressed: () => unawaited(
+              widget.onOpenSongActions(context, index, song, entryId),
+            ),
+            moreSemanticLabel: '${song.title}，更多操作',
+          );
+          final rowContent = widget.desktopInteraction
+              ? Row(
+                  children: <Widget>[
+                    Expanded(child: songRow),
+                    if (widget.onReorder != null)
+                      SizedBox(
+                        width: 40,
+                        height: 48,
+                        child: ReorderableDragStartListener(
+                          index: index,
+                          child: Semantics(
+                            button: true,
+                            label: '拖动调整 ${song.title} 的顺序',
+                            child: MouseRegion(
+                              cursor: SystemMouseCursors.grab,
+                              child: Icon(
+                                Icons.drag_indicator,
+                                size: 20,
+                                color: context.echoColors.muted,
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                ],
-              )
-            : ReorderableDelayedDragStartListener(
-                index: index,
-                enabled: widget.onReorder != null,
-                child: songRow,
-              );
+                  ],
+                )
+              : ReorderableDelayedDragStartListener(
+                  index: index,
+                  enabled: widget.onReorder != null,
+                  child: songRow,
+                );
 
-        return Padding(
-          key: _entryKeys.putIfAbsent(entryId, GlobalKey.new),
-          padding: EdgeInsets.only(bottom: context.echoSpacing.xxs),
-          child: Semantics(
-            label: widget.onReorder == null
-                ? null
-                : widget.desktopInteraction
-                ? '使用拖动手柄调整 ${song.title} 的顺序'
-                : '长按并拖动 ${song.title}，调整播放顺序',
-            customSemanticsActions: semanticsActions,
-            child: rowContent,
-          ),
-        );
-      },
+          return Padding(
+            key: _entryKeys.putIfAbsent(entryId, GlobalKey.new),
+            padding: EdgeInsets.only(bottom: context.echoSpacing.xxs),
+            child: Semantics(
+              label: widget.onReorder == null
+                  ? null
+                  : widget.desktopInteraction
+                  ? '使用拖动手柄调整 ${song.title} 的顺序'
+                  : '长按并拖动 ${song.title}，调整播放顺序',
+              customSemanticsActions: semanticsActions,
+              child: rowContent,
+            ),
+          );
+        },
+      ),
     );
   }
 

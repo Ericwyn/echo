@@ -23,6 +23,8 @@ class EchoSongRow extends StatelessWidget {
     this.innerPadding = EdgeInsets.zero,
     this.onPressed,
     this.onLongPress,
+    this.onKeyboardActivate,
+    this.keyboardSpaceActivates = true,
     this.onMorePressed,
     this.onPlayPressed,
     this.playSemanticLabel,
@@ -52,6 +54,8 @@ class EchoSongRow extends StatelessWidget {
   final EdgeInsetsGeometry innerPadding;
   final VoidCallback? onPressed;
   final VoidCallback? onLongPress;
+  final VoidCallback? onKeyboardActivate;
+  final bool keyboardSpaceActivates;
   final VoidCallback? onMorePressed;
   final VoidCallback? onPlayPressed;
   final String? playSemanticLabel;
@@ -103,6 +107,8 @@ class EchoSongRow extends StatelessWidget {
             selected: isSelected ? true : (selectionMode ? false : null),
             onPressed: mainAction,
             onLongPress: mainLongPress,
+            onKeyboardActivate: onKeyboardActivate,
+            keyboardSpaceActivates: keyboardSpaceActivates,
             minimumSize: const Size(0, 48),
             borderRadius: context.echoRadii.control,
             child: mainContent,

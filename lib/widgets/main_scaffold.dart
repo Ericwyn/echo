@@ -82,6 +82,67 @@ enum EchoBackAction {
   moveAppToBackground,
 }
 
+class _ToggleDesktopPlaybackIntent extends Intent {
+  const _ToggleDesktopPlaybackIntent();
+}
+
+class _PreviousDesktopTrackIntent extends Intent {
+  const _PreviousDesktopTrackIntent();
+}
+
+class _NextDesktopTrackIntent extends Intent {
+  const _NextDesktopTrackIntent();
+}
+
+class _OpenDesktopSearchIntent extends Intent {
+  const _OpenDesktopSearchIntent();
+}
+
+class _DesktopEscapeIntent extends Intent {
+  const _DesktopEscapeIntent();
+}
+
+class _DesktopCallbackAction<T extends Intent> extends ContextAction<T> {
+  _DesktopCallbackAction({required this.callback, this.enabled});
+
+  final VoidCallback callback;
+  final bool Function()? enabled;
+
+  @override
+  bool isEnabled(T intent, [BuildContext? context]) => enabled?.call() ?? true;
+
+  @override
+  Object? invoke(T intent, [BuildContext? context]) {
+    callback();
+    return null;
+  }
+}
+
+bool _isTextOrValueControlFocused() {
+  final focusContext = FocusManager.instance.primaryFocus?.context;
+  if (focusContext is! Element) return false;
+
+  Element? element = focusContext;
+  while (element != null) {
+    final widget = element.widget;
+    if (widget is EditableText ||
+        widget is TextField ||
+        widget is Slider ||
+        widget is RangeSlider ||
+        widget is DropdownButton ||
+        widget is PopupMenuButton) {
+      return true;
+    }
+    Element? parent;
+    element.visitAncestorElements((ancestor) {
+      parent = ancestor;
+      return false;
+    });
+    element = parent;
+  }
+  return false;
+}
+
 @visibleForTesting
 EchoBackAction resolveEchoBackAction({
   required bool drawerOpen,
@@ -333,6 +394,79 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
 
   void _navigateDesktopForward() {
     _desktopNavigationStrategy.goForward(context);
+  }
+
+  Widget _withDesktopShortcuts(Widget child) {
+    return Shortcuts(
+      shortcuts: const <ShortcutActivator, Intent>{
+        SingleActivator(LogicalKeyboardKey.space):
+            _ToggleDesktopPlaybackIntent(),
+        SingleActivator(LogicalKeyboardKey.keyF, control: true):
+            _OpenDesktopSearchIntent(),
+        SingleActivator(LogicalKeyboardKey.arrowLeft, control: true):
+            _PreviousDesktopTrackIntent(),
+        SingleActivator(LogicalKeyboardKey.arrowRight, control: true):
+            _NextDesktopTrackIntent(),
+        SingleActivator(LogicalKeyboardKey.escape): _DesktopEscapeIntent(),
+      },
+      child: Actions(
+        actions: <Type, Action<Intent>>{
+          _ToggleDesktopPlaybackIntent:
+              _DesktopCallbackAction<_ToggleDesktopPlaybackIntent>(
+                enabled: () => !_isTextOrValueControlFocused(),
+                callback: () => unawaited(
+                  ref.read(playerProvider.notifier).togglePlayPause(),
+                ),
+              ),
+          _PreviousDesktopTrackIntent:
+              _DesktopCallbackAction<_PreviousDesktopTrackIntent>(
+                enabled: () => !_isTextOrValueControlFocused(),
+                callback: () =>
+                    unawaited(ref.read(playerProvider.notifier).previous()),
+              ),
+          _NextDesktopTrackIntent:
+              _DesktopCallbackAction<_NextDesktopTrackIntent>(
+                enabled: () => !_isTextOrValueControlFocused(),
+                callback: () =>
+                    unawaited(ref.read(playerProvider.notifier).next()),
+              ),
+          _OpenDesktopSearchIntent:
+              _DesktopCallbackAction<_OpenDesktopSearchIntent>(
+                enabled: () => !_isTextOrValueControlFocused(),
+                callback: () => _selectDesktopDestination(
+                  destinationId: 'search',
+                  branchIndex: discoverBranchIndex,
+                  page: const SearchPage(),
+                ),
+              ),
+          _DesktopEscapeIntent: _DesktopCallbackAction<_DesktopEscapeIntent>(
+            callback: () => unawaited(_handleDesktopEscape()),
+          ),
+        },
+        child: Focus(autofocus: true, child: child),
+      ),
+    );
+  }
+
+  Future<void> _handleDesktopEscape() async {
+    final focusContext = FocusManager.instance.primaryFocus?.context;
+    final routeContext = focusContext ?? context;
+    if (ModalRoute.of(routeContext) is PopupRoute) {
+      if (await Navigator.of(routeContext).maybePop()) return;
+    }
+
+    final scaffold = scaffoldKey.currentState;
+    if (scaffold?.isDrawerOpen ?? false) {
+      scaffold?.closeDrawer();
+      return;
+    }
+    if (_showDesktopPlayerWorkspace) {
+      setState(() => _showDesktopPlayerWorkspace = false);
+      return;
+    }
+    if (_desktopNavigationStrategy.canGoBack) {
+      await _desktopNavigationStrategy.maybePop();
+    }
   }
 
   Widget _desktopPage(String destinationId, Widget page) {
@@ -721,116 +855,114 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
       _scheduleHiddenBranchFallback();
     }
 
+    final shell = EchoAppShell(
+      scaffoldKey: scaffoldKey,
+      drawer:
+          widget.drawerOverride ??
+          AppDrawer(onReturnFocus: _restoreEchoAppDrawerFocus),
+      body: isDesktop
+          ? Stack(
+              fit: StackFit.expand,
+              children: <Widget>[
+                TickerMode(
+                  enabled: false,
+                  child: Offstage(
+                    offstage: true,
+                    child: widget.navigationShell,
+                  ),
+                ),
+                if (_desktopNavigatorMounted)
+                  TickerMode(
+                    enabled: !desktopWorkspaceVisible,
+                    child: Offstage(
+                      offstage: desktopWorkspaceVisible,
+                      child: _desktopNavigationStrategy.buildNavigator(
+                        context,
+                        rootPage: widget.desktopRootOverride ?? DiscoverPage(),
+                      ),
+                    ),
+                  ),
+                if (desktopWorkspaceVisible)
+                  DesktopPlayerWorkspace(
+                    panel: _desktopPlayerPanel,
+                    onPanelChanged: (panel) => setState(() {
+                      _desktopPlayerPanel = panel;
+                    }),
+                    onClose: () =>
+                        setState(() => _showDesktopPlayerWorkspace = false),
+                  ),
+              ],
+            )
+          : Stack(
+              fit: StackFit.expand,
+              children: <Widget>[
+                widget.navigationShell,
+                if (_desktopNavigatorMounted)
+                  TickerMode(
+                    enabled: false,
+                    child: Offstage(
+                      offstage: true,
+                      child: _desktopNavigationStrategy.buildNavigator(
+                        context,
+                        rootPage: widget.desktopRootOverride ?? DiscoverPage(),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+      destinations: destinations,
+      selectedBranchIndex: currentBranchIsVisible
+          ? currentBranchIndex
+          : discoverBranchIndex,
+      onDestinationSelected: (branchIndex) {
+        if (isDesktop && _showDesktopPlayerWorkspace) {
+          setState(() => _showDesktopPlayerWorkspace = false);
+        }
+        _goToBranch(
+          branchIndex,
+          initialLocation: branchIndex == currentBranchIndex,
+        );
+      },
+      miniPlayer:
+          widget.miniPlayerOverride ??
+          (isDesktop
+              ? DesktopPlaybackBar(onOpenWorkspace: _openDesktopPlayerWorkspace)
+              : const MiniPlayer()),
+      showMiniPlayer: hasMiniPlayer,
+      networkStatus: networkStatus,
+      onOpenDrawer: isDesktop ? _showDesktopAppMenu : openEchoAppDrawer,
+      desktopActions: isDesktop
+          ? _desktopSidebarActions(showExploreTab: showExploreTab)
+          : const [],
+      desktopNavigationToolbar: isDesktop
+          ? EchoDesktopNavigationToolbar(
+              canGoBack: _desktopCanGoBack,
+              canGoForward: _desktopCanGoForward,
+              onBack: () => unawaited(_handleBackPressed()),
+              onForward: _navigateDesktopForward,
+              onSearch: () => _selectDesktopDestination(
+                destinationId: 'search',
+                branchIndex: discoverBranchIndex,
+                page: const SearchPage(),
+              ),
+            )
+          : null,
+      desktopAccountLabel:
+          activeLibrary?.username ?? activeLibrary?.name ?? '账户',
+      desktopAccountSubtitle: <String>[
+        if (activeLibrary?.name.trim().isNotEmpty == true)
+          activeLibrary!.name.trim(),
+        if (activeAddress?.label.trim().isNotEmpty == true)
+          activeAddress!.label.trim(),
+      ].join(' · '),
+    );
+
     return BackButtonListener(
       onBackButtonPressed: () async {
         await _handleBackPressed();
         return true;
       },
-      child: EchoAppShell(
-        scaffoldKey: scaffoldKey,
-        drawer:
-            widget.drawerOverride ??
-            AppDrawer(onReturnFocus: _restoreEchoAppDrawerFocus),
-        body: isDesktop
-            ? Stack(
-                fit: StackFit.expand,
-                children: <Widget>[
-                  TickerMode(
-                    enabled: false,
-                    child: Offstage(
-                      offstage: true,
-                      child: widget.navigationShell,
-                    ),
-                  ),
-                  if (_desktopNavigatorMounted)
-                    TickerMode(
-                      enabled: !desktopWorkspaceVisible,
-                      child: Offstage(
-                        offstage: desktopWorkspaceVisible,
-                        child: _desktopNavigationStrategy.buildNavigator(
-                          context,
-                          rootPage:
-                              widget.desktopRootOverride ?? DiscoverPage(),
-                        ),
-                      ),
-                    ),
-                  if (desktopWorkspaceVisible)
-                    DesktopPlayerWorkspace(
-                      panel: _desktopPlayerPanel,
-                      onPanelChanged: (panel) => setState(() {
-                        _desktopPlayerPanel = panel;
-                      }),
-                      onClose: () =>
-                          setState(() => _showDesktopPlayerWorkspace = false),
-                    ),
-                ],
-              )
-            : Stack(
-                fit: StackFit.expand,
-                children: <Widget>[
-                  widget.navigationShell,
-                  if (_desktopNavigatorMounted)
-                    TickerMode(
-                      enabled: false,
-                      child: Offstage(
-                        offstage: true,
-                        child: _desktopNavigationStrategy.buildNavigator(
-                          context,
-                          rootPage:
-                              widget.desktopRootOverride ?? DiscoverPage(),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-        destinations: destinations,
-        selectedBranchIndex: currentBranchIsVisible
-            ? currentBranchIndex
-            : discoverBranchIndex,
-        onDestinationSelected: (branchIndex) {
-          if (isDesktop && _showDesktopPlayerWorkspace) {
-            setState(() => _showDesktopPlayerWorkspace = false);
-          }
-          _goToBranch(
-            branchIndex,
-            initialLocation: branchIndex == currentBranchIndex,
-          );
-        },
-        miniPlayer:
-            widget.miniPlayerOverride ??
-            (isDesktop
-                ? DesktopPlaybackBar(
-                    onOpenWorkspace: _openDesktopPlayerWorkspace,
-                  )
-                : const MiniPlayer()),
-        showMiniPlayer: hasMiniPlayer,
-        networkStatus: networkStatus,
-        onOpenDrawer: isDesktop ? _showDesktopAppMenu : openEchoAppDrawer,
-        desktopActions: isDesktop
-            ? _desktopSidebarActions(showExploreTab: showExploreTab)
-            : const [],
-        desktopNavigationToolbar: isDesktop
-            ? EchoDesktopNavigationToolbar(
-                canGoBack: _desktopCanGoBack,
-                canGoForward: _desktopCanGoForward,
-                onBack: () => unawaited(_handleBackPressed()),
-                onForward: _navigateDesktopForward,
-                onSearch: () => _selectDesktopDestination(
-                  destinationId: 'search',
-                  branchIndex: discoverBranchIndex,
-                  page: const SearchPage(),
-                ),
-              )
-            : null,
-        desktopAccountLabel:
-            activeLibrary?.username ?? activeLibrary?.name ?? '账户',
-        desktopAccountSubtitle: <String>[
-          if (activeLibrary?.name.trim().isNotEmpty == true)
-            activeLibrary!.name.trim(),
-          if (activeAddress?.label.trim().isNotEmpty == true)
-            activeAddress!.label.trim(),
-        ].join(' · '),
-      ),
+      child: isDesktop ? _withDesktopShortcuts(shell) : shell,
     );
   }
 }

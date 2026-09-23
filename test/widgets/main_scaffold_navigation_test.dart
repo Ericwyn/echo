@@ -4,6 +4,7 @@ import 'package:echoes/providers/navigation_provider.dart';
 import 'package:echoes/widgets/main_scaffold.dart';
 import 'package:echoes/widgets/echo_app_shell/echo_network_status_bar.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -325,6 +326,49 @@ void main() {
       );
     });
 
+    testWidgets('desktop shortcuts respect text entry and Escape route order', (
+      tester,
+    ) async {
+      await _pumpMainScaffold(tester, size: const Size(1440, 900));
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyF);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+      expect(find.text('Desktop search'), findsOneWidget);
+
+      final searchField = find.byKey(
+        const ValueKey<String>('desktop-search-input'),
+      );
+      await tester.tap(searchField);
+      await tester.enterText(searchField, 'find me');
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyF);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<EditableText>(
+              find.descendant(
+                of: searchField,
+                matching: find.byType(EditableText),
+              ),
+            )
+            .controller
+            .text,
+        'find me',
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('open-desktop-detail')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Desktop detail'), findsOneWidget);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(find.text('Desktop search'), findsOneWidget);
+    });
+
     testWidgets('preserves branch stacks and resets a reselected branch', (
       tester,
     ) async {
@@ -554,6 +598,8 @@ class _DesktopDestinationPage extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Text('Desktop $destinationId'),
+            if (destinationId == 'search')
+              const TextField(key: ValueKey<String>('desktop-search-input')),
             ElevatedButton(
               key: const ValueKey<String>('open-desktop-detail'),
               onPressed: () => Navigator.of(context).push<void>(

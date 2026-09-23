@@ -33,6 +33,8 @@ class EchoPressable extends StatelessWidget {
     required this.child,
     this.onPressed,
     this.onLongPress,
+    this.onKeyboardActivate,
+    this.keyboardSpaceActivates = true,
     this.semanticLabel,
     this.minimumSize = const Size.square(48),
     this.borderRadius,
@@ -50,6 +52,8 @@ class EchoPressable extends StatelessWidget {
   final Widget child;
   final VoidCallback? onPressed;
   final VoidCallback? onLongPress;
+  final VoidCallback? onKeyboardActivate;
+  final bool keyboardSpaceActivates;
   final String? semanticLabel;
   final Size minimumSize;
   final BorderRadius? borderRadius;
@@ -63,6 +67,10 @@ class EchoPressable extends StatelessWidget {
       <ShortcutActivator, Intent>{
         SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
         SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
+      };
+  static const Map<ShortcutActivator, Intent> _enterShortcut =
+      <ShortcutActivator, Intent>{
+        SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
       };
 
   @override
@@ -106,12 +114,12 @@ class EchoPressable extends StatelessWidget {
       onTap: onPressed,
       onLongPress: onLongPress,
       child: Shortcuts(
-        shortcuts: _shortcuts,
+        shortcuts: keyboardSpaceActivates ? _shortcuts : _enterShortcut,
         child: Actions(
           actions: <Type, Action<Intent>>{
             ActivateIntent: CallbackAction<ActivateIntent>(
               onInvoke: (intent) {
-                final action = onPressed ?? onLongPress;
+                final action = onKeyboardActivate ?? onPressed ?? onLongPress;
                 if (action != null) _invoke(action);
                 return null;
               },
