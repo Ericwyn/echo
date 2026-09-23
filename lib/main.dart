@@ -11,6 +11,7 @@ import 'package:window_manager/window_manager.dart';
 import 'app.dart';
 import 'core/services/background_playback_advisor.dart';
 import 'core/services/desktop_lifecycle_service.dart';
+import 'core/services/desktop_window_state_service.dart';
 import 'core/design/layout/echo_desktop_metrics.dart';
 import 'providers/player_provider.dart';
 
@@ -44,6 +45,7 @@ void main() {
           await windowManager.setTitleBarStyle(TitleBarStyle.hidden);
           await windowManager.setAsFrameless();
         }
+        await DesktopWindowStateService.restoreBeforeFirstFrame();
         JustAudioMediaKit.ensureInitialized();
       }
 
@@ -96,6 +98,7 @@ class _DesktopLifecycleHostState extends ConsumerState<_DesktopLifecycleHost> {
 
   Future<void> _initializeDesktopLifecycle() async {
     try {
+      await DesktopWindowStateService.instance.initialize();
       await DesktopLifecycleService.instance.initialize(
         onTogglePlayPause: () async {
           final player = ref.read(playerProvider.notifier);

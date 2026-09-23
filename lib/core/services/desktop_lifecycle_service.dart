@@ -10,6 +10,7 @@ import 'package:window_manager/window_manager.dart';
 
 import '../design/layout/echo_desktop_metrics.dart';
 import '../utils/logger.dart';
+import 'desktop_window_state_service.dart';
 
 const _statusNotifierWatchers = <String>[
   'org.kde.StatusNotifierWatcher',
@@ -189,6 +190,7 @@ class DesktopLifecycleService with WindowListener, TrayListener {
     if (_exitRequested) return;
     _exitRequested = true;
     try {
+      await DesktopWindowStateService.instance.dispose();
       await _onQuit?.call();
       await _watcherSubscription?.cancel();
       _watcherSubscription = null;
