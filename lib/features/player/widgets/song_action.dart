@@ -15,7 +15,7 @@ class SongAction {
     required this.onPressed,
     this.isAvailable = true,
     this.isDestructive = false,
-  }) : assert(id.trim().isNotEmpty);
+  }) : assert(id != '');
 
   final String id;
   final IconData icon;
