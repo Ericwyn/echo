@@ -61,6 +61,11 @@ class DesktopPlaybackBar extends ConsumerWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final compact = constraints.maxWidth < 1100;
+          final trackWidth = compact
+              ? constraints.maxWidth < 720
+                    ? 164.0
+                    : 188.0
+              : 248.0;
           final spacing = context.echoSpacing;
           return Container(
             key: const ValueKey<String>('echo-desktop-playback-bar'),
@@ -77,7 +82,7 @@ class DesktopPlaybackBar extends ConsumerWidget {
             child: Row(
               children: <Widget>[
                 SizedBox(
-                  width: compact ? 188 : 248,
+                  width: trackWidth,
                   child: _DesktopCurrentTrack(
                     title: playback.title,
                     artist: playback.artist,
@@ -106,8 +111,13 @@ class DesktopPlaybackBar extends ConsumerWidget {
                 SizedBox(width: compact ? spacing.xs : spacing.md),
                 const Expanded(child: ProgressBar()),
                 SizedBox(width: compact ? spacing.xs : spacing.md),
-                if (!compact) const _DesktopVolumeControl(showSlider: true),
-                if (compact) const _DesktopVolumeControl(showSlider: false),
+                if (!compact) const _DesktopVolumeControl(),
+                if (compact)
+                  _CompactPlaybackOptions(
+                    shuffle: playback.shuffle,
+                    modeIcon: modeIcon,
+                    modeLabel: modeLabel,
+                  ),
                 EchoIconButton(
                   icon: AppIcons.lyrics,
                   label: '打开歌词',
@@ -191,9 +201,7 @@ class _DesktopCurrentTrack extends StatelessWidget {
 }
 
 class _DesktopVolumeControl extends ConsumerWidget {
-  const _DesktopVolumeControl({required this.showSlider});
-
-  final bool showSlider;
+  const _DesktopVolumeControl();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -217,24 +225,168 @@ class _DesktopVolumeControl extends ConsumerWidget {
           label: volume.muted ? '取消静音' : '静音',
           onPressed: () => unawaited(commands.setMuted(!volume.muted)),
         ),
-        if (showSlider)
-          SizedBox(
-            width: 112,
-            child: EchoPlayerScrubber(
-              value: volume.value,
-              min: 0,
-              max: 1,
-              semanticStep: 0.05,
-              semanticValueFormatter: (value) => '${(value * 100).round()}%',
-              semanticLabel: '播放音量',
-              semanticValue: '${(volume.value * 100).round()}%',
-              onChanged: (value) => unawaited(commands.setUserVolume(value)),
-              activeColor: context.echoColors.accent,
-              inactiveColor: context.echoColors.divider,
-              thumbColor: context.echoColors.ink,
+        SizedBox(
+          width: 112,
+          child: EchoPlayerScrubber(
+            value: volume.value,
+            min: 0,
+            max: 1,
+            semanticStep: 0.05,
+            semanticValueFormatter: (value) => '${(value * 100).round()}%',
+            semanticLabel: '播放音量',
+            semanticValue: '${(volume.value * 100).round()}%',
+            onChanged: (value) => unawaited(commands.setUserVolume(value)),
+            activeColor: context.echoColors.accent,
+            inactiveColor: context.echoColors.divider,
+            thumbColor: context.echoColors.ink,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+enum _CompactPlaybackAction { toggleMute, toggleShuffle, cycleMode }
+
+/// Keeps volume adjustment and playback modes available when the desktop
+/// player bar is too narrow to show every control inline.
+class _CompactPlaybackOptions extends ConsumerWidget {
+  const _CompactPlaybackOptions({
+    required this.shuffle,
+    required this.modeIcon,
+    required this.modeLabel,
+  });
+
+  final bool shuffle;
+  final IconData modeIcon;
+  final String modeLabel;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = context.echoColors;
+    final spacing = context.echoSpacing;
+    final volume = ref.watch(
+      playbackSnapshotProvider.select(
+        (snapshot) => (value: snapshot.volume, muted: snapshot.isMuted),
+      ),
+    );
+    final commands = ref.read(playbackCommandsProvider);
+
+    return PopupMenuButton<_CompactPlaybackAction>(
+      tooltip: '音量与播放模式',
+      icon: const Icon(AppIcons.tune),
+      padding: EdgeInsets.zero,
+      onSelected: (action) {
+        switch (action) {
+          case _CompactPlaybackAction.toggleMute:
+            unawaited(commands.setMuted(!volume.muted));
+            return;
+          case _CompactPlaybackAction.toggleShuffle:
+            unawaited(commands.setShuffleEnabled(!shuffle));
+            return;
+          case _CompactPlaybackAction.cycleMode:
+            unawaited(commands.cyclePlaybackMode());
+            return;
+        }
+      },
+      itemBuilder: (context) {
+        var menuVolume = volume.value;
+        return <PopupMenuEntry<_CompactPlaybackAction>>[
+          PopupMenuItem<_CompactPlaybackAction>(
+            enabled: false,
+            height: 68,
+            padding: EdgeInsets.symmetric(horizontal: spacing.md),
+            child: StatefulBuilder(
+              builder: (context, setMenuState) {
+                final percent = (menuVolume * 100).round();
+                return SizedBox(
+                  width: 220,
+                  child: Row(
+                    children: <Widget>[
+                      Text('音量', style: context.echoTypography.body),
+                      SizedBox(width: spacing.sm),
+                      Expanded(
+                        child: EchoPlayerScrubber(
+                          value: menuVolume,
+                          min: 0,
+                          max: 1,
+                          semanticStep: 0.05,
+                          semanticValueFormatter: (value) =>
+                              '${(value * 100).round()}%',
+                          semanticLabel: '播放音量',
+                          semanticValue: '$percent%',
+                          onChanged: (value) {
+                            setMenuState(() => menuVolume = value);
+                            unawaited(commands.setUserVolume(value));
+                          },
+                          activeColor: colors.accent,
+                          inactiveColor: colors.divider,
+                          thumbColor: colors.ink,
+                        ),
+                      ),
+                      SizedBox(width: spacing.xs),
+                      SizedBox(
+                        width: 40,
+                        child: Text(
+                          '$percent%',
+                          textAlign: TextAlign.end,
+                          style: context.echoTypography.metadata.copyWith(
+                            color: colors.muted,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
           ),
-      ],
+          const PopupMenuDivider(),
+          PopupMenuItem<_CompactPlaybackAction>(
+            value: _CompactPlaybackAction.toggleMute,
+            child: Row(
+              children: <Widget>[
+                Icon(
+                  volume.muted
+                      ? Icons.volume_up_outlined
+                      : Icons.volume_off_outlined,
+                  size: 20,
+                ),
+                SizedBox(width: spacing.sm),
+                Text(volume.muted ? '取消静音' : '静音'),
+              ],
+            ),
+          ),
+          PopupMenuItem<_CompactPlaybackAction>(
+            value: _CompactPlaybackAction.toggleShuffle,
+            child: SizedBox(
+              width: 220,
+              child: Row(
+                children: <Widget>[
+                  Icon(AppIcons.shuffle, size: 20),
+                  SizedBox(width: spacing.sm),
+                  Expanded(child: Text(shuffle ? '关闭随机播放' : '开启随机播放')),
+                  if (shuffle) Icon(AppIcons.check, size: 18),
+                ],
+              ),
+            ),
+          ),
+          PopupMenuItem<_CompactPlaybackAction>(
+            value: _CompactPlaybackAction.cycleMode,
+            child: SizedBox(
+              width: 220,
+              child: Row(
+                children: <Widget>[
+                  Icon(modeIcon, size: 20),
+                  SizedBox(width: spacing.sm),
+                  Expanded(child: Text('$modeLabel，点击切换')),
+                  Icon(AppIcons.chevronRight, size: 18),
+                ],
+              ),
+            ),
+          ),
+        ];
+      },
     );
   }
 }
