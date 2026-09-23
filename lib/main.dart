@@ -104,10 +104,16 @@ class _DesktopLifecycleHostState extends ConsumerState<_DesktopLifecycleHost> {
     try {
       await DesktopWindowStateService.instance.initialize();
       await DesktopLifecycleService.instance.initialize(
+        initialPlaybackSnapshot: ref.read(playbackSnapshotProvider),
         onTogglePlayPause: () async {
           final player = ref.read(playerProvider.notifier);
           await player.initialized;
           await ref.read(playbackCommandsProvider).togglePlayPause();
+        },
+        onPrevious: () async {
+          final player = ref.read(playerProvider.notifier);
+          await player.initialized;
+          await ref.read(playbackCommandsProvider).previous();
         },
         onNext: () async {
           final player = ref.read(playerProvider.notifier);
@@ -220,7 +226,18 @@ class _DesktopLifecycleHostState extends ConsumerState<_DesktopLifecycleHost> {
   }
 
   @override
-  Widget build(BuildContext context) => widget.child;
+  Widget build(BuildContext context) {
+    if (!kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.linux ||
+            defaultTargetPlatform == TargetPlatform.windows)) {
+      ref.listen(playbackSnapshotProvider, (previous, next) {
+        unawaited(
+          DesktopLifecycleService.instance.updatePlaybackSnapshot(next),
+        );
+      });
+    }
+    return widget.child;
+  }
 }
 
 class _PlaybackLifecycleObserver extends WidgetsBindingObserver {

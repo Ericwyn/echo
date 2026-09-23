@@ -8,9 +8,11 @@ import 'package:flutter/material.dart' show Size;
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
+import '../../providers/player/playback_contract.dart';
 import '../design/layout/echo_desktop_metrics.dart';
 import '../utils/logger.dart';
 import 'desktop_close_settings.dart';
+import 'desktop_tray_menu_state.dart';
 import 'desktop_window_state_service.dart';
 import 'status_notifier_host_tracker.dart';
 
@@ -25,6 +27,7 @@ class DesktopLifecycleService with WindowListener, TrayListener {
   static final DesktopLifecycleService instance = DesktopLifecycleService._();
 
   Future<void> Function()? _onTogglePlayPause;
+  Future<void> Function()? _onPrevious;
   Future<void> Function()? _onNext;
   Future<void> Function()? _onQuit;
   Future<bool> Function()? _onBeforeQuit;
@@ -40,23 +43,28 @@ class DesktopLifecycleService with WindowListener, TrayListener {
   bool _windowHidden = false;
   bool _closeActionPending = false;
   bool _exitCheckInProgress = false;
+  DesktopTrayMenuState _trayMenuState = const DesktopTrayMenuState.empty();
 
   bool get trayAvailable => _trayAvailable;
 
   Future<void> initialize({
     required Future<void> Function() onTogglePlayPause,
+    required Future<void> Function() onPrevious,
     required Future<void> Function() onNext,
     required Future<void> Function() onQuit,
     required Future<bool> Function() onBeforeQuit,
     required Future<bool> Function({required bool trayAvailable}) onBeforeHide,
+    required PlaybackSnapshot initialPlaybackSnapshot,
   }) async {
     if (_initialized) return;
     _initialized = true;
     _onTogglePlayPause = onTogglePlayPause;
+    _onPrevious = onPrevious;
     _onNext = onNext;
     _onQuit = onQuit;
     _onBeforeQuit = onBeforeQuit;
     _onBeforeHide = onBeforeHide;
+    _trayMenuState = DesktopTrayMenuState.fromSnapshot(initialPlaybackSnapshot);
 
     windowManager.addListener(this);
     trayManager.addListener(this);
@@ -81,6 +89,26 @@ class DesktopLifecycleService with WindowListener, TrayListener {
       await _connectToStatusNotifierWatcher();
     }
     await _installTrayIcon();
+  }
+
+  Future<void> updatePlaybackSnapshot(PlaybackSnapshot snapshot) async {
+    if (_exitRequested) return;
+    final nextState = DesktopTrayMenuState.fromSnapshot(snapshot);
+    if (_trayMenuState == nextState) return;
+    _trayMenuState = nextState;
+    if (!_trayIconRegistered || !_trayAvailable) {
+      return;
+    }
+
+    try {
+      await trayManager.setContextMenu(_buildTrayContextMenu());
+    } catch (error) {
+      Logger.warnWithTag(
+        'DESKTOP',
+        'failed to update tray playback state',
+        error,
+      );
+    }
   }
 
   Future<void> _installTrayIcon() async {
@@ -197,30 +225,25 @@ class DesktopLifecycleService with WindowListener, TrayListener {
     }
   }
 
+  /// Dispatch menu actions only from [onTrayMenuItemClick]. tray_manager calls
+  /// both a MenuItem.onClick callback and the TrayListener for the same item.
   Menu _buildTrayContextMenu() => Menu(
     items: <MenuItem>[
-      MenuItem(
-        key: 'show_window',
-        label: '显示 Echo',
-        onClick: (_) => unawaited(showWindow()),
-      ),
+      MenuItem(key: 'show_window', label: '显示 Echo'),
       MenuItem.separator(),
       MenuItem(
         key: 'play_pause',
-        label: '播放 / 暂停',
-        onClick: (_) => unawaited(_onTogglePlayPause?.call()),
+        label: _trayMenuState.playPauseLabel,
+        disabled: !_trayMenuState.canTogglePlayback,
       ),
       MenuItem(
-        key: 'next',
-        label: '下一首',
-        onClick: (_) => unawaited(_onNext?.call()),
+        key: 'previous',
+        label: '上一首',
+        disabled: !_trayMenuState.canGoPrevious,
       ),
+      MenuItem(key: 'next', label: '下一首', disabled: !_trayMenuState.canGoNext),
       MenuItem.separator(),
-      MenuItem(
-        key: 'quit',
-        label: '退出 Echo',
-        onClick: (_) => unawaited(requestExit()),
-      ),
+      MenuItem(key: 'quit', label: '退出 Echo'),
     ],
   );
 
@@ -374,9 +397,17 @@ class DesktopLifecycleService with WindowListener, TrayListener {
       case 'show_window':
         unawaited(showWindow());
       case 'play_pause':
-        unawaited(_onTogglePlayPause?.call());
+        if (_trayMenuState.canTogglePlayback) {
+          unawaited(_onTogglePlayPause?.call());
+        }
+      case 'previous':
+        if (_trayMenuState.canGoPrevious) {
+          unawaited(_onPrevious?.call());
+        }
       case 'next':
-        unawaited(_onNext?.call());
+        if (_trayMenuState.canGoNext) {
+          unawaited(_onNext?.call());
+        }
       case 'quit':
         unawaited(requestExit());
     }
