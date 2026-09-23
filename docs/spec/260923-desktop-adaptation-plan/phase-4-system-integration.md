@@ -12,6 +12,8 @@
 
 `bb8d9af3` 把“托盘不可用/隐藏期间消失”和“显示成功但 focus 被拒绝”的决策抽成可单测 helper，并添加 5 条回归用例；按用户要求未运行。最新 Linux `1.1.0+2053` 与 Android ARM64 versionCode `2050` release 已编译。
 
+`cab6fe11` 还修复了删除音乐库后前进历史恢复失效页面的问题；最新 Linux `1.1.0+2053` 与 Android ARM64 versionCode `2051` release 已编译，交互和回归用例仍待用户验证。
+
 ## 目标与拆分
 
 - **P4-A 媒体会话**：Linux MPRIS、Windows SMTC，控制现有播放器；基础 Linux 版本可与 P2 组成 M1。
@@ -101,6 +103,7 @@ P4-A 不依赖托盘存在；P4-B 的隐藏行为必须等托盘或其他恢复�
 | P4-C library switch and Android AudioService lifecycle | 2026-09-24 / `6f0f80e6` | 切库时先保存旧库播放会话、停播并清除系统媒体 metadata，再将进程级 AudioService 命令绑定到新 notifier；Android handler 不随 provider 重建重复初始化。Linux 与 Android ARM64 release 编译通过，相关用例未运行 | 用户需验证跨库恢复、切库失败回滚、GNOME 系统媒体项清理及 Android 后台控制 |
 | P4-C add-library handoff | 2026-09-24 / `67f62407` | 添加库认证成功后先保存/停播旧库并解绑旧命令，再激活新库；失败回滚旧播放器，成功后重建当前 notifier。未认证的首次登录不创建多余 PlayerNotifier。Linux 与 Android ARM64 release 编译通过，相关回归未运行 | 用户需验证 Android 添加库时通知栏元数据/播放停止与恢复、切库失败后的旧播放恢复 |
 | P4-C active library deletion recovery | 2026-09-24 / `d85868f1` | 删除非活动库不触碰当前播放器；活动库已删除而替代激活失败时清理旧 PlayerNotifier 并退出到未认证状态，避免保留已删除 libraryId。Linux 与 Android ARM64 release 编译通过，未运行回归 | 删除非活动库后继续播放，以及活动库删除/切换失败后的错误提示和恢复待用户验证 |
+| P4-C deleted-library route recovery | 2026-09-24 / `cab6fe11` | 删除后清理 desktop forward history，避免恢复已删除实体；播放会话清理失败继续安全返回。新增路由用例未运行；Linux 与 Android ARM64 release 编译通过 | 音乐库删除成功/清理失败后的桌面与 Android 行为待用户手动验证 |
 | P4-A MPRIS property/track identity | 2026-09-24 / `54207f92` | `LoopStatus` 不再随 Shuffle 强制变为 `None`；SHA-256 track path 基于 JSON 序列化的库/队列条目身份。添加独立循环/随机属性与歧义身份/迟到 SetPosition D-Bus 用例。Dart 格式与 diff 检查、Linux 与 Android ARM64 release 构建通过；未运行 Flutter 测试/analyze | GNOME media card/playerctl 的 repeat/shuffle/seek 仍待 Ubuntu 手动验证 |
 | P4-B tray hide recovery race | 2026-09-24 / `d6bb46f5` | 窗口 hide 完成后再次检查 watcher；若 host 在异步 hide 期间消失，则显示窗口并最小化。Dart 格式与 diff 检查通过，Linux 与 Android ARM64 release 构建通过；未运行测试/analyze | 宿主消失和关窗交错时的任务栏恢复行为仍待 Ubuntu 手动验证 |
 | P4-B Wayland visibility/focus recovery | 2026-09-24 / `8acd46dd` | `show()` 成功即清除 hidden 状态；后续 focus 请求单独捕获失败，compositor 拒绝 focus 不再将已显示窗口误记为隐藏。Dart 格式与 diff 检查通过，Linux 与 Android ARM64 release 构建通过；未运行测试/analyze | Wayland focus 被拒绝、显示窗口和托盘/任务栏恢复路径仍需手动验证 |

@@ -2,7 +2,7 @@
 
 [返回 spec](README.md) · [验收矩阵](acceptance.md) · [决策](decisions.md)
 
-状态：最新代码 `bb8d9af3` 已在全新 `build/linux-lldtmp-2060` CMake 目录构建，使用系统 Clang 与 Ubuntu LLD 14；`.deb` 为 `1.1.0+2053`/amd64。Android 签名 ARM64-only APK versionCode `2050`，高于用户设备报告的 `2026`。两端产物均未安装或启动；P0–P4 系统操作、恢复、性能和安装场景仍待验证。当前优先 Ubuntu/Linux；Windows CI 暂缓。详情见 [生命周期恢复策略构建证据](evidence/260924-lifecycle-recovery-policy-build/README.md)。
+状态：最新代码 `cab6fe11` 已在全新 `build/linux-lldtmp-2061` CMake 目录构建，使用系统 Clang 与 Ubuntu LLD 14；`.deb` 为 `1.1.0+2053`/amd64。Android 本机签名 ARM64-only APK versionCode `2051`，高于用户设备报告的 `2026`。本机快捷脚本只保留在开发机并由 `.git/info/exclude` 忽略。两端产物均未安装或启动；P0–P4 系统操作、恢复、性能和安装场景仍待验证。当前优先 Ubuntu/Linux；Windows CI 暂缓。详情见 [音乐库删除历史修复构建证据](evidence/260924-library-delete-history-build/README.md)。
 
 ## 目标与交付范围
 
@@ -155,6 +155,8 @@ Ubuntu 24.04/Wayland 若仍未验收，只能先发布明确限定 22.04/X11 的
 | Android ARM64 APK | `8acd46dd` / build number override `49` / `app-arm64-v8a-release.apk` | 本机签名，version name/code `1.1.0` / `2049`，仅含 `arm64-v8a`；证书 SHA-256 `8604465c3ee1282b48a1b2759801f784ace32447d1188e0481fab0fe8ac74c94`，APK SHA-256 `a2311a4fd2361b33efd65c52315bd5a211022ac22e5206168ae07ebc72d41b93`。未安装/启动，Android 真机回归待用户执行 |
 | Ubuntu 22.04 X11 | `bb8d9af3` / `build/linux-lldtmp-2060` | 抽出可测试的窗口显示/focus 与托盘丢失关闭策略后，系统 Clang + Ubuntu LLD 14 在全新 build-dir 构建 `1.1.0+2053` amd64 `.deb`。bundle executable SHA-256 `e18ddefa5e959afc6cbc459b645dc2cf874fc4e9875bac68ed95be347af2499a`，`libapp.so` SHA-256 `e7b808071ba20a72ed3933e51c878e7192a77bc5a8666f0e04f3113f9b524848`，`.deb` SHA-256 `ae3fd50bf02c758f663cd2fd5f41c3b935eb1d116299a87e31802f0f91bd8281`。`dpkg-deb` 元数据核对通过；未安装/启动，测试/analyze 未运行 |
 | Android ARM64 APK | `bb8d9af3` / build number override `50` / `app-arm64-v8a-release.apk` | 本机签名，version name/code `1.1.0` / `2050`，仅含 `arm64-v8a`；证书 SHA-256 `8604465c3ee1282b48a1b2759801f784ace32447d1188e0481fab0fe8ac74c94`，APK SHA-256 `f6869a539a4e11693441bb9edafce7918a4c5afebc096ce1d9eccc2dd8063f5f`。未安装/启动，Android 真机回归待用户执行 |
+| Ubuntu 22.04 X11 | `cab6fe11` / `build/linux-lldtmp-2061` | 修复音乐库删除后的桌面前进历史与失败回退后，以系统 Clang + Ubuntu LLD 14 在全新 build-dir 构建 `1.1.0+2053` amd64 `.deb`。bundle executable SHA-256 `c30e034e4de92365d4b9f19a0d7a093500f72d3433c100396ffdd7c6d807ed5a`，`libapp.so` SHA-256 `24d97824f28fa8dd58c6f977e00cbe7872c2ed43756dc2f0abe7edc9856c05cc`，`.deb` SHA-256 `1a2537c13606144a0b55c11d6bdffe04f5c486b8628f5792c68f5b58097af119`。`dpkg-deb` 元数据核对通过；未安装/启动，测试/analyze 未运行 |
+| Android ARM64 APK | `cab6fe11` / build number override `51` / `app-arm64-v8a-release.apk` | 本机签名，version name/code `1.1.0` / `2051`，仅含 `arm64-v8a`；证书 SHA-256 `8604465c3ee1282b48a1b2759801f784ace32447d1188e0481fab0fe8ac74c94`，APK SHA-256 `4b53b3c8414ac701a950706aa783b6e5a416f503284bdf1c2bfbfc60463b2a77`。未安装/启动，Android 真机回归待用户执行 |
 | Ubuntu 24.04 / Wayland | — | 待提供环境与结果 |
 | Windows | — | Windows CI 暂缓；未编译/未实机验收 |
 | Android 回归 | 先前检查点曾有 431 项 Flutter 测试通过；本次提交新增用例未运行 | 最新共享控件与歌曲操作改动的自动回归、Android 真机锁屏/通知栏/封面验证仍待完成 |
