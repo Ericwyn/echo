@@ -246,8 +246,6 @@ class _DesktopVolumeControl extends ConsumerWidget {
   }
 }
 
-enum _CompactPlaybackAction { toggleMute, toggleShuffle, cycleMode }
-
 /// Keeps volume adjustment and playback modes available when the desktop
 /// player bar is too narrow to show every control inline.
 class _CompactPlaybackOptions extends ConsumerWidget {
@@ -271,122 +269,90 @@ class _CompactPlaybackOptions extends ConsumerWidget {
       ),
     );
     final commands = ref.read(playbackCommandsProvider);
+    var menuVolume = volume.value;
 
-    return PopupMenuButton<_CompactPlaybackAction>(
-      tooltip: '音量与播放模式',
-      icon: const Icon(AppIcons.tune),
-      padding: EdgeInsets.zero,
-      onSelected: (action) {
-        switch (action) {
-          case _CompactPlaybackAction.toggleMute:
-            unawaited(commands.setMuted(!volume.muted));
-            return;
-          case _CompactPlaybackAction.toggleShuffle:
-            unawaited(commands.setShuffleEnabled(!shuffle));
-            return;
-          case _CompactPlaybackAction.cycleMode:
-            unawaited(commands.cyclePlaybackMode());
-            return;
-        }
-      },
-      itemBuilder: (context) {
-        var menuVolume = volume.value;
-        return <PopupMenuEntry<_CompactPlaybackAction>>[
-          PopupMenuItem<_CompactPlaybackAction>(
-            enabled: false,
-            height: 68,
-            padding: EdgeInsets.symmetric(horizontal: spacing.md),
-            child: StatefulBuilder(
-              builder: (context, setMenuState) {
-                final percent = (menuVolume * 100).round();
-                return SizedBox(
-                  width: 220,
-                  child: Row(
-                    children: <Widget>[
-                      Text('音量', style: context.echoTypography.body),
-                      SizedBox(width: spacing.sm),
-                      Expanded(
-                        child: EchoPlayerScrubber(
-                          value: menuVolume,
-                          min: 0,
-                          max: 1,
-                          semanticStep: 0.05,
-                          semanticValueFormatter: (value) =>
-                              '${(value * 100).round()}%',
-                          semanticLabel: '播放音量',
-                          semanticValue: '$percent%',
-                          onChanged: (value) {
-                            setMenuState(() => menuVolume = value);
-                            unawaited(commands.setUserVolume(value));
-                          },
-                          activeColor: colors.accent,
-                          inactiveColor: colors.divider,
-                          thumbColor: colors.ink,
+    return MenuAnchor(
+      menuChildren: <Widget>[
+        StatefulBuilder(
+          builder: (context, setMenuState) {
+            final percent = (menuVolume * 100).round();
+            return SizedBox(
+              width: 244,
+              height: 68,
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: spacing.sm),
+                child: Row(
+                  children: <Widget>[
+                    Text('音量', style: context.echoTypography.body),
+                    SizedBox(width: spacing.sm),
+                    Expanded(
+                      child: EchoPlayerScrubber(
+                        value: menuVolume,
+                        min: 0,
+                        max: 1,
+                        semanticStep: 0.05,
+                        semanticValueFormatter: (value) =>
+                            '${(value * 100).round()}%',
+                        semanticLabel: '播放音量',
+                        semanticValue: '$percent%',
+                        onChanged: (value) {
+                          setMenuState(() => menuVolume = value);
+                          unawaited(commands.setUserVolume(value));
+                        },
+                        activeColor: colors.accent,
+                        inactiveColor: colors.divider,
+                        thumbColor: colors.ink,
+                      ),
+                    ),
+                    SizedBox(width: spacing.xs),
+                    SizedBox(
+                      width: 40,
+                      child: Text(
+                        '$percent%',
+                        textAlign: TextAlign.end,
+                        style: context.echoTypography.metadata.copyWith(
+                          color: colors.muted,
                         ),
                       ),
-                      SizedBox(width: spacing.xs),
-                      SizedBox(
-                        width: 40,
-                        child: Text(
-                          '$percent%',
-                          textAlign: TextAlign.end,
-                          style: context.echoTypography.metadata.copyWith(
-                            color: colors.muted,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-          const PopupMenuDivider(),
-          PopupMenuItem<_CompactPlaybackAction>(
-            value: _CompactPlaybackAction.toggleMute,
-            child: Row(
-              children: <Widget>[
-                Icon(
-                  volume.muted
-                      ? Icons.volume_up_outlined
-                      : Icons.volume_off_outlined,
-                  size: 20,
+                    ),
+                  ],
                 ),
-                SizedBox(width: spacing.sm),
-                Text(volume.muted ? '取消静音' : '静音'),
-              ],
-            ),
-          ),
-          PopupMenuItem<_CompactPlaybackAction>(
-            value: _CompactPlaybackAction.toggleShuffle,
-            child: SizedBox(
-              width: 220,
-              child: Row(
-                children: <Widget>[
-                  Icon(AppIcons.shuffle, size: 20),
-                  SizedBox(width: spacing.sm),
-                  Expanded(child: Text(shuffle ? '关闭随机播放' : '开启随机播放')),
-                  if (shuffle) Icon(AppIcons.check, size: 18),
-                ],
               ),
-            ),
+            );
+          },
+        ),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: spacing.sm),
+          child: SizedBox(
+            width: 244,
+            child: Divider(color: colors.divider, height: spacing.sm),
           ),
-          PopupMenuItem<_CompactPlaybackAction>(
-            value: _CompactPlaybackAction.cycleMode,
-            child: SizedBox(
-              width: 220,
-              child: Row(
-                children: <Widget>[
-                  Icon(modeIcon, size: 20),
-                  SizedBox(width: spacing.sm),
-                  Expanded(child: Text('$modeLabel，点击切换')),
-                  Icon(AppIcons.chevronRight, size: 18),
-                ],
-              ),
-            ),
+        ),
+        MenuItemButton(
+          leadingIcon: Icon(
+            volume.muted ? Icons.volume_up_outlined : Icons.volume_off_outlined,
           ),
-        ];
-      },
+          onPressed: () => unawaited(commands.setMuted(!volume.muted)),
+          child: Text(volume.muted ? '取消静音' : '静音'),
+        ),
+        MenuItemButton(
+          leadingIcon: const Icon(AppIcons.shuffle),
+          trailingIcon: shuffle ? const Icon(AppIcons.check) : null,
+          onPressed: () => unawaited(commands.setShuffleEnabled(!shuffle)),
+          child: Text(shuffle ? '关闭随机播放' : '开启随机播放'),
+        ),
+        MenuItemButton(
+          leadingIcon: Icon(modeIcon),
+          trailingIcon: const Icon(AppIcons.chevronRight),
+          onPressed: () => unawaited(commands.cyclePlaybackMode()),
+          child: Text('$modeLabel，点击切换'),
+        ),
+      ],
+      builder: (context, controller, _) => EchoIconButton(
+        icon: AppIcons.tune,
+        label: '音量与播放模式',
+        onPressed: controller.isOpen ? controller.close : controller.open,
+      ),
     );
   }
 }
