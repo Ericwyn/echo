@@ -61,7 +61,7 @@
 
 ### 平台支持与当前边界
 
-仓库包含 Android、iOS、macOS、Windows、Linux 和 Web 工程，当前优先打磨移动端。平台工程和构建流程的存在不代表所有功能均已完成平台验收。
+仓库包含 Android、iOS、macOS、Windows、Linux 和 Web 工程。当前桌面端优先适配 Ubuntu/Linux，同时检查共享代码对 Android 的影响；Windows CI 和 Windows 实机验收暂缓。平台工程和构建流程的存在不代表所有功能均已完成平台验收。
 
 | 平台 | 当前说明 |
 | --- | --- |
@@ -192,10 +192,12 @@ bundle 位于 `build/linux/x64/release/bundle/`，启动程序为 `echoes`；Deb
 安装本地生成的包：
 
 ```bash
-sudo apt install ./build/linux/packages/echoes_1.1.0+26_amd64.deb
+DEB_PATH="$(bash scripts/package_linux_deb.sh | sed -n 's/^Created //p')"
+test -n "$DEB_PATH"
+sudo apt install "$DEB_PATH"
 ```
 
-如果 `pubspec.yaml` 的版本号改变，按打包脚本打印的输出文件名替换命令中的版本号。当前 Linux CI 同时上传 bundle 压缩包与 `.deb` 构建产物；CI artifact 暂不是 GitHub Release 下载项。它们是适配验收产物，干净环境安装、升级和播放仍需单独验证；Ubuntu 24.04、Wayland、Windows 与 macOS 不在这份 Linux 产物的已验证范围内。
+安装命令会从当前 bundle 生成 `.deb`，再把打包脚本输出的准确路径交给 APT，避免误选目录中的旧版本。当前 Linux CI 同时上传 bundle 压缩包与 `.deb` 构建产物；CI artifact 暂不是 GitHub Release 下载项。它们是适配验收产物，干净环境安装、升级和播放仍需单独验证；Ubuntu 24.04、Wayland、Windows 与 macOS 不在这份 Linux 产物的已验证范围内。
 
 ### 开发检查
 
