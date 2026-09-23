@@ -25,16 +25,49 @@ class SearchPage extends ConsumerStatefulWidget {
 
 class _SearchPageState extends ConsumerState<SearchPage> {
   static const Duration _searchDebounce = Duration(milliseconds: 500);
+  static const String _pageStorageStateKey = 'echo-search-page-state';
 
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode(debugLabel: 'library_search');
   Timer? _searchTimer;
   String _draftQuery = '';
   String _query = '';
+  bool _restoredPageState = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_restoredPageState) return;
+    _restoredPageState = true;
+
+    final savedState = PageStorage.maybeOf(
+      context,
+    )?.readState(context, identifier: _pageStorageStateKey);
+    if (savedState is! Map) return;
+
+    final draftQuery = savedState['draftQuery'];
+    final query = savedState['query'];
+    _draftQuery = draftQuery is String ? draftQuery : '';
+    _query = query is String ? query : '';
+    _searchController.value = TextEditingValue(
+      text: _draftQuery,
+      selection: TextSelection.collapsed(offset: _draftQuery.length),
+    );
+
+    if (_draftQuery.isNotEmpty && _draftQuery != _query) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _scheduleSearch(_draftQuery);
+      });
+    }
+  }
 
   @override
   void dispose() {
     _searchTimer?.cancel();
+    PageStorage.maybeOf(context)?.writeState(context, <String, String>{
+      'draftQuery': _draftQuery,
+      'query': _query,
+    }, identifier: _pageStorageStateKey);
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();

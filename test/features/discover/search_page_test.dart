@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:echoes/core/design/echo_design.dart';
+import 'package:echoes/core/design/components/echo_page_route.dart';
 import 'package:echoes/core/theme/app_theme.dart';
 import 'package:echoes/data/models/album.dart';
 import 'package:echoes/data/models/artist.dart';
@@ -102,6 +103,95 @@ void main() {
     expect(find.text('搜索你的音乐库'), findsOneWidget);
     expect(tester.widget<TextField>(textField).controller!.text, isEmpty);
     expect(tester.widget<TextField>(textField).focusNode!.hasFocus, isTrue);
+  });
+
+  testWidgets('desktop forward restores the search query and result state', (
+    tester,
+  ) async {
+    final queries = <String>[];
+    final player = _RecordingPlayerNotifier(PlayerState());
+    late EchoPageRoute<void> searchRoute;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: <Override>[
+          searchProvider.overrideWith((ref, query) async {
+            queries.add(query);
+            return result(resultSongs: <Song>[songs.first]);
+          }),
+          playerProvider.overrideWith((ref) => player),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Column(
+                children: <Widget>[
+                  TextButton(
+                    key: const ValueKey<String>('open-search-route'),
+                    onPressed: () {
+                      searchRoute = EchoPageRoute<void>(
+                        context: context,
+                        builder: (_) => const SearchPage(),
+                      );
+                      Navigator.of(context).push<void>(searchRoute);
+                    },
+                    child: const Text('Open search'),
+                  ),
+                  TextButton(
+                    key: const ValueKey<String>('forward-search-route'),
+                    onPressed: () => Navigator.of(
+                      context,
+                    ).push<void>(searchRoute.recreate(context)),
+                    child: const Text('Forward search'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey<String>('open-search-route')));
+    await tester.pumpAndSettle();
+    await _submitQuery(tester, '晨光');
+    await tester.pumpAndSettle();
+    expect(find.text(songs.first.title), findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey<String>('forward-search-route')),
+    );
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).controller!.text,
+      '晨光',
+    );
+    expect(find.text(songs.first.title), findsOneWidget);
+    expect(queries, contains('晨光'));
+
+    await tester.enterText(find.byType(TextField), '夜航');
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey<String>('forward-search-route')),
+    );
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).controller!.text,
+      '夜航',
+    );
+    expect(queries, contains('夜航'));
   });
 
   testWidgets('debounces typing while the search action submits immediately', (
