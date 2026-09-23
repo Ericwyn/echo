@@ -360,6 +360,66 @@ void main() {
     });
 
     testWidgets(
+      'desktop multi-level detail history restores in order and fresh navigation clears forward',
+      (tester) async {
+        await _pumpMainScaffold(tester, size: const Size(1440, 900));
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('echo-desktop-sidebar-songs')),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.byKey(const ValueKey<String>('open-desktop-detail')),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.byKey(const ValueKey<String>('open-desktop-nested-detail')),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Desktop nested detail'), findsOneWidget);
+
+        await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
+        expect(find.text('Desktop detail'), findsOneWidget);
+
+        await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
+        expect(find.text('Desktop songs'), findsOneWidget);
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('echo-desktop-forward')),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Desktop detail'), findsOneWidget);
+        await tester.tap(
+          find.byKey(const ValueKey<String>('echo-desktop-forward')),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Desktop nested detail'), findsOneWidget);
+
+        await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
+        await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
+        expect(find.text('Desktop songs'), findsOneWidget);
+
+        await tester.tap(
+          find.byKey(const ValueKey<String>('open-desktop-detail')),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Desktop detail'), findsOneWidget);
+        expect(
+          tester
+              .widget<EchoIconButton>(
+                find.byKey(const ValueKey<String>('echo-desktop-forward')),
+              )
+              .onPressed,
+          isNull,
+        );
+      },
+    );
+
+    testWidgets(
       'desktop entity deletion return discards stale forward history',
       (tester) async {
         await _pumpMainScaffold(tester, size: const Size(1440, 900));
@@ -865,6 +925,23 @@ class _DesktopDestinationPage extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: <Widget>[
                           const Text('Desktop detail'),
+                          ElevatedButton(
+                            key: const ValueKey<String>(
+                              'open-desktop-nested-detail',
+                            ),
+                            onPressed: () =>
+                                Navigator.of(detailContext).push<void>(
+                                  EchoPageRoute<void>(
+                                    context: detailContext,
+                                    builder: (_) => const Scaffold(
+                                      body: Center(
+                                        child: Text('Desktop nested detail'),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            child: const Text('Open nested detail'),
+                          ),
                           ElevatedButton(
                             key: const ValueKey<String>(
                               'delete-desktop-detail',
