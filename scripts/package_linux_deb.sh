@@ -2,7 +2,8 @@
 set -euo pipefail
 
 project_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-bundle_dir="$project_root/build/linux/x64/release/bundle"
+# Allows packaging a bundle built with a non-default Flutter build directory.
+bundle_dir="${ECHO_LINUX_BUNDLE_DIR:-$project_root/build/linux/x64/release/bundle}"
 desktop_file="$project_root/packaging/linux/echoes.desktop"
 icon_file="$project_root/assets/tray_icon.png"
 output_dir="${1:-$project_root/build/linux/packages}"
