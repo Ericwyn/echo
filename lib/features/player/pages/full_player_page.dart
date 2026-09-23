@@ -7,6 +7,7 @@ import 'package:just_audio/just_audio.dart';
 
 import '../../../core/design/echo_design.dart';
 import '../../../core/network/connectivity_monitor.dart';
+import '../../../core/utils/audio_spec_formatter.dart';
 import '../../../data/models/audio_quality.dart';
 import '../../../data/models/embed_service_config.dart';
 import '../../../data/models/song.dart';
@@ -858,24 +859,11 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage>
     );
   }
 
-  String _formatSamplingRate(int rate) {
-    final khz = rate / 1000;
-    return khz == khz.truncateToDouble()
-        ? '${khz.toInt()}kHz'
-        : '${khz.toStringAsFixed(1)}kHz';
-  }
-
   String _buildAudioSpecText(Song? song) {
-    final bitDepth = song?.bitDepth;
-    final samplingRate = song?.samplingRate;
-    if (bitDepth != null && samplingRate != null && samplingRate > 0) {
-      return '${bitDepth}bit/${_formatSamplingRate(samplingRate)}';
-    }
-    if (bitDepth != null) return '${bitDepth}bit';
-    if (samplingRate != null && samplingRate > 0) {
-      return _formatSamplingRate(samplingRate);
-    }
-    return '';
+    return AudioSpecFormatter.format(
+      bitDepth: song?.bitDepth,
+      samplingRate: song?.samplingRate,
+    );
   }
 
   String _normalizeQualityPartForCompare(String value) {
