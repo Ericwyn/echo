@@ -2,7 +2,7 @@
 
 [返回 spec](README.md) · [验收矩阵](acceptance.md) · [决策](decisions.md)
 
-状态：最新代码 `b12aa608` 已在全新 `build/linux-lldtmp-2062` CMake 目录构建，使用系统 Clang 与 Ubuntu LLD 14；`.deb` 为 `1.1.0+2053`/amd64，独立 bundle ZIP 通过完整性校验。Android 本机签名 ARM64-only APK versionCode `2053`，高于用户设备报告的 `2026`。本机快捷脚本只保留在开发机并由 `.git/info/exclude` 忽略。两端产物均未安装或启动；P0–P4 系统操作、恢复、性能和安装场景仍待验证。当前优先 Ubuntu/Linux；Windows CI 暂缓。详情见 [共享播放命令统一构建证据](evidence/260924-playback-command-unification-build/README.md)。
+状态：最新代码 `c4bd0b6e` 已在全新 `build/linux-lldtmp-2063` CMake 目录构建，使用系统 Clang 与 Ubuntu LLD 14；`.deb` 为 `1.1.0+2053`/amd64，独立 bundle ZIP 通过完整性校验。Android 本机签名 ARM64-only APK versionCode `2054`，高于用户设备报告的 `2026`。本机快捷脚本只保留在开发机并由 `.git/info/exclude` 忽略。两端产物均未安装或启动；P0–P4 系统操作、恢复、性能和安装场景仍待验证。当前优先 Ubuntu/Linux；Windows CI 暂缓。详情见 [播放队列索引边界构建证据](evidence/260924-playback-queue-index-build/README.md)。
 
 ## 目标与交付范围
 
@@ -30,7 +30,7 @@ Ubuntu 交付可安装 `.deb` 与完整 bundle 压缩包；Windows 交付 releas
 - `scripts/package_linux_deb.sh` 从 `build/linux/x64/release/bundle` 组装 Debian 包，依赖声明面向当前 Ubuntu 22.04 基线：`libgtk-3-0`、`libayatana-appindicator3-1`、`libmpv1`。MPV 是运行时动态加载项，不会出现在主 ELF 的 `DT_NEEDED` 中，因此显式声明。
 - `.github/workflows/build_linux.yml` 在 release bundle 外再上传 `.deb`；`.github/workflows/pr_checks.yml` 加入包组装步骤。Windows workflow 未改。
 - 仓库 `README.md` 已增加 Linux `.deb` 安装命令、运行依赖、自绘窗口与托盘/MPRIS 说明，并明确 22.04/GNOME/X11 的验证范围；最新 Linux 桌面截图需待用户手动视觉验收后再刷新，避免把旧版界面图当作当前 release 证据。
-- 历史候选包已由后续构建替换。最新 DEB 为 `build/linux-lldtmp-2062/packages/echoes_1.1.0+2053_amd64.deb`，SHA-256 `f7d6e9f3ffe9bd44a59841628ef322bbe0aca17526e7341deb0b15c8cfdc742f`；standalone bundle ZIP `build/linux-lldtmp-2062/packages/echoes_1.1.0+2053_linux-x64-bundle.zip` SHA-256 `7e06b94cf5ba7128b8ffc964ef5fff65838267cba1815d1aeade132e715bcbc9`，38 个文件通过 `unzip -t`；`.deb` 元数据通过，尚未安装验证。
+- 历史候选包已由后续构建替换。最新 DEB 为 `build/linux-lldtmp-2063/packages/echoes_1.1.0+2053_amd64.deb`，SHA-256 `955e3c8f222be6582a4ae9a9993fb5b700136cc61704401c5b06e413ed4a8ffd`；standalone bundle ZIP `build/linux-lldtmp-2063/packages/echoes_1.1.0+2053_linux-x64-bundle.zip` SHA-256 `5de9a27a5d1be3e15e3540d2750cb9323acbfd52c3f365e9e16c91dfd88f2bbd`，38 个文件通过 `unzip -t`；`.deb` 元数据通过，尚未安装验证。
 
 ### 原生分发与网络通路的补充检查
 
@@ -159,6 +159,8 @@ Ubuntu 24.04/Wayland 若仍未验收，只能先发布明确限定 22.04/X11 的
 | Android ARM64 APK | `cab6fe11` / build number override `51` / `app-arm64-v8a-release.apk` | 本机签名，version name/code `1.1.0` / `2051`，仅含 `arm64-v8a`；证书 SHA-256 `8604465c3ee1282b48a1b2759801f784ace32447d1188e0481fab0fe8ac74c94`，APK SHA-256 `4b53b3c8414ac701a950706aa783b6e5a416f503284bdf1c2bfbfc60463b2a77`。未安装/启动，Android 真机回归待用户执行 |
 | Ubuntu 22.04 X11 | `46453bb2`、`b12aa608` / `build/linux-lldtmp-2062` | 统一播放队列与试听命令入口后，以系统 Clang + Ubuntu LLD 14 重建 `1.1.0+2053` amd64 `.deb`。bundle executable SHA-256 `1e4a96a87e1f69264a169b437a127326c197447982bccdd86fa11929adbc1e53`，`libapp.so` SHA-256 `60abaa598043b242ae93c375021a2a2118f10c45f275142dea96c21854467031`，DEB SHA-256 `f7d6e9f3ffe9bd44a59841628ef322bbe0aca17526e7341deb0b15c8cfdc742f`；standalone bundle ZIP SHA-256 `7e06b94cf5ba7128b8ffc964ef5fff65838267cba1815d1aeade132e715bcbc9`，38 个文件通过 `unzip -t`。未安装/启动，测试/analyze 未运行 |
 | Android ARM64 APK | `46453bb2`、`b12aa608` / build number override `53` / `app-arm64-v8a-release.apk` | 本机签名，version name/code `1.1.0` / `2053`，仅含 `arm64-v8a`；证书 SHA-256 `8604465c3ee1282b48a1b2759801f784ace32447d1188e0481fab0fe8ac74c94`，APK SHA-256 `3626dfd31c0b7bd364618d78e23cfc6b04afbc8970110188af55f16506605ed5`。未安装/启动，Android 真机回归待用户执行 |
+| Ubuntu 22.04 X11 | `c4bd0b6e` / `build/linux-lldtmp-2063` | 播放队列命令加入起始索引限幅后，以系统 Clang + Ubuntu LLD 14 构建 `1.1.0+2053` amd64 `.deb`。bundle executable SHA-256 `e1eb6488780e2d70fed09976c920b12e7fd7d018439adfc0beeeb9de35cf4ec8`，`libapp.so` SHA-256 `d3a1af2c5742bb4ecbc4b1705d26998a043a4174085cab1171ec24772cfe24db`，DEB SHA-256 `955e3c8f222be6582a4ae9a9993fb5b700136cc61704401c5b06e413ed4a8ffd`；standalone bundle ZIP SHA-256 `5de9a27a5d1be3e15e3540d2750cb9323acbfd52c3f365e9e16c91dfd88f2bbd`，38 个文件通过 `unzip -t`。未安装/启动，测试/analyze 未运行 |
+| Android ARM64 APK | `c4bd0b6e` / build number override `54` / `app-arm64-v8a-release.apk` | 本机签名，version name/code `1.1.0` / `2054`，仅含 `arm64-v8a`；证书 SHA-256 `8604465c3ee1282b48a1b2759801f784ace32447d1188e0481fab0fe8ac74c94`，APK SHA-256 `26ce4001832b034a515392661eafa0ddda4c80b08b2774c9c85f0b475f4d1380`。未安装/启动，Android 真机回归待用户执行 |
 | Ubuntu 24.04 / Wayland | — | 待提供环境与结果 |
 | Windows | — | Windows CI 暂缓；未编译/未实机验收 |
 | Android 回归 | 先前检查点曾有 431 项 Flutter 测试通过；本次提交新增用例未运行 | 最新共享控件与歌曲操作改动的自动回归、Android 真机锁屏/通知栏/封面验证仍待完成 |
