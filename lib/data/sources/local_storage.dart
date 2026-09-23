@@ -122,7 +122,7 @@ class LocalStorage {
     Logger.infoWithTag(_logTag, 'audio quality settings saved');
   }
 
-  /// 读取播放模式（shuffle / repeatAll / repeatOne）
+  /// 读取播放模式（sequential / repeatAll / repeatOne / shuffle）
   static Future<String> getPlaybackMode() async {
     final prefs = await SharedPreferences.getInstance();
     final mode = prefs.getString(_keyPlaybackMode);
@@ -132,6 +132,7 @@ class LocalStorage {
     }
 
     switch (mode) {
+      case 'sequential':
       case 'shuffle':
       case 'repeatAll':
       case 'repeatOne':
@@ -143,7 +144,7 @@ class LocalStorage {
     }
   }
 
-  /// 保存播放模式（shuffle / repeatAll / repeatOne）
+  /// 保存播放模式（sequential / repeatAll / repeatOne / shuffle）
   static Future<void> setPlaybackMode(String mode) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyPlaybackMode, mode);

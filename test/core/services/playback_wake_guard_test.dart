@@ -9,9 +9,11 @@ void main() {
     tester,
   ) async {
     final calls = <bool>[];
+    final reasons = <String>[];
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
           final active = (call.arguments as Map)['active'] as bool;
+          reasons.add((call.arguments as Map)['reason'] as String);
           calls.add(active);
           return {
             'held': active,
@@ -30,9 +32,14 @@ void main() {
       expect(calls, [true]);
       await tester.pump(const Duration(seconds: 20));
       expect(calls, [true, true]);
+      expect(reasons, ['play', 'renew']);
+      await guard.setActive(true, reason: 'song_request');
+      expect(calls, [true, true, true]);
+      expect(reasons.last, 'song_request');
       await guard.setActive(false, reason: 'pause');
       await tester.pump(const Duration(minutes: 3));
-      expect(calls, [true, true, false]);
+      expect(calls, [true, true, true, false]);
+      expect(reasons.last, 'pause');
       await guard.setActive(true, reason: 'resume');
       await guard.dispose();
       expect(calls.last, isFalse);

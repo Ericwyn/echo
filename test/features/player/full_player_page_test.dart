@@ -482,7 +482,7 @@ void main() {
     },
   );
 
-  testWidgets('playback mode cycles in the established three-state order', (
+  testWidgets('playback mode cycles through repeat, shuffle and sequential', (
     tester,
   ) async {
     final notifier = TestPlayerNotifier(initialState());
@@ -497,9 +497,13 @@ void main() {
 
     await tester.tap(find.bySemanticsLabel('单曲循环，点击切换到随机播放'));
     await tester.pump();
-    expect(find.bySemanticsLabel('随机播放，点击切换到列表循环'), findsOneWidget);
+    expect(find.bySemanticsLabel('随机播放，点击切换到顺序播放'), findsOneWidget);
 
-    await tester.tap(find.bySemanticsLabel('随机播放，点击切换到列表循环'));
+    await tester.tap(find.bySemanticsLabel('随机播放，点击切换到顺序播放'));
+    await tester.pump();
+    expect(find.bySemanticsLabel('顺序播放，播完列表停止，点击切换到列表循环'), findsOneWidget);
+
+    await tester.tap(find.bySemanticsLabel('顺序播放，播完列表停止，点击切换到列表循环'));
     await tester.pump();
     expect(find.bySemanticsLabel('列表循环，点击切换到单曲循环'), findsOneWidget);
 

@@ -67,4 +67,6 @@ flutter test test/core/services/audio_handler_service_test.dart \
 - 对照 `cpu_guard` 的 `held / foreground / interactive / idle / batteryExempt / powerSave / gapMs / sleptMs`；暂停/停止应出现释放记录且不再续期。`sleptMs` 是设备睡眠时间差，不等于断流时长。
 - `event_loop_gap` 表示 Dart 回调间隔异常，`native_completed eventAgeMs` 帮助区分事件投递延迟；这些信号不能单独证明是厂商杀后台或网络故障。检测到后台延迟后，回到前台只提示一次设置检查。
 
-Android 新增的 CPU 锁仅在请求播放时续期，暂停、停止、恢复耗尽或销毁时释放；单次租约最多 120 秒，不保持屏幕常亮。它用于保护切歌和重播期间的执行，不能绕过所有厂商限制。系统电池优化状态和设置跳转使用 [Android 官方接口](https://developer.android.com/reference/android/os/PowerManager#isIgnoringBatteryOptimizations(java.lang.String))，不自动修改用户设置。
+Android CPU 锁在请求播放期间持续持有，暂停、停止、恢复耗尽或引擎销毁时释放，不保持屏幕常亮。Dart 每 20 秒发送心跳，原生侧若 5 分钟未收到心跳会释放锁，防止播放线程失联后无限耗电。锁覆盖原生歌曲结束到 Dart 切换下一首的间隙；它仍不能绕过所有厂商后台限制。系统电池优化状态和设置跳转使用 [Android 官方接口](https://developer.android.com/reference/android/os/PowerManager#isIgnoringBatteryOptimizations(java.lang.String))，不自动修改用户设置。
+
+验证曲尾卡顿时，同时抓取 `adb logcat -b main,system,events,crash -v year,threadtime` 和 `adb shell dumpsys batterystats --history`。原生日志标签 `EchoWakeGuard` 会记录获取、释放以及心跳超时；正常跨曲应保持同一次锁，暂停或停止应出现明确的释放原因。

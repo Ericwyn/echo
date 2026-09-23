@@ -663,6 +663,96 @@ void main() {
     expect(container.read(playerProvider).currentSong?.id, song.id);
   });
 
+  playbackTest('sequential mode advances, then stops at the last song', (
+    tester,
+  ) async {
+    createFixture();
+    await notifier.initialized;
+    final first = song.copyWith(id: 'first');
+    final last = song.copyWith(id: 'last');
+    await notifier.playQueue(<Song>[first, last]);
+    await notifier.setPlaybackMode(PlaybackMode.sequential, persist: false);
+
+    states.add(audio.PlayerState(true, audio.ProcessingState.completed));
+    await tester.pump();
+    expect(container.read(playerProvider).currentSong?.id, last.id);
+    expect(container.read(playerProvider).currentIndex, 1);
+    expect(playing, isTrue);
+
+    states.add(audio.PlayerState(true, audio.ProcessingState.completed));
+    await tester.pump();
+    final ended = container.read(playerProvider);
+    expect(ended.currentSong?.id, last.id);
+    expect(ended.currentIndex, 1);
+    expect(ended.hasNext, isFalse);
+    expect(ended.isPlaying, isFalse);
+    expect(playing, isFalse);
+    expect(loads, 2);
+  });
+
+  playbackTest('sequential single-item queue stops and can replay', (
+    tester,
+  ) async {
+    createFixture();
+    await notifier.initialized;
+    await notifier.setPlaybackMode(PlaybackMode.sequential, persist: false);
+    await notifier.playSong(song);
+    clearInteractions(engine);
+
+    states.add(audio.PlayerState(true, audio.ProcessingState.completed));
+    await tester.pump();
+    expect(container.read(playerProvider).hasNext, isFalse);
+    expect(playing, isFalse);
+    verifyNever(() => engine.seek(Duration.zero));
+
+    await notifier.play();
+    expect(loads, 2);
+    expect(playing, isTrue);
+  });
+
+  playbackTest('repeat-all mode wraps at the last song', (tester) async {
+    createFixture();
+    await notifier.initialized;
+    final first = song.copyWith(id: 'first');
+    final last = song.copyWith(id: 'last');
+    await notifier.playQueue(<Song>[first, last], startIndex: 1);
+    await notifier.setPlaybackMode(PlaybackMode.repeatAll, persist: false);
+
+    states.add(audio.PlayerState(true, audio.ProcessingState.completed));
+    await tester.pump();
+    expect(container.read(playerProvider).currentSong?.id, first.id);
+    expect(container.read(playerProvider).currentIndex, 0);
+    expect(playing, isTrue);
+  });
+
+  playbackTest('sequential mode survives session restoration', (tester) async {
+    var id = 0;
+    final queue = PlaybackQueueState.fromSongs(
+      <Song>[song.copyWith(id: 'first'), song.copyWith(id: 'last')],
+      currentIndex: 1,
+      idFactory: () => 'entry-${id++}',
+    );
+    createFixture(
+      restoreSession: true,
+      initialPreferences: <String, Object>{
+        'playback_mode': PlaybackMode.sequential.name,
+        'playback_session_v2': jsonEncode(<String, dynamic>{
+          'version': 2,
+          'mode': PlaybackMode.sequential.name,
+          ...queue.toJson(),
+          'positionMs': 0,
+          'isPlaying': false,
+        }),
+      },
+    );
+    await notifier.initialized;
+
+    final restored = container.read(playerProvider);
+    expect(notifier.playbackMode, PlaybackMode.sequential);
+    expect(restored.currentIndex, 1);
+    expect(restored.hasNext, isFalse);
+  });
+
   playbackTest('adding to a single-item queue disables native repeat', (
     tester,
   ) async {

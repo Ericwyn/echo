@@ -45,6 +45,8 @@ class TestPlayerNotifier extends StateNotifier<PlayerState>
   @override
   Future<void> cyclePlaybackMode() async {
     if (state.shuffleEnabled) {
+      state = state.copyWith(shuffleEnabled: false, loopMode: LoopMode.off);
+    } else if (state.loopMode == LoopMode.off) {
       state = state.copyWith(shuffleEnabled: false, loopMode: LoopMode.all);
     } else if (state.loopMode == LoopMode.one) {
       state = state.copyWith(shuffleEnabled: true, loopMode: LoopMode.off);

@@ -2311,6 +2311,14 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     }
     state = state.copyWith(hasPlaybackError: false);
     final song = state.currentSong;
+    if (song != null && state.processingState == ProcessingState.completed) {
+      return playSong(
+        song,
+        queue: state.queue,
+        index: state.currentIndex,
+        resumePosition: Duration.zero,
+      );
+    }
     if (song != null &&
         (_loadedSourceSongId != song.id || _recoveryAttempts >= 4)) {
       final resumePosition = _retryPosition ?? state.position;
@@ -2407,7 +2415,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     }
 
     // 回绕到首曲（单曲队列时等同于重播当前曲目）。
-    if (state.queue.isNotEmpty) {
+    if (state.loopMode != LoopMode.off && state.queue.isNotEmpty) {
       await skipToQueueItem(0);
     }
   }
@@ -2521,7 +2529,8 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     if (player == null) return;
     final repeat =
         !state.shuffleEnabled &&
-        (state.loopMode == LoopMode.one || state.queue.length == 1) &&
+        (state.loopMode == LoopMode.one ||
+            (state.loopMode == LoopMode.all && state.queue.length == 1)) &&
         _sourcePositionOffset == Duration.zero &&
         _loadedSourceSongId != null &&
         _loadedSourceSongId == state.currentSong?.id;
@@ -2546,9 +2555,11 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
 
   /// 设置循环模式
   Future<void> setLoopMode(LoopMode mode) async {
-    await setPlaybackMode(
-      mode == LoopMode.one ? PlaybackMode.repeatOne : PlaybackMode.repeatAll,
-    );
+    await setPlaybackMode(switch (mode) {
+      LoopMode.off => PlaybackMode.sequential,
+      LoopMode.all => PlaybackMode.repeatAll,
+      LoopMode.one => PlaybackMode.repeatOne,
+    });
   }
 
   /// 切换循环模式
@@ -2568,7 +2579,9 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
           ? PlaybackMode.shuffle
           : (state.loopMode == LoopMode.one
                 ? PlaybackMode.repeatOne
-                : PlaybackMode.repeatAll),
+                : state.loopMode == LoopMode.all
+                ? PlaybackMode.repeatAll
+                : PlaybackMode.sequential),
     );
   }
 
@@ -2590,16 +2603,29 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     }
   }
 
-  /// 当前播放模式（三态）
+  /// 当前播放模式
   PlaybackMode get playbackMode {
     if (state.shuffleEnabled) return PlaybackMode.shuffle;
     if (state.loopMode == LoopMode.one) return PlaybackMode.repeatOne;
-    return PlaybackMode.repeatAll;
+    if (state.loopMode == LoopMode.all) return PlaybackMode.repeatAll;
+    return PlaybackMode.sequential;
   }
 
-  /// 设置三态播放模式
+  /// 设置播放模式
   Future<void> setPlaybackMode(PlaybackMode mode, {bool persist = true}) async {
     switch (mode) {
+      case PlaybackMode.sequential:
+        await _audioPlayer?.setShuffleModeEnabled(false);
+        if (mounted) {
+          state = state.copyWith(
+            playbackQueue: state.shuffleEnabled
+                ? state.playbackQueue.restoreBaseOrder()
+                : state.playbackQueue,
+            loopMode: LoopMode.off,
+            shuffleEnabled: false,
+          );
+        }
+        break;
       case PlaybackMode.shuffle:
         // The application shuffles its visible queue; the engine owns only the
         // current source and must not maintain an independent shuffle order.
@@ -2615,7 +2641,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
         }
         break;
       case PlaybackMode.repeatAll:
-        // 队列切歌由外层状态机驱动，Repeat All 用 LoopMode.off
+        // 队列切歌由外层状态机驱动，原生播放器仍使用 LoopMode.off
         // 避免底层播放器在单音源下自动回放当前曲目。
         await _audioPlayer?.setShuffleModeEnabled(false);
         if (mounted) {
@@ -2623,7 +2649,7 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
             playbackQueue: state.shuffleEnabled
                 ? state.playbackQueue.restoreBaseOrder()
                 : state.playbackQueue,
-            loopMode: LoopMode.off,
+            loopMode: LoopMode.all,
             shuffleEnabled: false,
           );
         }
@@ -2649,13 +2675,13 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     }
   }
 
-  /// 循环切换三态播放模式：
-  /// 随机 -> 列表循环 -> 单曲循环 -> 随机
+  /// 顺序播放 -> 列表循环 -> 单曲循环 -> 随机播放 -> 顺序播放
   Future<void> cyclePlaybackMode() async {
     final nextMode = switch (playbackMode) {
-      PlaybackMode.shuffle => PlaybackMode.repeatAll,
+      PlaybackMode.sequential => PlaybackMode.repeatAll,
       PlaybackMode.repeatAll => PlaybackMode.repeatOne,
       PlaybackMode.repeatOne => PlaybackMode.shuffle,
+      PlaybackMode.shuffle => PlaybackMode.sequential,
     };
     await setPlaybackMode(nextMode);
   }
@@ -2780,9 +2806,11 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
           state = state.copyWith(
             playbackQueue: restoredQueue,
             shuffleEnabled: restoredMode == PlaybackMode.shuffle,
-            loopMode: restoredMode == PlaybackMode.repeatOne
-                ? LoopMode.one
-                : LoopMode.off,
+            loopMode: switch (restoredMode) {
+              PlaybackMode.repeatOne => LoopMode.one,
+              PlaybackMode.repeatAll => LoopMode.all,
+              _ => LoopMode.off,
+            },
           );
           if (restoredQueue.currentSong == null) {
             Logger.infoWithTag(
@@ -3081,7 +3109,8 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     }
 
     // 根据循环模式决定下一步
-    if (state.loopMode == LoopMode.one || state.queue.length == 1) {
+    if (state.loopMode == LoopMode.one ||
+        (state.loopMode == LoopMode.all && state.queue.length == 1)) {
       // 单曲循环
       _seekDbg('completed -> repeat one song=$completedSongId');
       if (_sourcePositionOffset == Duration.zero &&
@@ -3130,6 +3159,9 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
       // 播放下一首
       _seekDbg('completed -> sequential next song=$completedSongId');
       await next();
+    } else {
+      _seekDbg('completed -> queue end song=$completedSongId');
+      await pause();
     }
   }
 
@@ -4148,7 +4180,11 @@ class PlayerNotifier extends StateNotifier<PlayerState> {
     if (nextIndex < state.queueEntryIds.length) {
       return state.queueEntryIds[nextIndex];
     }
-    if (state.shuffleEnabled || state.queueEntryIds.isEmpty) return null;
+    if (state.shuffleEnabled ||
+        state.loopMode == LoopMode.off ||
+        state.queueEntryIds.isEmpty) {
+      return null;
+    }
     return state.queueEntryIds.first;
   }
 

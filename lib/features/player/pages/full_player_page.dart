@@ -1507,16 +1507,20 @@ class _PlayerUtilityBar extends ConsumerWidget {
         ? PlaybackMode.shuffle
         : state.loopMode == LoopMode.one
         ? PlaybackMode.repeatOne
-        : PlaybackMode.repeatAll;
+        : state.loopMode == LoopMode.all
+        ? PlaybackMode.repeatAll
+        : PlaybackMode.sequential;
     final modeIcon = switch (mode) {
+      PlaybackMode.sequential => AppIcons.repeat,
       PlaybackMode.shuffle => AppIcons.shuffle,
       PlaybackMode.repeatAll => AppIcons.repeat,
       PlaybackMode.repeatOne => AppIcons.repeatOne,
     };
     final modeLabel = switch (mode) {
-      PlaybackMode.shuffle => '随机播放，点击切换到列表循环',
+      PlaybackMode.sequential => '顺序播放，播完列表停止，点击切换到列表循环',
       PlaybackMode.repeatAll => '列表循环，点击切换到单曲循环',
       PlaybackMode.repeatOne => '单曲循环，点击切换到随机播放',
+      PlaybackMode.shuffle => '随机播放，点击切换到顺序播放',
     };
 
     return Center(
@@ -1528,7 +1532,7 @@ class _PlayerUtilityBar extends ConsumerWidget {
             _PlayerIconButton(
               icon: modeIcon,
               label: modeLabel,
-              selected: mode != PlaybackMode.repeatAll,
+              selected: mode != PlaybackMode.sequential,
               onPressed: () {
                 ref.read(playerProvider.notifier).cyclePlaybackMode();
               },

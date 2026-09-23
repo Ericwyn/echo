@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import '../utils/logger.dart';
 
-/// Android CPU lease, deliberately separate from a screen/display wakelock.
+/// Playback CPU lock with a native heartbeat watchdog, separate from screen wake.
 class PlaybackWakeGuard {
   PlaybackWakeGuard({bool? enabled, MethodChannel? channel})
     : _enabled =
@@ -20,7 +20,13 @@ class PlaybackWakeGuard {
   int? _lastUptime;
 
   Future<void> setActive(bool active, {required String reason}) async {
-    if (!_enabled || _unavailable || _active == active) return;
+    if (!_enabled || _unavailable) return;
+    if (_active == active) {
+      // A new song must reassert the native lock even if playback intent did
+      // not change; the OS may have disabled it since the last heartbeat.
+      if (active && reason == 'song_request') await _send(reason);
+      return;
+    }
     _active = active;
     if (active) {
       _lastElapsed = null;
@@ -39,7 +45,7 @@ class PlaybackWakeGuard {
     try {
       final result = await _channel.invokeMapMethod<String, dynamic>(
         'setActive',
-        {'active': _active},
+        {'active': _active, 'reason': reason},
       );
       if (result == null) return;
       final elapsed = result['elapsedMs'] as int;

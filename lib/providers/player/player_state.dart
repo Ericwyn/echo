@@ -10,8 +10,8 @@ enum PlaybackSource {
   stream, // 在线流式播放
 }
 
-/// 播放模式（用于播放器控制区三态切换）
-enum PlaybackMode { shuffle, repeatAll, repeatOne }
+/// 播放模式
+enum PlaybackMode { sequential, repeatAll, repeatOne, shuffle }
 
 /// 播放器状态
 class PlayerState {
@@ -42,7 +42,7 @@ class PlayerState {
     this.hasPlaybackError = false,
     this.position = Duration.zero,
     this.duration = Duration.zero,
-    this.loopMode = LoopMode.off,
+    this.loopMode = LoopMode.all,
     this.shuffleEnabled = false,
     this.currentQuality,
     this.playbackSource,
@@ -162,12 +162,14 @@ class PlayerState {
 
   bool get hasNext {
     if (!_hasValidCurrent) return false;
-    return queue.isNotEmpty;
+    return shuffleEnabled ||
+        loopMode != LoopMode.off ||
+        currentIndex < queue.length - 1;
   }
 
   bool get hasPrevious {
     if (!_hasValidCurrent) return false;
-    return queue.isNotEmpty;
+    return shuffleEnabled || loopMode != LoopMode.off || currentIndex > 0;
   }
 }
 

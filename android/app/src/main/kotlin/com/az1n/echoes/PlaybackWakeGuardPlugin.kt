@@ -1,26 +1,43 @@
 package com.az1n.echoes
 
+import android.annotation.SuppressLint
 import android.app.ActivityManager
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.PowerManager
 import android.os.SystemClock
 import android.provider.Settings
+import android.util.Log
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 
-/** A bounded CPU lease across decoder completion and Dart-driven next-track work.
- * It never keeps the display on. A stopped/unresponsive Dart engine cannot keep
- * this lease indefinitely; normal pause/stop explicitly releases it earlier.
+/** Keeps the CPU awake across decoder completion and Dart-driven next-track work.
+ * Dart sends a heartbeat while playback is requested. Explicit pause/stop releases
+ * the lock; a missing heartbeat eventually releases it if Dart stops responding.
  */
 class PlaybackWakeGuardPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
+    private companion object {
+        const val TAG = "EchoWakeGuard"
+        const val HEARTBEAT_TIMEOUT_MS = 5 * 60_000L
+    }
+
     private lateinit var context: Context
     private lateinit var channel: MethodChannel
     private var wakeLock: PowerManager.WakeLock? = null
+    private val handler = Handler(Looper.getMainLooper())
+    private var active = false
+    private val heartbeatTimeout = Runnable {
+        if (active) {
+            Log.w(TAG, "heartbeat_timeout releasing playback lock")
+            setPlaybackLock(false, "heartbeat_timeout")
+        }
+    }
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         context = binding.applicationContext
@@ -60,12 +77,11 @@ class PlaybackWakeGuardPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
                 result.success(true)
                 return
             }
-            val active = call.argument<Boolean>("active") == true
-            if (call.method == "setActive" && active) {
-                // Reacquiring a non-reference-counted lock refreshes its timeout.
-                wakeLock?.acquire(120_000L)
-            } else if (call.method == "setActive" && wakeLock?.isHeld == true) {
-                wakeLock?.release()
+            if (call.method == "setActive") {
+                setPlaybackLock(
+                    call.argument<Boolean>("active") == true,
+                    call.argument<String>("reason") ?: "unknown"
+                )
             }
             val power = context.getSystemService(Context.POWER_SERVICE) as PowerManager
             val activity = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
@@ -93,9 +109,28 @@ class PlaybackWakeGuardPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
         Uri.parse("package:${context.packageName}")
     ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
+    @SuppressLint("WakelockTimeout") // Native heartbeat watchdog releases stale playback intent.
+    private fun setPlaybackLock(requested: Boolean, reason: String) {
+        active = requested
+        handler.removeCallbacks(heartbeatTimeout)
+        if (requested) {
+            // A non-reference-counted acquire also reasserts the lock if an OEM
+            // power manager dropped it while the Java object still reports held.
+            val wasHeld = wakeLock?.isHeld == true
+            wakeLock?.acquire()
+            if (!wasHeld) {
+                Log.i(TAG, "acquired reason=$reason")
+            }
+            handler.postDelayed(heartbeatTimeout, HEARTBEAT_TIMEOUT_MS)
+        } else if (wakeLock?.isHeld == true) {
+            wakeLock?.release()
+            Log.i(TAG, "released reason=$reason")
+        }
+    }
+
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel.setMethodCallHandler(null)
-        if (wakeLock?.isHeld == true) wakeLock?.release()
+        setPlaybackLock(false, "engine_detached")
         wakeLock = null
     }
 }
