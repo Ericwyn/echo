@@ -2,7 +2,7 @@
 
 [返回 spec](README.md) · [决策](decisions.md) · [验收](acceptance.md)
 
-状态：Linux 首轮已实现，部分实机通过。MPRIS SetPosition、Seeked、track ID 校验和远程 command error 隔离已落代码；`Seeked` 现在由成功 seek 的显式 revision 触发，延迟的普通进度采样不会误发 seek 信号。首次选择关闭到后台时会显示托盘/任务栏恢复说明，确认后才隐藏/最小化；成功后持久化“已告知”状态，取消或隐藏失败不会标记。显式退出中的各清理步骤现独立捕获、分别限时并继续执行；StatusNotifier 两个 watcher 别名现合并跟踪，订阅先于初始查询以防漏事件，宿主恢复时刷新托盘图标与菜单。新增 MPRIS/生命周期/宿主状态用例尚未运行，Ubuntu 绝对 seek、首次提示、关窗、恢复和宿主失效仍待实测。前置：Linux P0 路径与 P1 命令/快照契约已建立；与 P2/P3 联调完成后才能认定桌面交互闭环。当前不运行 Windows CI，Windows 原生接入和实机仍未验证。
+状态：Linux 首轮已实现，部分实机通过。MPRIS SetPosition、Seeked、track ID 校验和远程 command error 隔离已落代码；`Seeked` 现在由成功 seek 的显式 revision 触发，延迟的普通进度采样不会误发 seek 信号。首次选择关闭到后台时会显示托盘/任务栏恢复说明，确认后才隐藏/最小化；成功后持久化“已告知”状态，取消或隐藏失败不会标记。托盘菜单由播放快照驱动播放/暂停与上下首能力；每个原生菜单事件只经 TrayListener 执行一次。显式退出中的各清理步骤现独立捕获、分别限时并继续执行；StatusNotifier 两个 watcher 别名现合并跟踪，订阅先于初始查询以防漏事件，宿主恢复时刷新托盘图标与菜单。新增 MPRIS/生命周期/托盘映射用例尚未运行，Ubuntu 绝对 seek、菜单点击、首次提示、关窗、恢复和宿主失效仍待实测。前置：Linux P0 路径与 P1 命令/快照契约已建立；与 P2/P3 联调完成后才能认定桌面交互闭环。当前不运行 Windows CI，Windows 原生接入和实机仍未验证。
 
 ## 目标与拆分
 
@@ -87,4 +87,5 @@ P4-A 不依赖托盘存在；P4-B 的隐藏行为必须等托盘或其他恢复�
 | P4-C StatusNotifier host recovery | 2026-09-23 / `21cf973f`，bundle `21cf973f` | KDE 与 freedesktop watcher 名称分别维护；先订阅再查询初始 owner，并忽略查询期间已由事件更新的过期快照；全部宿主消失时恢复隐藏窗口，宿主重新出现时刷新图标和菜单。新增纯状态 tracker 测试未运行；Linux release bundle 与 `.deb` 已构建，核对 amd64、desktop entry、图标和 GTK/AppIndicator/libmpv 依赖 | 用户需验证 GNOME 扩展/宿主重启及隐藏恢复；该实现仍以状态通知宿主和插件重新注册正常为前提 |
 | P4-C Android/Linux 联调 | 2026-09-23 / 自动测试 | artwork 过期响应和 MPRIS 状态测试在私有 D-Bus 会话中通过；全量 Flutter 测试 431 项通过。睡眠/音频设备和多个异常宿主组合仍待实机测试 |
 | P4-B first background close notice | 2026-09-24 / `8f51f1fc` | 第一次选择关闭到后台时说明托盘图标或任务栏恢复路径并等待确认；取消操作保持窗口打开，仅在隐藏/最小化成功后持久化“已告知”。新增 SharedPreferences 回归用例，未运行；Linux `1.1.0+2047` `.deb` 与签名 Android arm64-only APK versionCode `2037` 编译通过，未安装/启动 | 用户仍需实测首次提示、取消、托盘可用/不可用两条路径及下一次关闭不再重复提示 |
+| P4-B tray menu snapshot/actions | 2026-09-24 / `94b7a2ab` | 托盘新增上一首，播放/暂停标签与上一首/下一首启用状态从 `PlaybackSnapshot` 派生；纯位置变化不重建系统菜单。移除 `MenuItem.onClick` 与 `TrayListener` 双重处理，改由 listener 单点派发；新增纯状态映射测试，未运行。Linux `1.1.0+2048` `.deb` 与签名 Android arm64-only APK versionCode `2038` 编译通过，未安装/启动 | 用户仍需手动验证托盘上一首/下一首/暂停动作每次只触发一次，并观察暂停/播放标签和队列边界状态 |
 | Windows | 暂缓 | 暂不跑 Windows CI；任何 Windows Dart/native SMTC 代码均未获 Windows 编译或实机验证，不列入当前可交付范围 |
