@@ -412,6 +412,12 @@ class _PlaybackQueueContentState extends State<PlaybackQueueContent> {
           if (startedAt != null &&
               (startedAt != widget.playerState.playbackQueue.revision ||
                   startedWithShuffle != widget.playerState.shuffleEnabled)) {
+            ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+              const SnackBar(
+                content: Text('队列已变化，排序已取消，请重新拖动。'),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
             return;
           }
           widget.onReorder?.call(oldIndex, newIndex);

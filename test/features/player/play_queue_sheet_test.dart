@@ -171,6 +171,48 @@ void main() {
     expect(moves, <(int, int)>[(0, 2)]);
   });
 
+  testWidgets('queue changes during drag cancel reorder with feedback', (
+    tester,
+  ) async {
+    final initialState = PlayerState(
+      currentSong: songs.first,
+      queue: songs,
+      currentIndex: 0,
+    );
+    final moves = <(int, int)>[];
+
+    Widget subject(PlayerState state) => buildSubject(
+      state: state,
+      onSelect: (_) async {},
+      onClear: () async {},
+      onOpenSongActions: (context, index, song, entryId) async {},
+      onReorder: (oldIndex, newIndex) => moves.add((oldIndex, newIndex)),
+    );
+
+    await tester.pumpWidget(subject(initialState));
+    await tester.pump();
+
+    var list = tester.widget<ReorderableListView>(
+      find.byType(ReorderableListView),
+    );
+    list.onReorderStart!(0);
+
+    final changedState = initialState.copyWith(
+      playbackQueue: initialState.playbackQueue.append(<Song>[
+        Song(id: 'c', title: 'New queue entry'),
+      ], idFactory: () => 'entry-c'),
+    );
+    await tester.pumpWidget(subject(changedState));
+
+    list = tester.widget<ReorderableListView>(find.byType(ReorderableListView));
+    list.onReorder(0, 2);
+    await tester.pump();
+
+    expect(moves, isEmpty);
+    expect(find.text('队列已变化，排序已取消，请重新拖动。'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('desktop queue separates row selection from playback', (
     tester,
   ) async {
