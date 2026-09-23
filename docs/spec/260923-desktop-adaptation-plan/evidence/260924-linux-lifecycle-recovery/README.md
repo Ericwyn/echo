@@ -2,10 +2,10 @@
 
 ## Scope
 
-Source commit: `0e832ddb` (`fix(desktop): recover lifecycle after shutdown failures`).
+Source commit: `e34563ef` (watcher retry startup-race fix), including the lifecycle recovery change from `0e832ddb`.
 
 - A failed or timed out `windowManager.destroy()` now attempts to restore the close guard, window/tray listeners, window-state persistence, tray host monitoring, tray icon, and a visible main window. If showing fails, it attempts to minimize the window so the taskbar remains a recovery path.
-- Linux StatusNotifier session-bus monitor errors and stream closure now invalidate stale callbacks and retry with 1, 2, 4, 8, 16, then 30 second delays. The delay remains capped at 30 seconds and resets after a stable 30-second connection. Explicit exit cancels pending retries.
+- Linux StatusNotifier session-bus monitor errors and stream closure now invalidate stale callbacks and retry with 1, 2, 4, 8, 16, then 30 second delays. The delay remains capped at 30 seconds and resets after a stable 30-second connection. Explicit exit cancels pending retries. Commit `e34563ef` preserves a retry if exit recovery races the initial watcher lookup.
 - Android code was not changed in this commit.
 
 ## Build artifact
@@ -14,9 +14,9 @@ Source commit: `0e832ddb` (`fix(desktop): recover lifecycle after shutdown failu
 - Command: `flutter build linux --release --no-pub`, then `scripts/package_linux_deb.sh`
 - Package: `build/linux-lldtmp-2064/packages/echoes_1.1.0+2053_amd64.deb`
 - Package metadata: `echoes`, version `1.1.0+2053`, architecture `amd64`
-- SHA-256: `f6e7b48e190b0cb3e696dbd57bc0a5ef875fc09f9357a2cc3d4a028e76b58450`
+- SHA-256: `aef145de81ef8dfe9de179150a6555ecde738632c2e67636015047f929c43701`
 - Standalone bundle: `build/linux-lldtmp-2064/packages/echoes_1.1.0+2053_linux-x64-bundle.zip`
-- Bundle ZIP SHA-256: `3d313cc02e489cfed707dd4980b10256511dca7e5529dc879265a8453965dcdb`
+- Bundle ZIP SHA-256: `6d9ad00606b37d66325c21c90d17c4b49b0f9bc48125b9dc103356fa7fa2e3c4`
 - Bundle integrity: all entries passed `unzip -t`.
 
 ## Verification and remaining work
