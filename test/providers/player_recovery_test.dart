@@ -919,6 +919,21 @@ void main() {
     expect(state.shuffleEnabled, isFalse);
   });
 
+  playbackTest('concurrent repeat and shuffle writes preserve both changes', (
+    _,
+  ) async {
+    createFixture();
+    await notifier.initialized;
+
+    final repeatWrite = notifier.setLoopMode(audio.LoopMode.one);
+    final shuffleWrite = notifier.setShuffleEnabled(true);
+    await Future.wait(<Future<void>>[repeatWrite, shuffleWrite]);
+
+    final state = container.read(playerProvider);
+    expect(state.loopMode, audio.LoopMode.one);
+    expect(state.shuffleEnabled, isTrue);
+  });
+
   playbackTest('shuffle with repeat off stops at the end of a one-song queue', (
     tester,
   ) async {

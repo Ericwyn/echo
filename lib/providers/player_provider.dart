@@ -131,6 +131,7 @@ class PlayerNotifier extends StateNotifier<PlayerState>
   EchoAudioHandler? _audioHandler;
   final PlaybackWakeGuard _wakeGuard;
   LoopMode _nativeLoopMode = LoopMode.off;
+  Future<void> _playbackModeMutationTail = Future<void>.value();
   DateTime? _lastPollAt;
   bool _lastPollWasBackground = false;
   bool _lastPollRequestedPlayback = false;
@@ -2926,36 +2927,40 @@ class PlayerNotifier extends StateNotifier<PlayerState>
 
   /// 设置循环模式
   @override
-  Future<void> setLoopMode(LoopMode mode) async {
-    await _applyPlaybackModes(
+  Future<void> setLoopMode(LoopMode mode) => _enqueuePlaybackModeMutation(
+    () => _applyPlaybackModes(
       loopMode: mode,
       shuffleEnabled: state.shuffleEnabled,
-    );
-  }
+    ),
+  );
 
   /// 切换循环模式
-  Future<void> toggleLoopMode() async {
+  Future<void> toggleLoopMode() => _enqueuePlaybackModeMutation(() async {
     final nextMode = switch (state.loopMode) {
       LoopMode.off => LoopMode.all,
       LoopMode.all => LoopMode.one,
       LoopMode.one => LoopMode.off,
     };
-    await setLoopMode(nextMode);
-  }
+    await _applyPlaybackModes(
+      loopMode: nextMode,
+      shuffleEnabled: state.shuffleEnabled,
+    );
+  });
 
   /// 设置随机播放
   @override
-  Future<void> setShuffleEnabled(bool enabled) async {
-    await _applyPlaybackModes(
-      loopMode: state.loopMode,
-      shuffleEnabled: enabled,
-    );
-  }
+  Future<void> setShuffleEnabled(bool enabled) => _enqueuePlaybackModeMutation(
+    () =>
+        _applyPlaybackModes(loopMode: state.loopMode, shuffleEnabled: enabled),
+  );
 
   /// 切换随机播放
-  Future<void> toggleShuffle() async {
-    await setShuffleEnabled(!state.shuffleEnabled);
-  }
+  Future<void> toggleShuffle() => _enqueuePlaybackModeMutation(() async {
+    await _applyPlaybackModes(
+      loopMode: state.loopMode,
+      shuffleEnabled: !state.shuffleEnabled,
+    );
+  });
 
   /// 播放失败后刷新全部线路，确认是否存在可用线路
   Future<bool> _refreshRoutesAndCheckAvailability() async {
@@ -2980,7 +2985,15 @@ class PlayerNotifier extends StateNotifier<PlayerState>
 
   /// 设置播放模式
   @override
-  Future<void> setPlaybackMode(PlaybackMode mode, {bool persist = true}) async {
+  Future<void> setPlaybackMode(PlaybackMode mode, {bool persist = true}) =>
+      _enqueuePlaybackModeMutation(
+        () => _setPlaybackModeNow(mode, persist: persist),
+      );
+
+  Future<void> _setPlaybackModeNow(
+    PlaybackMode mode, {
+    bool persist = true,
+  }) async {
     final modes = switch (mode) {
       PlaybackMode.sequential => (
         loopMode: LoopMode.off,
@@ -2998,6 +3011,17 @@ class PlayerNotifier extends StateNotifier<PlayerState>
       shuffleEnabled: modes.shuffleEnabled,
       persist: persist,
     );
+  }
+
+  Future<void> _enqueuePlaybackModeMutation(Future<void> Function() mutation) {
+    final operation = _playbackModeMutationTail.then((_) => mutation());
+    // Keep later commands runnable even if one native or persistence operation
+    // fails. The caller still receives the original error from `operation`.
+    _playbackModeMutationTail = operation.then<void>(
+      (_) {},
+      onError: (Object error, StackTrace stackTrace) {},
+    );
+    return operation;
   }
 
   Future<void> _applyPlaybackModes({
@@ -3034,26 +3058,29 @@ class PlayerNotifier extends StateNotifier<PlayerState>
 
   /// 顺序播放 -> 列表循环 -> 单曲循环 -> 随机播放 -> 顺序播放
   @override
-  Future<void> cyclePlaybackMode() async {
+  Future<void> cyclePlaybackMode() => _enqueuePlaybackModeMutation(() async {
     final nextMode = switch (playbackMode) {
       PlaybackMode.sequential => PlaybackMode.repeatAll,
       PlaybackMode.repeatAll => PlaybackMode.repeatOne,
       PlaybackMode.repeatOne => PlaybackMode.shuffle,
       PlaybackMode.shuffle => PlaybackMode.sequential,
     };
-    await setPlaybackMode(nextMode);
-  }
+    await _setPlaybackModeNow(nextMode);
+  });
 
   /// Cycles only repeat mode, preserving the independent shuffle setting.
   @override
-  Future<void> cycleLoopMode() async {
+  Future<void> cycleLoopMode() => _enqueuePlaybackModeMutation(() async {
     final nextMode = switch (state.loopMode) {
       LoopMode.off => LoopMode.all,
       LoopMode.all => LoopMode.one,
       LoopMode.one => LoopMode.off,
     };
-    await setLoopMode(nextMode);
-  }
+    await _applyPlaybackModes(
+      loopMode: nextMode,
+      shuffleEnabled: state.shuffleEnabled,
+    );
+  });
 
   Future<void> _restorePlaybackMode() async {
     try {
@@ -3063,10 +3090,12 @@ class PlayerNotifier extends StateNotifier<PlayerState>
           (mode) => mode.name == storedModes.loopMode,
           orElse: () => LoopMode.all,
         );
-        await _applyPlaybackModes(
-          loopMode: loopMode,
-          shuffleEnabled: storedModes.shuffleEnabled,
-          persist: false,
+        await _enqueuePlaybackModeMutation(
+          () => _applyPlaybackModes(
+            loopMode: loopMode,
+            shuffleEnabled: storedModes.shuffleEnabled,
+            persist: false,
+          ),
         );
         Logger.infoWithTag(
           _playerLogTag,
@@ -3238,11 +3267,13 @@ class PlayerNotifier extends StateNotifier<PlayerState>
           final storedShuffleEnabled = sessionPayload['shuffleEnabled'] is bool
               ? sessionPayload['shuffleEnabled']! as bool
               : restoredMode == PlaybackMode.shuffle;
-          await _applyPlaybackModes(
-            loopMode: storedLoopMode,
-            shuffleEnabled: storedShuffleEnabled,
-            queue: restoredQueue,
-            persist: false,
+          await _enqueuePlaybackModeMutation(
+            () => _applyPlaybackModes(
+              loopMode: storedLoopMode,
+              shuffleEnabled: storedShuffleEnabled,
+              queue: restoredQueue,
+              persist: false,
+            ),
           );
           if (restoredQueue.currentSong == null) {
             Logger.infoWithTag(
