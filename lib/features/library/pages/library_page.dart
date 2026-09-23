@@ -40,7 +40,29 @@ class LibraryPage extends ConsumerStatefulWidget {
 }
 
 class _LibraryPageState extends ConsumerState<LibraryPage> {
+  static const String _playlistSortPageStorageKey =
+      'echo-library-playlist-sort';
+
   PlaylistSortOption _playlistSortOption = PlaylistSortOption.defaultOrder;
+  bool _restoredPlaylistSort = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_restoredPlaylistSort) return;
+    _restoredPlaylistSort = true;
+
+    final stored = PageStorage.maybeOf(
+      context,
+    )?.readState(context, identifier: _playlistSortPageStorageKey);
+    if (stored is! String) return;
+    for (final option in PlaylistSortOption.values) {
+      if (option.name == stored) {
+        _playlistSortOption = option;
+        break;
+      }
+    }
+  }
 
   Future<void> _createPlaylist(BuildContext context, WidgetRef ref) async {
     final repository = ref.read(playlistRepositoryProvider);
@@ -498,6 +520,11 @@ class _LibraryPageState extends ConsumerState<LibraryPage> {
       return;
     }
     setState(() => _playlistSortOption = selected);
+    PageStorage.maybeOf(context)?.writeState(
+      context,
+      selected.name,
+      identifier: _playlistSortPageStorageKey,
+    );
   }
 }
 
