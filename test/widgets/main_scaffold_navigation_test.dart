@@ -1,13 +1,18 @@
 import 'package:echoes/core/theme/app_theme.dart';
 import 'package:echoes/core/design/echo_design.dart';
+import 'package:echoes/data/models/song.dart';
 import 'package:echoes/providers/navigation_provider.dart';
+import 'package:echoes/providers/player_provider.dart';
 import 'package:echoes/widgets/main_scaffold.dart';
 import 'package:echoes/widgets/echo_app_shell/echo_network_status_bar.dart';
+import 'package:echoes/widgets/song_list_item.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+
+import '../features/player/test_player_notifier.dart';
 
 void main() {
   group('MainScaffold back decision', () {
@@ -352,6 +357,52 @@ void main() {
       );
     });
 
+    testWidgets(
+      'desktop workspace keeps queue state when returning to browse',
+      (tester) async {
+        final songs = <Song>[
+          Song(id: 'workspace-first', title: 'Workspace first'),
+          Song(id: 'workspace-second', title: 'Workspace second'),
+        ];
+        await _pumpMainScaffold(
+          tester,
+          size: const Size(1440, 900),
+          showDesktopPlayer: true,
+          playerState: PlayerState(
+            currentSong: songs.first,
+            queue: songs,
+            currentIndex: 0,
+          ),
+        );
+
+        await tester.tap(find.bySemanticsLabel('打开歌词'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.widgetWithText(TextButton, '播放队列'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Workspace second'));
+        await tester.pumpAndSettle();
+
+        Finder secondRow() => find.ancestor(
+          of: find.text('Workspace second'),
+          matching: find.byType(EchoSongRow),
+        );
+        expect(tester.widget<EchoSongRow>(secondRow()).selected, isTrue);
+
+        await tester.tap(find.bySemanticsLabel('返回浏览'));
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const ValueKey<String>('echo-desktop-player-workspace')),
+          findsNothing,
+        );
+
+        await tester.tap(find.bySemanticsLabel('打开播放队列'));
+        await tester.pumpAndSettle();
+
+        expect(tester.widget<EchoSongRow>(secondRow()).selected, isTrue);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
     testWidgets('desktop forward restores a detail page scroll position', (
       tester,
     ) async {
@@ -520,12 +571,19 @@ void main() {
 Future<_MainScaffoldHarness> _pumpMainScaffold(
   WidgetTester tester, {
   Size size = const Size(390, 800),
+  bool showDesktopPlayer = false,
+  PlayerState? playerState,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = size;
   addTearDown(tester.view.reset);
 
-  final container = ProviderContainer();
+  final container = ProviderContainer(
+    overrides: <Override>[
+      if (playerState != null)
+        playerProvider.overrideWith((ref) => TestPlayerNotifier(playerState)),
+    ],
+  );
   addTearDown(container.dispose);
   final showExplore = ValueNotifier<bool>(true);
   addTearDown(showExplore.dispose);
@@ -548,10 +606,12 @@ Future<_MainScaffoldHarness> _pumpMainScaffold(
                 navigationShell: navigationShell,
                 branchNavigatorKeys: branchNavigatorKeys,
                 showExploreTabOverride: showExploreTab,
-                showMiniPlayerOverride: false,
+                showMiniPlayerOverride: showDesktopPlayer,
                 networkStatusOverride: EchoNetworkStatus.online,
                 drawerOverride: const SizedBox(width: 320),
-                miniPlayerOverride: const SizedBox(height: 72),
+                miniPlayerOverride: showDesktopPlayer
+                    ? null
+                    : const SizedBox(height: 72),
                 desktopRootOverride: const _BranchPage('Desktop Music Flow'),
                 desktopPageBuilderOverride: (destinationId) =>
                     _DesktopDestinationPage(destinationId: destinationId),

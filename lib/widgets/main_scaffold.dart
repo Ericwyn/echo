@@ -219,6 +219,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
   Timer? _initialNetworkStateTimer;
   NetworkType? _observedNetworkType;
   bool _showDesktopPlayerWorkspace = false;
+  bool _desktopPlayerWorkspaceHasOpened = false;
   DesktopPlayerPanel _desktopPlayerPanel = DesktopPlayerPanel.lyrics;
   String? _desktopSelectedActionId;
   int _desktopRouteSelectionRevision = 0;
@@ -564,6 +565,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
 
   void _openDesktopPlayerWorkspace(DesktopPlayerPanel panel) {
     setState(() {
+      _desktopPlayerWorkspaceHasOpened = true;
       _desktopPlayerPanel = panel;
       _showDesktopPlayerWorkspace = true;
     });
@@ -671,14 +673,27 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
                       ),
                     ),
                   ),
-                if (desktopWorkspaceVisible)
-                  DesktopPlayerWorkspace(
-                    panel: _desktopPlayerPanel,
-                    onPanelChanged: (panel) => setState(() {
-                      _desktopPlayerPanel = panel;
-                    }),
-                    onClose: () =>
-                        setState(() => _showDesktopPlayerWorkspace = false),
+                if (_desktopPlayerWorkspaceHasOpened)
+                  TickerMode(
+                    enabled: desktopWorkspaceVisible,
+                    child: Offstage(
+                      offstage: !desktopWorkspaceVisible,
+                      child: ExcludeFocus(
+                        excluding: !desktopWorkspaceVisible,
+                        child: IgnorePointer(
+                          ignoring: !desktopWorkspaceVisible,
+                          child: DesktopPlayerWorkspace(
+                            panel: _desktopPlayerPanel,
+                            onPanelChanged: (panel) => setState(() {
+                              _desktopPlayerPanel = panel;
+                            }),
+                            onClose: () => setState(
+                              () => _showDesktopPlayerWorkspace = false,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
               ],
             )

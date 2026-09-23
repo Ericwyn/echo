@@ -18,7 +18,7 @@ enum DesktopPlayerPanel { lyrics, queue }
 
 /// Desktop now-playing work area. The artwork stays in place while the right
 /// pane changes between synchronized lyrics and the live playback queue.
-class DesktopPlayerWorkspace extends ConsumerWidget {
+class DesktopPlayerWorkspace extends ConsumerStatefulWidget {
   const DesktopPlayerWorkspace({
     super.key,
     required this.panel,
@@ -29,6 +29,36 @@ class DesktopPlayerWorkspace extends ConsumerWidget {
   final DesktopPlayerPanel panel;
   final ValueChanged<DesktopPlayerPanel> onPanelChanged;
   final VoidCallback onClose;
+
+  @override
+  ConsumerState<DesktopPlayerWorkspace> createState() =>
+      _DesktopPlayerWorkspaceState();
+}
+
+class _DesktopPlayerWorkspaceState
+    extends ConsumerState<DesktopPlayerWorkspace> {
+  bool _hasShownLyrics = false;
+  bool _hasShownQueue = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _markPanelMounted(widget.panel);
+  }
+
+  @override
+  void didUpdateWidget(covariant DesktopPlayerWorkspace oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.panel != widget.panel) _markPanelMounted(widget.panel);
+  }
+
+  void _markPanelMounted(DesktopPlayerPanel panel) {
+    if (panel == DesktopPlayerPanel.lyrics) {
+      _hasShownLyrics = true;
+    } else {
+      _hasShownQueue = true;
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -74,15 +104,15 @@ class DesktopPlayerWorkspace extends ConsumerWidget {
                         children: <Widget>[
                           _DesktopWorkspaceHeader(
                             song: song,
-                            panel: panel,
-                            onPanelChanged: onPanelChanged,
-                            onClose: onClose,
+                            panel: widget.panel,
+                            onPanelChanged: widget.onPanelChanged,
+                            onClose: widget.onClose,
                             compact: true,
                           ),
                           SizedBox(height: spacing.sm),
                           const EchoDivider(),
                           SizedBox(height: spacing.xs),
-                          Expanded(child: _buildActivePanel(context)),
+                          Expanded(child: _buildActivePanel()),
                         ],
                       ),
                     );
@@ -116,14 +146,14 @@ class DesktopPlayerWorkspace extends ConsumerWidget {
                             children: <Widget>[
                               _DesktopWorkspaceHeader(
                                 song: song,
-                                panel: panel,
-                                onPanelChanged: onPanelChanged,
-                                onClose: onClose,
+                                panel: widget.panel,
+                                onPanelChanged: widget.onPanelChanged,
+                                onClose: widget.onClose,
                               ),
                               SizedBox(height: spacing.md),
                               const EchoDivider(),
                               SizedBox(height: spacing.sm),
-                              Expanded(child: _buildActivePanel(context)),
+                              Expanded(child: _buildActivePanel()),
                             ],
                           ),
                         ),
@@ -139,12 +169,34 @@ class DesktopPlayerWorkspace extends ConsumerWidget {
     );
   }
 
-  Widget _buildActivePanel(BuildContext context) {
-    return AnimatedSwitcher(
-      duration: context.echoMotion.resolve(context, context.echoMotion.state),
-      child: panel == DesktopPlayerPanel.lyrics
-          ? const CurrentLyricsPanel(key: ValueKey<String>('desktop-lyrics'))
-          : const _DesktopQueuePanel(key: ValueKey<String>('desktop-queue')),
+  Widget _buildActivePanel() {
+    final showLyrics = widget.panel == DesktopPlayerPanel.lyrics;
+    return IndexedStack(
+      index: showLyrics ? 0 : 1,
+      children: <Widget>[
+        _hasShownLyrics
+            ? TickerMode(
+                enabled: showLyrics,
+                child: ExcludeFocus(
+                  excluding: !showLyrics,
+                  child: const CurrentLyricsPanel(
+                    key: ValueKey<String>('desktop-lyrics'),
+                  ),
+                ),
+              )
+            : const SizedBox.shrink(),
+        _hasShownQueue
+            ? TickerMode(
+                enabled: !showLyrics,
+                child: ExcludeFocus(
+                  excluding: showLyrics,
+                  child: const _DesktopQueuePanel(
+                    key: ValueKey<String>('desktop-queue'),
+                  ),
+                ),
+              )
+            : const SizedBox.shrink(),
+      ],
     );
   }
 }

@@ -6,6 +6,7 @@ import 'package:echoes/features/player/widgets/player_backdrop.dart';
 import 'package:echoes/providers/lyrics_cover_provider.dart';
 import 'package:echoes/providers/palette_provider.dart';
 import 'package:echoes/providers/player_provider.dart';
+import 'package:echoes/widgets/song_list_item.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -175,6 +176,65 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('歌词'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('desktop queue selection survives switching workspace panels', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1280, 800);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    final songs = <Song>[
+      Song(id: 'queue-first', title: 'Queue first'),
+      Song(id: 'queue-second', title: 'Queue second'),
+    ];
+    final player = TestPlayerNotifier(
+      PlayerState(currentSong: songs.first, queue: songs, currentIndex: 0),
+    );
+    var panel = DesktopPlayerPanel.queue;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          playerProvider.overrideWith((ref) => player),
+          currentLyricsProvider.overrideWith((ref) async => null),
+          currentSongPaletteProvider.overrideWith((ref) async => null),
+          resolvedCurrentSongMediaVisualsProvider.overrideWithValue(
+            EchoMediaVisuals.fallback(seed: const Color(0xFF187EA5)),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: StatefulBuilder(
+            builder: (context, setState) => Scaffold(
+              body: DesktopPlayerWorkspace(
+                panel: panel,
+                onPanelChanged: (value) => setState(() => panel = value),
+                onClose: () {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final secondRow = find.ancestor(
+      of: find.text('Queue second'),
+      matching: find.byType(EchoSongRow),
+    );
+    await tester.tap(find.text('Queue second'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<EchoSongRow>(secondRow).selected, isTrue);
+
+    await tester.tap(find.widgetWithText(TextButton, '歌词'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, '播放队列'));
+    await tester.pumpAndSettle();
+
+    expect(tester.widget<EchoSongRow>(secondRow).selected, isTrue);
     expect(tester.takeException(), isNull);
   });
 }
