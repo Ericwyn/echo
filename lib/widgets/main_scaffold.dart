@@ -9,8 +9,19 @@ import '../core/design/echo_design.dart';
 import '../core/network/connectivity_monitor.dart';
 import '../core/utils/logger.dart';
 import '../data/models/server_address.dart';
+import '../features/download/pages/download_manager_page.dart';
+import '../features/library/pages/album_list_page.dart';
+import '../features/library/pages/artist_list_page.dart';
+import '../features/library/pages/song_list_page.dart';
+import '../features/library/pages/starred_page.dart';
+import '../features/offline/pages/offline_download_status_page.dart';
 import '../features/player/widgets/mini_player.dart';
+import '../features/player/pages/desktop_player_workspace.dart';
+import '../features/player/widgets/desktop_playback_bar.dart';
+import '../features/settings/pages/app_settings_page.dart';
+import '../features/discover/pages/search_page.dart';
 import '../providers/api_provider.dart';
+import '../providers/auth_provider.dart';
 import '../providers/navigation_provider.dart';
 import '../providers/offline_download_provider.dart';
 import '../providers/player_provider.dart';
@@ -166,6 +177,8 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
   StreamSubscription<NetworkType>? _networkTypeSubscription;
   Timer? _initialNetworkStateTimer;
   NetworkType? _observedNetworkType;
+  bool _showDesktopPlayerWorkspace = false;
+  DesktopPlayerPanel _desktopPlayerPanel = DesktopPlayerPanel.lyrics;
 
   @override
   void initState() {
@@ -281,6 +294,14 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
   }
 
   Future<void> _handleBackPressed() async {
+    final windowClass = context.echoBreakpoints.classify(
+      MediaQuery.sizeOf(context).width,
+    );
+    if (windowClass == EchoWindowClass.expanded &&
+        _showDesktopPlayerWorkspace) {
+      setState(() => _showDesktopPlayerWorkspace = false);
+      return;
+    }
     final index = widget.navigationShell.currentIndex;
     final branchCount = widget.branchNavigatorKeys.length;
     Logger.infoWithTag(
@@ -340,6 +361,135 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     }
   }
 
+  void _openDesktopPlayerWorkspace(DesktopPlayerPanel panel) {
+    setState(() {
+      _desktopPlayerPanel = panel;
+      _showDesktopPlayerWorkspace = true;
+    });
+  }
+
+  void _pushDesktopBranchPage(int branchIndex, Widget page) {
+    if (_showDesktopPlayerWorkspace) {
+      setState(() => _showDesktopPlayerWorkspace = false);
+    }
+    _goToBranch(branchIndex);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          branchIndex < 0 ||
+          branchIndex >= widget.branchNavigatorKeys.length) {
+        return;
+      }
+      final navigator = widget.branchNavigatorKeys[branchIndex].currentState;
+      if (navigator == null || !navigator.mounted) return;
+      navigator.push<void>(
+        EchoPageRoute<void>(context: navigator.context, builder: (_) => page),
+      );
+    });
+  }
+
+  List<EchoDesktopSidebarAction> _desktopSidebarActions() {
+    return <EchoDesktopSidebarAction>[
+      EchoDesktopSidebarAction(
+        id: 'search',
+        section: '发现',
+        label: '搜索',
+        icon: AppIcons.search,
+        onPressed: () =>
+            _pushDesktopBranchPage(discoverBranchIndex, const SearchPage()),
+      ),
+      EchoDesktopSidebarAction(
+        id: 'songs',
+        section: '资料库',
+        label: '全部歌曲',
+        icon: AppIcons.music,
+        onPressed: () =>
+            _pushDesktopBranchPage(catalogBranchIndex, const SongListPage()),
+      ),
+      EchoDesktopSidebarAction(
+        id: 'artists',
+        section: '资料库',
+        label: '歌手',
+        icon: AppIcons.profile,
+        onPressed: () =>
+            _pushDesktopBranchPage(catalogBranchIndex, const ArtistListPage()),
+      ),
+      EchoDesktopSidebarAction(
+        id: 'albums',
+        section: '资料库',
+        label: '专辑',
+        icon: AppIcons.albumOutline,
+        onPressed: () =>
+            _pushDesktopBranchPage(catalogBranchIndex, const AlbumListPage()),
+      ),
+      EchoDesktopSidebarAction(
+        id: 'favorites',
+        section: '个人收藏',
+        label: '收藏歌曲',
+        icon: AppIcons.heartOutline,
+        onPressed: () =>
+            _pushDesktopBranchPage(libraryBranchIndex, const StarredPage()),
+      ),
+      EchoDesktopSidebarAction(
+        id: 'downloads',
+        section: '管理',
+        label: '下载管理',
+        icon: AppIcons.downloadOutline,
+        onPressed: () => _pushDesktopBranchPage(
+          libraryBranchIndex,
+          const DownloadManagerPage(),
+        ),
+      ),
+      EchoDesktopSidebarAction(
+        id: 'offline',
+        section: '管理',
+        label: '离线下载',
+        icon: AppIcons.offline,
+        onPressed: () => _pushDesktopBranchPage(
+          libraryBranchIndex,
+          const OfflineDownloadStatusPage(),
+        ),
+      ),
+      EchoDesktopSidebarAction(
+        id: 'settings',
+        section: '管理',
+        label: '设置',
+        icon: AppIcons.settings,
+        onPressed: () =>
+            _pushDesktopBranchPage(libraryBranchIndex, const AppSettingsPage()),
+      ),
+    ];
+  }
+
+  Future<void> _showDesktopAppMenu() async {
+    final motion = context.echoMotion;
+    final duration = motion.resolve(context, motion.state);
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        final height =
+            (MediaQuery.sizeOf(dialogContext).height.clamp(320.0, 760.0) - 64)
+                .toDouble();
+        return Dialog(
+          clipBehavior: Clip.antiAlias,
+          insetPadding: const EdgeInsets.all(32),
+          child: SizedBox(
+            width: 400,
+            height: height,
+            child: AppDrawer(onReturnFocus: _restoreEchoAppDrawerFocus),
+          ),
+        );
+      },
+      barrierColor: context.echoColors.scrim,
+      useSafeArea: true,
+      traversalEdgeBehavior: TraversalEdgeBehavior.closedLoop,
+      routeSettings: const RouteSettings(name: 'desktop-app-menu'),
+      animationStyle: duration == Duration.zero
+          ? AnimationStyle.noAnimation
+          : AnimationStyle(duration: duration, reverseDuration: duration),
+    );
+    _restoreEchoAppDrawerFocus();
+  }
+
   Future<void> _moveAppToBackground() async {
     try {
       await _appLifecycleChannel.invokeMethod<void>('moveTaskToBack');
@@ -373,11 +523,20 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
         return address?.status == ServerAddressStatus.ok;
       }),
     );
+    final activeLibrary = ref.watch(
+      authStateProvider.select((state) => state.currentLibrary),
+    );
+    final activeAddress = ref.watch(activeAddressProvider);
     final networkStatus =
         widget.networkStatusOverride ??
         _resolveNetworkStatus(activeAddressIsHealthy: activeAddressIsHealthy);
     final currentBranchIndex = widget.navigationShell.currentIndex;
+    final windowClass = context.echoBreakpoints.classify(
+      MediaQuery.sizeOf(context).width,
+    );
+    final isDesktop = windowClass == EchoWindowClass.expanded;
     final destinations = echoMainDestinations(showExploreTab: showExploreTab);
+    final desktopWorkspaceVisible = isDesktop && _showDesktopPlayerWorkspace;
     final currentBranchIsVisible = destinations.any(
       (destination) => destination.branchIndex == currentBranchIndex,
     );
@@ -396,21 +555,61 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
         drawer:
             widget.drawerOverride ??
             AppDrawer(onReturnFocus: _restoreEchoAppDrawerFocus),
-        body: widget.navigationShell,
+        body: isDesktop
+            ? Stack(
+                fit: StackFit.expand,
+                children: <Widget>[
+                  TickerMode(
+                    enabled: !desktopWorkspaceVisible,
+                    child: Offstage(
+                      offstage: desktopWorkspaceVisible,
+                      child: widget.navigationShell,
+                    ),
+                  ),
+                  if (desktopWorkspaceVisible)
+                    DesktopPlayerWorkspace(
+                      panel: _desktopPlayerPanel,
+                      onPanelChanged: (panel) => setState(() {
+                        _desktopPlayerPanel = panel;
+                      }),
+                      onClose: () =>
+                          setState(() => _showDesktopPlayerWorkspace = false),
+                    ),
+                ],
+              )
+            : widget.navigationShell,
         destinations: destinations,
         selectedBranchIndex: currentBranchIsVisible
             ? currentBranchIndex
             : discoverBranchIndex,
         onDestinationSelected: (branchIndex) {
+          if (isDesktop && _showDesktopPlayerWorkspace) {
+            setState(() => _showDesktopPlayerWorkspace = false);
+          }
           _goToBranch(
             branchIndex,
             initialLocation: branchIndex == currentBranchIndex,
           );
         },
-        miniPlayer: widget.miniPlayerOverride ?? const MiniPlayer(),
+        miniPlayer:
+            widget.miniPlayerOverride ??
+            (isDesktop
+                ? DesktopPlaybackBar(
+                    onOpenWorkspace: _openDesktopPlayerWorkspace,
+                  )
+                : const MiniPlayer()),
         showMiniPlayer: hasMiniPlayer,
         networkStatus: networkStatus,
-        onOpenDrawer: openEchoAppDrawer,
+        onOpenDrawer: isDesktop ? _showDesktopAppMenu : openEchoAppDrawer,
+        desktopActions: isDesktop ? _desktopSidebarActions() : const [],
+        desktopAccountLabel:
+            activeLibrary?.username ?? activeLibrary?.name ?? '账户',
+        desktopAccountSubtitle: <String>[
+          if (activeLibrary?.name.trim().isNotEmpty == true)
+            activeLibrary!.name.trim(),
+          if (activeAddress?.label.trim().isNotEmpty == true)
+            activeAddress!.label.trim(),
+        ].join(' · '),
       ),
     );
   }

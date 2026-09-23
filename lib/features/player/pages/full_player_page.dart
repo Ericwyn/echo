@@ -12,16 +12,15 @@ import '../../../data/models/embed_service_config.dart';
 import '../../../data/models/song.dart';
 import '../../../providers/audio_quality_provider.dart';
 import '../../../providers/library_provider.dart';
-import '../../../providers/lyrics_cover_provider.dart';
 import '../../../providers/offline_download_provider.dart';
 import '../../../providers/palette_provider.dart';
 import '../../../providers/player_provider.dart';
 import '../../../widgets/cover_art_image.dart';
 import '../widgets/play_queue_sheet.dart';
+import '../widgets/current_lyrics_panel.dart';
 import '../widgets/player_hero_helpers.dart';
 import '../widgets/player_scrubber.dart';
 import '../widgets/song_options_sheet.dart';
-import '../widgets/synced_lyrics_view.dart';
 
 /// Echo's immersive now-playing scene.
 class FullPlayerPage extends ConsumerStatefulWidget {
@@ -543,7 +542,7 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage>
                       ignoring: progress < 0.5,
                       child: Opacity(
                         opacity: progress,
-                        child: const _PlayerLyricsPane(),
+                        child: const CurrentLyricsPanel(),
                       ),
                     ),
                   ),
@@ -694,7 +693,7 @@ class _FullPlayerPageState extends ConsumerState<FullPlayerPage>
                         child: Align(
                           alignment: Alignment.topCenter,
                           heightFactor: progress,
-                          child: const _PlayerLyricsPane(),
+                          child: const CurrentLyricsPanel(),
                         ),
                       ),
                     ),
@@ -1049,142 +1048,6 @@ class _PlayerTopBar extends StatelessWidget {
               onPressed: onOpenActions,
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PlayerLyricsPane extends ConsumerWidget {
-  const _PlayerLyricsPane();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final lyricsAsync = ref.watch(currentLyricsProvider);
-    return lyricsAsync.when(
-      data: (lyrics) {
-        if (lyrics == null || lyrics.isEmpty) {
-          return const _PlayerLyricsMessage(
-            icon: AppIcons.lyrics,
-            title: '暂无歌词',
-            description: '当前曲目没有可用的歌词内容。',
-          );
-        }
-        final bestLyrics = lyrics.getBest();
-        if (bestLyrics == null) {
-          return const _PlayerLyricsMessage(
-            icon: AppIcons.lyrics,
-            title: '暂无歌词',
-            description: '当前曲目没有可用的歌词内容。',
-          );
-        }
-        return SyncedLyricsView(
-          lyrics: bestLyrics,
-          activePrimaryColor: context.echoColors.ink,
-          activeSecondaryColor: context.echoColors.ink,
-          inactivePrimaryColor: context.echoColors.muted,
-          inactiveSecondaryColor: context.echoColors.muted,
-        );
-      },
-      loading: () => const _PlayerLyricsLoading(),
-      error: (error, stackTrace) => _PlayerLyricsMessage(
-        icon: AppIcons.error,
-        title: '歌词加载失败',
-        description: '播放不受影响，可以立即重试。',
-        actionLabel: '重试',
-        onAction: () => ref.invalidate(currentLyricsProvider),
-      ),
-    );
-  }
-}
-
-class _PlayerLyricsMessage extends StatelessWidget {
-  const _PlayerLyricsMessage({
-    required this.icon,
-    required this.title,
-    required this.description,
-    this.actionLabel,
-    this.onAction,
-  });
-
-  final IconData icon;
-  final String title;
-  final String description;
-  final String? actionLabel;
-  final VoidCallback? onAction;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: SingleChildScrollView(
-        padding: EdgeInsets.all(context.echoSpacing.lg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Semantics(
-              liveRegion: true,
-              label: '$title，$description',
-              child: ExcludeSemantics(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Icon(icon, size: 32, color: context.echoColors.ink),
-                    SizedBox(height: context.echoSpacing.sm),
-                    Text(
-                      title,
-                      textAlign: TextAlign.center,
-                      style: context.echoTypography.title.copyWith(
-                        color: context.echoColors.ink,
-                      ),
-                    ),
-                    SizedBox(height: context.echoSpacing.xs),
-                    Text(
-                      description,
-                      textAlign: TextAlign.center,
-                      style: context.echoTypography.body.copyWith(
-                        color: context.echoColors.muted,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            if (actionLabel != null && onAction != null) ...<Widget>[
-              SizedBox(height: context.echoSpacing.lg),
-              EchoButton.secondary(label: actionLabel!, onPressed: onAction),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PlayerLyricsLoading extends StatelessWidget {
-  const _PlayerLyricsLoading();
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      liveRegion: true,
-      label: '歌词加载中',
-      child: ExcludeSemantics(
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              for (final width in <double>[220, 280, 196, 250]) ...<Widget>[
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: context.echoColors.ink.withValues(alpha: 0.18),
-                    borderRadius: context.echoRadii.detail,
-                  ),
-                  child: SizedBox(width: width, height: 16),
-                ),
-                SizedBox(height: context.echoSpacing.md),
-              ],
-            ],
-          ),
         ),
       ),
     );

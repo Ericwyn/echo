@@ -17,9 +17,10 @@ import 'song_options_sheet.dart';
 
 /// Stable bridge between the application shell and the immersive player.
 class MiniPlayer extends ConsumerWidget {
-  const MiniPlayer({super.key});
+  const MiniPlayer({super.key, this.onOpenPlayer});
 
   static const double height = 72;
+  final VoidCallback? onOpenPlayer;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -58,7 +59,7 @@ class MiniPlayer extends ConsumerWidget {
     return MiniPlayerView(
       playerState: playerState,
       mediaVisuals: visuals,
-      onOpenPlayer: () => _openFullPlayer(context),
+      onOpenPlayer: onOpenPlayer ?? () => _openFullPlayer(context),
       onTogglePlayPause: () =>
           ref.read(playerProvider.notifier).togglePlayPause(),
       onPrevious: () => ref.read(playerProvider.notifier).previous(),

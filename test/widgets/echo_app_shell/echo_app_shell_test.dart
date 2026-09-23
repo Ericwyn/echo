@@ -7,6 +7,7 @@ import 'package:echoes/features/player/widgets/mini_player.dart';
 import 'package:echoes/providers/player_provider.dart';
 import 'package:echoes/providers/navigation_provider.dart';
 import 'package:echoes/widgets/echo_app_shell/echo_app_shell.dart';
+import 'package:echoes/widgets/echo_app_shell/echo_shell_navigation.dart';
 import 'package:echoes/widgets/echo_app_shell/echo_network_status_bar.dart';
 import 'package:echoes/widgets/main_scaffold.dart';
 import 'package:flutter/material.dart';
@@ -72,6 +73,7 @@ void main() {
       expect(find.bySemanticsLabel('我的'), findsOneWidget);
       expect(tester.getSize(_mediumNavigation).width, 96);
       expect(_verticalShellDividers, findsNothing);
+      expect(tester.widget<Scaffold>(find.byType(Scaffold)).drawer, isNotNull);
 
       await _pumpShell(tester, size: const Size(839, 800));
       expect(_mediumNavigation, findsOneWidget);
@@ -83,6 +85,41 @@ void main() {
       expect(find.byType(NavigationDrawer), findsNothing);
       expect(tester.getSize(_expandedNavigation).width, 232);
       expect(_verticalShellDividers, findsNothing);
+      expect(tester.widget<Scaffold>(find.byType(Scaffold)).drawer, isNull);
+    });
+
+    testWidgets('desktop sidebar unifies destinations and library shortcuts', (
+      tester,
+    ) async {
+      var selected = '';
+      await _pumpShell(
+        tester,
+        size: const Size(1440, 900),
+        onOpenDrawer: () => selected = 'account',
+        desktopActions: <EchoDesktopSidebarAction>[
+          EchoDesktopSidebarAction(
+            id: 'songs',
+            section: '资料库',
+            label: '全部歌曲',
+            icon: AppIcons.music,
+            onPressed: () => selected = 'songs',
+          ),
+        ],
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('echo-desktop-sidebar-songs')),
+        findsOneWidget,
+      );
+      expect(find.bySemanticsLabel('账户、线路和设置'), findsOneWidget);
+      expect(tester.widget<Scaffold>(find.byType(Scaffold)).drawer, isNull);
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('echo-desktop-sidebar-songs')),
+      );
+      expect(selected, 'songs');
+      await tester.tap(find.bySemanticsLabel('账户、线路和设置'));
+      expect(selected, 'account');
     });
 
     testWidgets('destinations expose selected semantics and 48dp targets', (
@@ -536,6 +573,8 @@ Future<void> _pumpShell(
   Widget? miniPlayer,
   Widget? body,
   ThemeData? theme,
+  List<EchoDesktopSidebarAction> desktopActions = const [],
+  VoidCallback? onOpenDrawer,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = size;
@@ -560,6 +599,8 @@ Future<void> _pumpShell(
             onDestinationSelected: onDestinationSelected ?? (_) {},
             showMiniPlayer: showMiniPlayer,
             networkStatus: networkStatus,
+            desktopActions: desktopActions,
+            onOpenDrawer: onOpenDrawer,
             miniPlayer:
                 miniPlayer ??
                 const SizedBox(

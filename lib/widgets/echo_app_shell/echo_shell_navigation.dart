@@ -17,6 +17,25 @@ class EchoShellDestination {
   final IconData selectedIcon;
 }
 
+@immutable
+class EchoDesktopSidebarAction {
+  const EchoDesktopSidebarAction({
+    required this.id,
+    required this.section,
+    required this.label,
+    required this.icon,
+    required this.onPressed,
+    this.selected = false,
+  });
+
+  final String id;
+  final String section;
+  final String label;
+  final IconData icon;
+  final VoidCallback onPressed;
+  final bool selected;
+}
+
 class EchoCompactNavigation extends StatelessWidget {
   const EchoCompactNavigation({
     super.key,
@@ -144,12 +163,18 @@ class EchoExpandedNavigationSidebar extends StatelessWidget {
     required this.selectedBranchIndex,
     required this.onDestinationSelected,
     required this.onOpenDrawer,
+    this.actions = const <EchoDesktopSidebarAction>[],
+    this.accountLabel = '账户',
+    this.accountSubtitle = '',
   });
 
   final List<EchoShellDestination> destinations;
   final int selectedBranchIndex;
   final ValueChanged<int> onDestinationSelected;
   final VoidCallback onOpenDrawer;
+  final List<EchoDesktopSidebarAction> actions;
+  final String accountLabel;
+  final String accountSubtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -178,10 +203,21 @@ class EchoExpandedNavigationSidebar extends StatelessWidget {
                   ),
                   child: Row(
                     children: <Widget>[
-                      EchoIconButton(
-                        icon: AppIcons.menu,
-                        label: '打开应用菜单',
-                        onPressed: onOpenDrawer,
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: context.echoColors.accent.withValues(
+                            alpha: 0.13,
+                          ),
+                          borderRadius: context.echoRadii.control,
+                        ),
+                        child: Padding(
+                          padding: EdgeInsets.all(spacing.xs),
+                          child: Icon(
+                            AppIcons.musicFlowFilled,
+                            size: 20,
+                            color: context.echoColors.accent,
+                          ),
+                        ),
                       ),
                       SizedBox(width: spacing.sm),
                       Expanded(
@@ -198,29 +234,190 @@ class EchoExpandedNavigationSidebar extends StatelessWidget {
                 ),
                 EchoDivider(inset: spacing.md, endInset: spacing.md),
                 Expanded(
-                  child: ListView.builder(
+                  child: ListView(
                     padding: EdgeInsets.symmetric(
                       horizontal: spacing.sm,
                       vertical: spacing.md,
                     ),
-                    itemCount: destinations.length,
-                    itemBuilder: (context, index) {
-                      final destination = destinations[index];
-                      return Padding(
-                        padding: EdgeInsets.only(bottom: spacing.xxs),
-                        child: _SidebarDestination(
-                          destination: destination,
-                          selected:
-                              destination.branchIndex == selectedBranchIndex,
-                          onPressed: () =>
-                              onDestinationSelected(destination.branchIndex),
+                    children: <Widget>[
+                      _SidebarSectionLabel(label: '浏览'),
+                      for (final destination in destinations)
+                        Padding(
+                          padding: EdgeInsets.only(bottom: spacing.xxs),
+                          child: _SidebarDestination(
+                            destination: destination,
+                            selected:
+                                destination.branchIndex == selectedBranchIndex,
+                            onPressed: () =>
+                                onDestinationSelected(destination.branchIndex),
+                          ),
                         ),
-                      );
-                    },
+                      for (
+                        var index = 0;
+                        index < actions.length;
+                        index++
+                      ) ...<Widget>[
+                        if (index == 0 ||
+                            actions[index].section !=
+                                actions[index - 1].section)
+                          _SidebarSectionLabel(
+                            label: actions[index].section,
+                            topPadding: spacing.md,
+                          ),
+                        Padding(
+                          padding: EdgeInsets.only(bottom: spacing.xxs),
+                          child: _DesktopSidebarActionRow(
+                            action: actions[index],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                EchoDivider(inset: spacing.md, endInset: spacing.md),
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    spacing.sm,
+                    spacing.xs,
+                    spacing.sm,
+                    spacing.xs,
+                  ),
+                  child: EchoPressable(
+                    semanticLabel: '账户、线路和设置',
+                    onPressed: onOpenDrawer,
+                    minimumSize: const Size(double.infinity, 60),
+                    borderRadius: context.echoRadii.control,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: spacing.xs),
+                      child: Row(
+                        children: <Widget>[
+                          Icon(
+                            AppIcons.profile,
+                            size: context.echoInteraction.iconSize,
+                            color: context.echoColors.accent,
+                          ),
+                          SizedBox(width: spacing.sm),
+                          Expanded(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(
+                                  accountLabel,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: context.echoTypography.label.copyWith(
+                                    color: context.echoColors.ink,
+                                  ),
+                                ),
+                                if (accountSubtitle.isNotEmpty)
+                                  Text(
+                                    accountSubtitle,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: context.echoTypography.metadata
+                                        .copyWith(
+                                          color: context.echoColors.muted,
+                                        ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(width: spacing.xs),
+                          Icon(
+                            AppIcons.more,
+                            size: context.echoInteraction.smallIconSize,
+                            color: context.echoColors.muted,
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SidebarSectionLabel extends StatelessWidget {
+  const _SidebarSectionLabel({required this.label, this.topPadding = 0});
+
+  final String label;
+  final double topPadding;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsetsDirectional.fromSTEB(
+        context.echoSpacing.sm,
+        topPadding,
+        context.echoSpacing.xs,
+        context.echoSpacing.xs,
+      ),
+      child: Text(
+        label,
+        style: context.echoTypography.metadata.copyWith(
+          color: context.echoColors.muted,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+class _DesktopSidebarActionRow extends StatelessWidget {
+  const _DesktopSidebarActionRow({required this.action});
+
+  final EchoDesktopSidebarAction action;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.echoColors;
+    final selected = action.selected;
+    final foreground = selected ? colors.accent : colors.ink;
+    return EchoPressable(
+      key: ValueKey<String>('echo-desktop-sidebar-${action.id}'),
+      semanticLabel: action.label,
+      selected: selected,
+      onPressed: action.onPressed,
+      minimumSize: const Size(double.infinity, 48),
+      borderRadius: context.echoRadii.control,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: selected ? colors.accent.withValues(alpha: 0.1) : null,
+          borderRadius: context.echoRadii.control,
+        ),
+        child: Padding(
+          padding: EdgeInsetsDirectional.fromSTEB(
+            context.echoSpacing.md,
+            context.echoSpacing.xs,
+            context.echoSpacing.sm,
+            context.echoSpacing.xs,
+          ),
+          child: Row(
+            children: <Widget>[
+              Icon(
+                action.icon,
+                size: context.echoInteraction.smallIconSize,
+                color: foreground,
+              ),
+              SizedBox(width: context.echoSpacing.sm),
+              Expanded(
+                child: Text(
+                  action.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.echoTypography.label.copyWith(
+                    color: foreground,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

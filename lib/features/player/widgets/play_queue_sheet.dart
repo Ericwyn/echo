@@ -219,7 +219,7 @@ class PlayQueueSheetView extends StatelessWidget {
                               description: '开始播放一首歌曲后，接下来的曲目会出现在这里。',
                               icon: AppIcons.queue,
                             )
-                          : _PlayQueueList(
+                          : PlaybackQueueContent(
                               scrollController: scrollController,
                               playerState: playerState,
                               onSelect: onSelect,
@@ -258,8 +258,11 @@ class PlayQueueSheetView extends StatelessWidget {
   }
 }
 
-class _PlayQueueList extends StatefulWidget {
-  const _PlayQueueList({
+/// Shared queue list used by both the phone sheet and desktop workspace.
+/// Container-specific dismissal stays with the caller.
+class PlaybackQueueContent extends StatefulWidget {
+  const PlaybackQueueContent({
+    super.key,
     required this.scrollController,
     required this.playerState,
     required this.onSelect,
@@ -274,14 +277,24 @@ class _PlayQueueList extends StatefulWidget {
   final void Function(int oldIndex, int newIndex)? onReorder;
 
   @override
-  State<_PlayQueueList> createState() => _PlayQueueListState();
+  State<PlaybackQueueContent> createState() => _PlaybackQueueContentState();
 }
 
-class _PlayQueueListState extends State<_PlayQueueList> {
+class _PlaybackQueueContentState extends State<PlaybackQueueContent> {
   final Map<String, GlobalKey> _entryKeys = <String, GlobalKey>{};
   bool _positionScheduled = false;
+  String? _positionedEntryId;
   int? _dragRevision;
   bool? _dragShuffleEnabled;
+
+  @override
+  void didUpdateWidget(covariant PlaybackQueueContent oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.playerState.currentEntryId !=
+        widget.playerState.currentEntryId) {
+      _positionScheduled = false;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -404,16 +417,25 @@ class _PlayQueueListState extends State<_PlayQueueList> {
 
   void _scheduleInitialPosition(BuildContext context) {
     final currentIndex = widget.playerState.currentIndex;
-    if (_positionScheduled || currentIndex < 0) return;
+    final currentEntryId = widget.playerState.currentEntryId;
+    if (_positionScheduled ||
+        currentIndex < 0 ||
+        currentEntryId == _positionedEntryId) {
+      return;
+    }
     _positionScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !widget.scrollController.hasClients) return;
+      if (!mounted || !widget.scrollController.hasClients) {
+        _positionScheduled = false;
+        return;
+      }
       final entryId = widget.playerState.currentEntryId;
       final targetContext = entryId == null
           ? null
           : _entryKeys[entryId]?.currentContext;
       if (targetContext != null) {
         unawaited(Scrollable.ensureVisible(targetContext, alignment: 0.35));
+        _positionedEntryId = entryId;
         return;
       }
 
@@ -433,6 +455,7 @@ class _PlayQueueListState extends State<_PlayQueueList> {
         if (context != null) {
           unawaited(Scrollable.ensureVisible(context, alignment: 0.35));
         }
+        _positionedEntryId = entryId;
       });
     });
   }

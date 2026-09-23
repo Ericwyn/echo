@@ -1,0 +1,392 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/design/echo_design.dart';
+import '../../../data/models/song.dart';
+import '../../../providers/palette_provider.dart';
+import '../../../providers/player_provider.dart';
+import '../../../widgets/echo_artwork.dart';
+import '../widgets/current_lyrics_panel.dart';
+import '../widgets/play_queue_sheet.dart';
+import '../widgets/song_options_sheet.dart';
+
+enum DesktopPlayerPanel { lyrics, queue }
+
+/// Desktop now-playing work area. The artwork stays in place while the right
+/// pane changes between synchronized lyrics and the live playback queue.
+class DesktopPlayerWorkspace extends ConsumerWidget {
+  const DesktopPlayerWorkspace({
+    super.key,
+    required this.panel,
+    required this.onPanelChanged,
+    required this.onClose,
+  });
+
+  final DesktopPlayerPanel panel;
+  final ValueChanged<DesktopPlayerPanel> onPanelChanged;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final song = ref.watch(playerProvider.select((state) => state.currentSong));
+    final visuals = ref.watch(resolvedCurrentSongMediaVisualsProvider);
+    final colors = context.echoColors;
+    final spacing = context.echoSpacing;
+
+    if (song == null) {
+      return const EchoEmptyState(
+        title: '还没有正在播放的歌曲',
+        description: '从音乐流、曲库或播放列表选择一首歌曲开始播放。',
+        icon: AppIcons.music,
+      );
+    }
+
+    return EchoMediaColorScope(
+      visuals: visuals,
+      role: EchoMediaSurfaceRole.stage,
+      child: ColoredBox(
+        key: const ValueKey<String>('echo-desktop-player-workspace'),
+        color: colors.canvas,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final narrow = constraints.maxWidth < 900;
+            final panelPadding = narrow ? spacing.md : spacing.xl;
+            final columnGap = narrow ? spacing.lg : spacing.xxl;
+            final artworkWidth = (constraints.maxWidth * 0.36)
+                .clamp(260.0, 440.0)
+                .toDouble();
+            final coverSize = (artworkWidth - panelPadding * 2)
+                .clamp(220.0, 400.0)
+                .toDouble();
+
+            return Padding(
+              padding: EdgeInsets.all(panelPadding),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  SizedBox(
+                    width: artworkWidth,
+                    child: _DesktopArtworkPane(song: song, size: coverSize),
+                  ),
+                  SizedBox(width: columnGap),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        _DesktopWorkspaceHeader(
+                          song: song,
+                          panel: panel,
+                          onPanelChanged: onPanelChanged,
+                          onClose: onClose,
+                        ),
+                        SizedBox(height: spacing.md),
+                        const EchoDivider(),
+                        SizedBox(height: spacing.sm),
+                        Expanded(
+                          child: AnimatedSwitcher(
+                            duration: context.echoMotion.resolve(
+                              context,
+                              context.echoMotion.state,
+                            ),
+                            child: panel == DesktopPlayerPanel.lyrics
+                                ? const CurrentLyricsPanel(
+                                    key: ValueKey<String>('desktop-lyrics'),
+                                  )
+                                : const _DesktopQueuePanel(
+                                    key: ValueKey<String>('desktop-queue'),
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _DesktopArtworkPane extends StatelessWidget {
+  const _DesktopArtworkPane({required this.song, required this.size});
+
+  final Song song;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final subtitle = <String>[
+      if (song.artist?.trim().isNotEmpty == true) song.artist!.trim(),
+      if (song.album?.trim().isNotEmpty == true) song.album!.trim(),
+    ].join(' · ');
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: <Widget>[
+        ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: size, maxHeight: size),
+          child: AspectRatio(
+            aspectRatio: 1,
+            child: EchoArtwork(
+              coverArtId: song.artworkReference,
+              semanticLabel: '${song.title} 封面',
+              requestSize: 600,
+              borderRadius: context.echoRadii.scene,
+              heroTag: null,
+            ),
+          ),
+        ),
+        SizedBox(height: context.echoSpacing.lg),
+        Text(
+          song.title,
+          textAlign: TextAlign.center,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: context.echoTypography.headline.copyWith(
+            color: context.echoColors.ink,
+          ),
+        ),
+        if (subtitle.isNotEmpty) ...<Widget>[
+          SizedBox(height: context.echoSpacing.xs),
+          Text(
+            subtitle,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: context.echoTypography.body.copyWith(
+              color: context.echoColors.muted,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _DesktopWorkspaceHeader extends StatelessWidget {
+  const _DesktopWorkspaceHeader({
+    required this.song,
+    required this.panel,
+    required this.onPanelChanged,
+    required this.onClose,
+  });
+
+  final Song song;
+  final DesktopPlayerPanel panel;
+  final ValueChanged<DesktopPlayerPanel> onPanelChanged;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final spacing = context.echoSpacing;
+    return Row(
+      children: <Widget>[
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Semantics(
+                header: true,
+                child: Text(
+                  song.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.echoTypography.title.copyWith(
+                    color: context.echoColors.ink,
+                  ),
+                ),
+              ),
+              SizedBox(height: spacing.xxs),
+              Text(
+                <String>[
+                  if (song.artist?.trim().isNotEmpty == true)
+                    song.artist!.trim(),
+                  if (song.album?.trim().isNotEmpty == true) song.album!.trim(),
+                ].join(' · '),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.echoTypography.metadata.copyWith(
+                  color: context.echoColors.muted,
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(width: spacing.md),
+        _WorkspaceTab(
+          icon: AppIcons.lyrics,
+          label: '歌词',
+          selected: panel == DesktopPlayerPanel.lyrics,
+          onPressed: () => onPanelChanged(DesktopPlayerPanel.lyrics),
+        ),
+        SizedBox(width: spacing.xs),
+        _WorkspaceTab(
+          icon: AppIcons.queue,
+          label: '播放队列',
+          selected: panel == DesktopPlayerPanel.queue,
+          onPressed: () => onPanelChanged(DesktopPlayerPanel.queue),
+        ),
+        SizedBox(width: spacing.xs),
+        EchoIconButton(
+          icon: AppIcons.chevronDown,
+          label: '返回浏览',
+          onPressed: onClose,
+        ),
+      ],
+    );
+  }
+}
+
+class _WorkspaceTab extends StatelessWidget {
+  const _WorkspaceTab({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 18),
+      label: Text(label),
+      style: TextButton.styleFrom(
+        foregroundColor: selected
+            ? context.echoColors.accent
+            : context.echoColors.muted,
+        backgroundColor: selected
+            ? context.echoColors.accent.withValues(alpha: 0.12)
+            : Colors.transparent,
+        padding: EdgeInsets.symmetric(
+          horizontal: context.echoSpacing.sm,
+          vertical: context.echoSpacing.xs,
+        ),
+      ),
+    );
+  }
+}
+
+class _DesktopQueuePanel extends ConsumerStatefulWidget {
+  const _DesktopQueuePanel({super.key});
+
+  @override
+  ConsumerState<_DesktopQueuePanel> createState() => _DesktopQueuePanelState();
+}
+
+class _DesktopQueuePanelState extends ConsumerState<_DesktopQueuePanel> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final queue = ref.watch(
+      playerProvider.select(
+        (state) => (
+          playbackQueue: state.playbackQueue,
+          isPlaying: state.isPlaying,
+          processingState: state.processingState,
+          isSeeking: state.isSeeking,
+          isChangingSource: state.isChangingSource,
+          hasPlaybackError: state.hasPlaybackError,
+          shuffleEnabled: state.shuffleEnabled,
+          loopMode: state.loopMode,
+        ),
+      ),
+    );
+    final playerState = PlayerState(
+      playbackQueue: queue.playbackQueue,
+      isPlaying: queue.isPlaying,
+      processingState: queue.processingState,
+      isSeeking: queue.isSeeking,
+      isChangingSource: queue.isChangingSource,
+      hasPlaybackError: queue.hasPlaybackError,
+      shuffleEnabled: queue.shuffleEnabled,
+      loopMode: queue.loopMode,
+    );
+    final notifier = ref.read(playerProvider.notifier);
+    final currentIndex = playerState.currentIndex;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Padding(
+          padding: EdgeInsets.only(
+            left: context.echoSpacing.sm,
+            right: context.echoSpacing.xs,
+            bottom: context.echoSpacing.xs,
+          ),
+          child: Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  currentIndex < 0
+                      ? '队列 · ${playerState.queue.length} 首'
+                      : '队列 · ${playerState.queue.length} 首 · 当前第 ${currentIndex + 1} 首',
+                  style: context.echoTypography.metadata.copyWith(
+                    color: context.echoColors.muted,
+                  ),
+                ),
+              ),
+              TextButton.icon(
+                onPressed: playerState.queue.isEmpty
+                    ? null
+                    : () => unawaited(notifier.clearQueue()),
+                icon: const Icon(AppIcons.clearAll, size: 18),
+                label: const Text('清空后续'),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: playerState.queue.isEmpty
+              ? const EchoEmptyState(
+                  title: '队列为空',
+                  description: '从曲库选择歌曲后，接下来的曲目会显示在这里。',
+                  icon: AppIcons.queue,
+                )
+              : PlaybackQueueContent(
+                  scrollController: _scrollController,
+                  playerState: playerState,
+                  onSelect: (index) {
+                    final entryId = playerState.queueEntryIds[index];
+                    return notifier.skipToQueueEntry(entryId);
+                  },
+                  onReorder: notifier.reorderQueue,
+                  onOpenSongActions: (rowContext, index, song) {
+                    return showSongOptionsSheet(
+                      context: rowContext,
+                      song: song,
+                      extraActions: <SongOptionsExtraAction>[
+                        SongOptionsExtraAction(
+                          icon: AppIcons.removeCircle,
+                          title: '从队列移除',
+                          isDestructive: true,
+                          onPressed: () => notifier.removeQueueEntry(
+                            playerState.queueEntryIds[index],
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+}

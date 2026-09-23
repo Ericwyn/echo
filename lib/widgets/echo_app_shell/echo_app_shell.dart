@@ -17,6 +17,9 @@ class EchoAppShell extends StatelessWidget {
     required this.showMiniPlayer,
     this.networkStatus = EchoNetworkStatus.online,
     this.onOpenDrawer,
+    this.desktopActions = const <EchoDesktopSidebarAction>[],
+    this.desktopAccountLabel = '账户',
+    this.desktopAccountSubtitle = '',
   });
 
   final GlobalKey<ScaffoldState> scaffoldKey;
@@ -29,6 +32,9 @@ class EchoAppShell extends StatelessWidget {
   final bool showMiniPlayer;
   final EchoNetworkStatus networkStatus;
   final VoidCallback? onOpenDrawer;
+  final List<EchoDesktopSidebarAction> desktopActions;
+  final String desktopAccountLabel;
+  final String desktopAccountSubtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +51,10 @@ class EchoAppShell extends StatelessWidget {
       key: scaffoldKey,
       backgroundColor: colors.canvas,
       extendBody: windowClass == EchoWindowClass.compact,
-      drawer: drawer,
+      // Expanded desktop keeps one permanent navigation sidebar. Account,
+      // server, library, and settings actions are presented in a dialog from
+      // that sidebar instead of adding a second left-hand drawer.
+      drawer: windowClass == EchoWindowClass.expanded ? null : drawer,
       drawerScrimColor: colors.scrim,
       body: switch (windowClass) {
         EchoWindowClass.compact => _CompactShellBody(
@@ -63,6 +72,9 @@ class EchoAppShell extends StatelessWidget {
           miniPlayer: miniPlayer,
           showMiniPlayer: showMiniPlayer,
           networkStatusBar: networkStatusBar,
+          desktopActions: desktopActions,
+          desktopAccountLabel: desktopAccountLabel,
+          desktopAccountSubtitle: desktopAccountSubtitle,
         ),
       },
       bottomNavigationBar: windowClass == EchoWindowClass.compact
@@ -175,6 +187,9 @@ class _WideShellBody extends StatelessWidget {
     required this.miniPlayer,
     required this.showMiniPlayer,
     required this.networkStatusBar,
+    required this.desktopActions,
+    required this.desktopAccountLabel,
+    required this.desktopAccountSubtitle,
   });
 
   final EchoWindowClass windowClass;
@@ -186,6 +201,9 @@ class _WideShellBody extends StatelessWidget {
   final Widget miniPlayer;
   final bool showMiniPlayer;
   final Widget networkStatusBar;
+  final List<EchoDesktopSidebarAction> desktopActions;
+  final String desktopAccountLabel;
+  final String desktopAccountSubtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -204,6 +222,9 @@ class _WideShellBody extends StatelessWidget {
             selectedBranchIndex: selectedBranchIndex,
             onDestinationSelected: onDestinationSelected,
             onOpenDrawer: onOpenDrawer,
+            actions: desktopActions,
+            accountLabel: desktopAccountLabel,
+            accountSubtitle: desktopAccountSubtitle,
           ),
         Expanded(
           child: Column(
