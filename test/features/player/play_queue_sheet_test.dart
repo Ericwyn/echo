@@ -130,7 +130,7 @@ void main() {
     expect(cleared, 1);
   });
 
-  testWidgets('queue exposes stable drag handles and position styling', (
+  testWidgets('queue exposes whole-row drag affordances and position styling', (
     tester,
   ) async {
     final moves = <(int, int)>[];
@@ -151,7 +151,8 @@ void main() {
     await tester.pump();
 
     expect(find.bySemanticsLabel(RegExp('调整播放顺序')), findsNWidgets(2));
-    expect(find.byIcon(AppIcons.dragHandle), findsNWidgets(2));
+    expect(find.byType(ReorderableDelayedDragStartListener), findsNWidgets(2));
+    expect(find.byIcon(AppIcons.dragHandle), findsNothing);
     final rows = tester
         .widgetList<EchoSongRow>(find.byType(EchoSongRow))
         .toList();
@@ -167,6 +168,147 @@ void main() {
     list.onReorder(0, 2);
     expect(moves, <(int, int)>[(0, 2)]);
   });
+
+  testWidgets('songs before the current one fade both lines of text', (
+    tester,
+  ) async {
+    final queue = <Song>[
+      Song(
+        id: 'past',
+        title: 'Past song',
+        artist: 'Past artist',
+        duration: 180,
+      ),
+      Song(
+        id: 'current',
+        title: 'Playing song',
+        artist: 'Playing artist',
+        duration: 200,
+      ),
+      Song(
+        id: 'next',
+        title: 'Next song',
+        artist: 'Next artist',
+        duration: 220,
+      ),
+    ];
+    final visuals = EchoMediaVisuals.fallback();
+    await tester.pumpWidget(
+      buildSubject(
+        state: PlayerState(
+          currentSong: queue[1],
+          queue: queue,
+          currentIndex: 1,
+          isPlaying: true,
+        ),
+        mediaVisuals: visuals,
+        onSelect: (_) async {},
+        onClear: () async {},
+        onOpenSongActions: (context, index, song) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    Color textColor(String text) =>
+        tester.widget<Text>(find.text(text)).style!.color!;
+    final pastTitle = textColor('Past song');
+    final pastMetadata = textColor('Past artist · 03:00');
+    final nextTitle = textColor('Next song');
+    final nextMetadata = textColor('Next artist · 03:40');
+    final surface = visuals.panelSurface;
+
+    expect(pastTitle, pastMetadata);
+    expect(
+      EchoColors.contrastRatio(pastTitle, surface),
+      lessThan(EchoColors.contrastRatio(nextTitle, surface)),
+    );
+    expect(
+      EchoColors.contrastRatio(pastMetadata, surface),
+      lessThan(EchoColors.contrastRatio(nextMetadata, surface)),
+    );
+    expect(
+      EchoColors.contrastRatio(pastMetadata, surface),
+      greaterThanOrEqualTo(3.49),
+    );
+  });
+
+  testWidgets(
+    'queue artwork aligns with its heading and current row has space',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(390, 844);
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        buildSubject(
+          state: PlayerState(
+            currentSong: songs.first,
+            queue: songs,
+            currentIndex: 0,
+            isPlaying: true,
+          ),
+          onSelect: (_) async {},
+          onClear: () async {},
+          onOpenSongActions: (context, index, song) async {},
+          onReorder: (_, _) {},
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final headingLeft = tester.getTopLeft(find.text('播放队列')).dx;
+      final artwork = find.byType(CoverArtImage).first;
+      expect(tester.getTopLeft(artwork).dx, closeTo(headingLeft, 0.1));
+      expect(
+        tester.getSize(find.byType(EchoSongRow).first).height,
+        greaterThan(tester.getSize(artwork).height + 16),
+      );
+    },
+  );
+
+  testWidgets(
+    'long-pressing a song drags it while the more button opens actions',
+    (tester) async {
+      final moves = <(int, int)>[];
+      final opened = <int>[];
+      final selected = <int>[];
+      await tester.pumpWidget(
+        buildSubject(
+          state: PlayerState(
+            currentSong: songs.first,
+            queue: songs,
+            currentIndex: 0,
+          ),
+          onSelect: (index) async => selected.add(index),
+          onClear: () async {},
+          onReorder: (oldIndex, newIndex) => moves.add((oldIndex, newIndex)),
+          onOpenSongActions: (context, index, song) async => opened.add(index),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text(songs.first.title));
+      await tester.pump();
+      expect(selected, <int>[0]);
+
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.text(songs.first.title)),
+      );
+      await tester.pump(const Duration(milliseconds: 600));
+      await gesture.moveBy(const Offset(0, 80));
+      await tester.pump(const Duration(milliseconds: 350));
+      await gesture.moveBy(const Offset(0, 160));
+      await tester.pump(const Duration(milliseconds: 350));
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(moves, <(int, int)>[(0, 2)]);
+      expect(opened, isEmpty);
+
+      await tester.tap(find.bySemanticsLabel('${songs.first.title}，更多操作'));
+      await tester.pump();
+      expect(opened, <int>[0]);
+    },
+  );
 
   testWidgets('queue content consumes the panel media color scope', (
     tester,

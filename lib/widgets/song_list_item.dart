@@ -20,6 +20,7 @@ class EchoSongRow extends StatelessWidget {
       horizontal: 16,
       vertical: 8,
     ),
+    this.innerPadding = EdgeInsets.zero,
     this.onPressed,
     this.onLongPress,
     this.onMorePressed,
@@ -46,6 +47,7 @@ class EchoSongRow extends StatelessWidget {
   final int? rank;
   final String? coverArtId;
   final EdgeInsetsGeometry contentPadding;
+  final EdgeInsetsGeometry innerPadding;
   final VoidCallback? onPressed;
   final VoidCallback? onLongPress;
   final VoidCallback? onMorePressed;
@@ -119,6 +121,7 @@ class EchoSongRow extends StatelessWidget {
       ),
       curve: context.echoMotion.easeOut,
       margin: contentPadding,
+      padding: innerPadding,
       decoration: BoxDecoration(
         color: selectionMode && selected
             ? context.echoColors.accent.withValues(alpha: 0.1)
@@ -154,6 +157,17 @@ class EchoSongRow extends StatelessWidget {
 
   Widget _buildDetails(BuildContext context, String artistText) {
     final showFullText = MediaQuery.textScalerOf(context).scale(1) > 1.3;
+    final dimmedTextColor = isDimmed && !isCurrent
+        ? EchoColors.ensureColorContrast(
+            Color.lerp(
+              context.echoColors.muted,
+              context.echoColors.surface,
+              0.45,
+            )!,
+            background: context.echoColors.surface,
+            minimumRatio: 3.5,
+          )
+        : null;
     final statusMarkers = <Widget>[
       if (_favorite)
         const _SongStatusMarker(icon: AppIcons.heart, label: '已收藏'),
@@ -174,13 +188,18 @@ class EchoSongRow extends StatelessWidget {
             color: isCurrent
                 ? context.echoColors.accent
                 : isDimmed
-                ? context.echoColors.muted
+                ? dimmedTextColor
                 : context.echoColors.ink,
           ),
         ),
         SizedBox(height: context.echoSpacing.xxs),
         EchoMetadataLine(
           items: <String?>[artistText, song.durationString],
+          style: dimmedTextColor == null
+              ? null
+              : context.echoTypography.metadata.copyWith(
+                  color: dimmedTextColor,
+                ),
           maxLines: showFullText ? null : 2,
         ),
         if (statusMarkers.isNotEmpty) ...<Widget>[

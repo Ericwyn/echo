@@ -362,55 +362,40 @@ class _PlayQueueListState extends State<_PlayQueueList> {
         return Padding(
           key: _entryKeys.putIfAbsent(entryId, GlobalKey.new),
           padding: EdgeInsets.only(bottom: context.echoSpacing.xxs),
-          child: Row(
-            children: <Widget>[
-              ReorderableDelayedDragStartListener(
+          child: Semantics(
+            label: widget.onReorder == null
+                ? null
+                : '长按并拖动 ${song.title}，调整播放顺序',
+            customSemanticsActions: semanticsActions,
+            child: ReorderableDelayedDragStartListener(
+              index: index,
+              enabled: widget.onReorder != null,
+              child: EchoSongRow(
                 index: index,
-                enabled: widget.onReorder != null,
-                child: Semantics(
-                  button: true,
-                  label: '按住并拖动 ${song.title}，调整播放顺序',
-                  customSemanticsActions: semanticsActions,
-                  child: SizedBox.square(
-                    dimension: context.echoInteraction.minimumTouchTarget,
-                    child: Center(
-                      child: Icon(
-                        AppIcons.dragHandle,
-                        size: 22,
-                        color: context.echoColors.muted,
-                      ),
-                    ),
-                  ),
+                song: song,
+                variant: EchoSongRowVariant.standard,
+                isCurrent: isCurrent,
+                isDimmed: state.currentIndex >= 0 && index < state.currentIndex,
+                currentStatusLabel: statusLabel,
+                isCurrentLoading: state.isLoading,
+                currentIndicatorIcon: state.isPlaying
+                    ? AppIcons.pause
+                    : AppIcons.play,
+                contentPadding: EdgeInsetsDirectional.fromSTEB(
+                  context.echoSpacing.md,
+                  context.echoSpacing.xs,
+                  context.echoSpacing.xs,
+                  context.echoSpacing.xs,
                 ),
+                innerPadding: isCurrent
+                    ? EdgeInsets.symmetric(vertical: context.echoSpacing.xxs)
+                    : EdgeInsets.zero,
+                onPressed: () => unawaited(widget.onSelect(index)),
+                onMorePressed: () =>
+                    unawaited(widget.onOpenSongActions(context, index, song)),
+                moreSemanticLabel: '${song.title}，更多操作',
               ),
-              Expanded(
-                child: EchoSongRow(
-                  index: index,
-                  song: song,
-                  variant: EchoSongRowVariant.standard,
-                  isCurrent: isCurrent,
-                  isDimmed:
-                      state.currentIndex >= 0 && index < state.currentIndex,
-                  currentStatusLabel: statusLabel,
-                  isCurrentLoading: state.isLoading,
-                  currentIndicatorIcon: state.isPlaying
-                      ? AppIcons.pause
-                      : AppIcons.play,
-                  contentPadding: EdgeInsetsDirectional.fromSTEB(
-                    context.echoSpacing.xs,
-                    context.echoSpacing.xs,
-                    context.echoSpacing.xs,
-                    context.echoSpacing.xs,
-                  ),
-                  onPressed: () => unawaited(widget.onSelect(index)),
-                  onLongPress: () =>
-                      unawaited(widget.onOpenSongActions(context, index, song)),
-                  onMorePressed: () =>
-                      unawaited(widget.onOpenSongActions(context, index, song)),
-                  moreSemanticLabel: '${song.title}，更多操作',
-                ),
-              ),
-            ],
+            ),
           ),
         );
       },
