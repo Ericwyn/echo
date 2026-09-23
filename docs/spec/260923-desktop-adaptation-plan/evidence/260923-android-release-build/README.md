@@ -7,22 +7,22 @@
 ## 构建
 
 - Flutter：3.41.7；JDK：17；Android SDK/compile SDK：36。
-- `pubspec.yaml` 版本：`1.1.0+2034`。
-- 命令：`flutter build apk --release --no-pub --split-per-abi --target-platform android-arm64`。
+- `pubspec.yaml` 版本：`1.1.0+2035`。
+- 命令：`bash scripts/local/build_android_release_arm64.sh`（本机专用脚本；`.git/info/exclude` 排除，不提交）。
 - 使用本机 release keystore（alias `echo-release`）。签名密码从本机密码文件读入构建进程环境；密码、keystore 内容及可复用密钥材料未写入仓库、命令输出或本记录。
 - 产物：`build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`，29,740,925 bytes。
-- APK SHA-256：`94565bb825dd7d307a3b8baddd936852124f9a7e8bcdeafcc5f7500f58b5a1e4`。
+- APK SHA-256：`a6e98c83d52bf9516f53e212ca3a78c32da1a82bfcbb1f99558e9c58f896353c`。
 
 ## APK 校验
 
-- Package：`com.az1n.echoes`；version name：`1.1.0`；APK version code：`4034`。
-- 本次构建实测 `1.1.0+2034` 对应 arm64 APK version code `4034`；高于此前交付的 `4033` 候选和用户设备上报告的 `2026`。
+- Source commit：`cf131727`；Package：`com.az1n.echoes`；version name：`1.1.0`；APK version code：`4035`。
+- 本次构建实测 `1.1.0+2035` 对应 arm64 APK version code `4035`；高于此前交付的 `4034` 候选和用户设备上报告的 `2026`。
 - min SDK：24；target SDK：36。
 - APK 中仅有 `arm64-v8a` native libraries。
 - `apksigner verify`：通过，1 个 signer，APK Signature Scheme v2。
 - Signer certificate：`CN=Echoes Personal`，RSA 3072；SHA-256：`8604465c3ee1282b48a1b2759801f784ace32447d1188e0481fab0fe8ac74c94`。
 
-本机快捷脚本 `scripts/local/build_android_release_arm64.sh` 仅用于该开发机，从本机签名配置构建并校验 arm64-only APK；该脚本由 `.git/info/exclude` 排除，不进入仓库提交。此前 `1.1.0+26` 通用 APK 与 `1.1.0+2027/2028/2029/2030/2031/2032/2033` arm64 候选均已由当前 `1.1.0+2034` 取代。
+本机快捷脚本 `scripts/local/build_android_release_arm64.sh` 仅用于该开发机，从本机签名配置构建并校验 arm64-only APK；该脚本由 `.git/info/exclude` 排除，不进入仓库提交。此前 `1.1.0+26` 通用 APK 与 `1.1.0+2027` 至 `+2034` arm64 候选均已由当前 `1.1.0+2035` 取代。
 
 ## 未完成验收
 

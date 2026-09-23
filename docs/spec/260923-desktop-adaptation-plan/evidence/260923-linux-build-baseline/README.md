@@ -23,7 +23,7 @@
 
 ## 当前 release bundle 与 `.deb`
 
-应用代码与版本基线：`871f95ed`；Debian 打包脚本：`c25e22aa`。`pubspec.yaml` 版本为 `1.1.0+2034`。SongListPage 在滚动更新封面预加载窗口时复用歌曲数据签名，避免重复遍历整个列表；队列拖动期间发生版本/随机模式变化时取消并提示。曲库列表与不同排序模式的滚动状态已分别使用 PageStorageKey。Explore 搜索草稿/查询和结果滚动可恢复；MPRIS `Seeked` 由成功 seek 显式触发，音乐流展开状态同样纳入路由恢复。
+应用代码与版本基线：`cf131727`；Debian 打包脚本：`c25e22aa`。`pubspec.yaml` 版本为 `1.1.0+2035`。SongListPage 在滚动更新封面预加载窗口时复用歌曲数据签名，避免重复遍历整个列表；PlaybackQueueContent 对已渲染行记录索引与队列 revision，定位采样避免逐 key 扫描整份队列，滚动后清理离屏锚点以限制 GlobalKey 保留量。队列拖动期间发生版本/随机模式变化时取消并提示。曲库列表与不同排序模式的滚动状态已分别使用 PageStorageKey。Explore 搜索草稿/查询和结果滚动可恢复；MPRIS `Seeked` 由成功 seek 显式触发，音乐流展开状态同样纳入路由恢复。
 
 为了完成全新 Linux 构建，从 Ubuntu 22.04 官方仓库下载 `lld-14`，只解压至 `/tmp/echo-lld-root`，没有安装到系统。`/tmp/echo-toolchain/clang` 与 `clang++` 是调用系统 Clang 的临时 wrapper；同目录的 `ld.lld` 指向解压出的真实 Ubuntu LLD 二进制，不是伪造 linker shim。使用隔离 Flutter 配置和全新的 CMake build-dir `build/linux-lldtmp`：
 
@@ -31,17 +31,17 @@
 export HOME=/tmp/echo-flutter-clean-home
 export FLUTTER_ROOT=/home/ericwyn/fvm/versions/3.41.7
 export PATH=/tmp/echo-toolchain:/usr/lib/llvm-14/bin:/usr/bin:$PATH
-flutter config --build-dir=build/linux-lldtmp-2034
+flutter config --build-dir=build/linux-lldtmp-2035
 flutter build linux --release --no-pub
-ECHO_LINUX_BUNDLE_DIR="$PWD/build/linux-lldtmp-2034/linux/x64/release/bundle" \
-  scripts/package_linux_deb.sh build/linux-lldtmp-2034/packages
+ECHO_LINUX_BUNDLE_DIR="$PWD/build/linux-lldtmp-2035/linux/x64/release/bundle" \
+  scripts/package_linux_deb.sh build/linux-lldtmp-2035/packages
 ```
 
 - CMake compiler entries point to the temporary wrappers; they delegate to `/usr/bin/clang` and `/usr/bin/clang++`. Linker is the actual Ubuntu LLD 14 binary extracted under `/tmp`.
-- Bundle: `build/linux-lldtmp-2034/linux/x64/release/bundle/echoes`; ELF x86-64; SHA-256 `8f406e448dc4f325c0b851e1cf19635692f8c6b203bcff272fd01b221811f949`.
-- `libapp.so` SHA-256: `544ba9ee7995747d5036fcb956b996a636a35d9c4037a23f279d469229b5d777`.
-- Flutter asset version: `1.1.0`, build number `2034`.
-- Debian package: `build/linux-lldtmp-2034/packages/echoes_1.1.0+2034_amd64.deb`; Architecture `amd64`; SHA-256 `10097cc26304f46233a8b007273ebabb127570adeeb37161a11ce6f324aaa66e`.
+- Bundle: `build/linux-lldtmp-2035/linux/x64/release/bundle/echoes`; ELF x86-64; SHA-256 `f747f4fcba67322251ca996b79dece8e67b3da0621326410e398e310aec9c0cf`.
+- `libapp.so` SHA-256: `8f0131eb2fe95445d1f82ba6a673823e5dcb49ccb68bdd5c1af85f209c7a440f`.
+- Flutter asset version: `1.1.0`, build number `2035`.
+- Debian package: `build/linux-lldtmp-2035/packages/echoes_1.1.0+2035_amd64.deb`; Architecture `amd64`; SHA-256 `3d328502812a9763d70c6f9f5afe3f34525c587640b2616bf3830622294a67c3`.
 - Package dependencies: `libgtk-3-0`, `libayatana-appindicator3-1`, `libmpv1`.
 - `dpkg-deb` checks confirmed package metadata, bundle executable, desktop entry and 192×192 icon. `libmpv` remains a runtime-loaded dependency and is declared explicitly.
 
