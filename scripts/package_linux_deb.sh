@@ -13,6 +13,10 @@ if [[ ! -x "$bundle_dir/echoes" ]]; then
   echo "Build it first with: flutter build linux --release --no-pub" >&2
   exit 1
 fi
+if ! command -v zip >/dev/null 2>&1; then
+  echo "Missing required packaging tool: zip" >&2
+  exit 1
+fi
 
 # A Flutter Linux bundle needs its engine, app, native plugins, ICU data and
 # compiled Flutter assets. Checking only `echoes` can produce an installable
@@ -87,3 +91,14 @@ fi
 package_path="$output_dir/echoes_${version}_${architecture}.deb"
 dpkg-deb --root-owner-group --build "$package_root" "$package_path"
 echo "Created $package_path"
+
+# Ship the raw Flutter bundle alongside the installable Debian package. Build
+# to a temporary path so reruns cannot retain stale entries from an older ZIP.
+bundle_zip_path="$output_dir/echoes_${version}_linux-x64-bundle.zip"
+bundle_zip_tmp="$work_dir/linux-x64-bundle.zip"
+(
+  cd "$bundle_dir"
+  zip -qr "$bundle_zip_tmp" .
+)
+mv -f "$bundle_zip_tmp" "$bundle_zip_path"
+echo "Created $bundle_zip_path"
