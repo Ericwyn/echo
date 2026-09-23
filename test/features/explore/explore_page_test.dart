@@ -24,6 +24,51 @@ import 'package:flutter_test/flutter_test.dart';
 import '../player/test_player_notifier.dart';
 
 void main() {
+  testWidgets('explore route rebuild restores query and reruns remote search', (
+    tester,
+  ) async {
+    final connectivity = ConnectivityMonitor(AddressPool(Dio()));
+    final bucket = PageStorageBucket();
+    final searchCalls = <String>[];
+    addTearDown(connectivity.stop);
+
+    Widget buildExplore() => ProviderScope(
+      overrides: <Override>[
+        connectivityMonitorProvider.overrideWithValue(connectivity),
+        exploreRemoteSearchProvider.overrideWith(
+          (ref) => _StaticExploreRemoteSearchNotifier(
+            ref,
+            const ExploreRemoteState(),
+            searchCalls: searchCalls,
+          ),
+        ),
+      ],
+      child: MaterialApp(
+        theme: AppTheme.light(),
+        home: PageStorage(bucket: bucket, child: const ExplorePage()),
+      ),
+    );
+
+    await tester.pumpWidget(buildExplore());
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '已提交的查询');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '尚未提交的草稿');
+    await tester.pumpAndSettle();
+
+    expect(searchCalls, <String>['已提交的查询']);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpWidget(buildExplore());
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).controller!.text,
+      '尚未提交的草稿',
+    );
+    expect(searchCalls, <String>['已提交的查询', '已提交的查询']);
+  });
+
   testWidgets('selection actions stay above the compact shell obstruction', (
     tester,
   ) async {
@@ -285,16 +330,32 @@ class _ControllableOfflineDownloadService extends OfflineDownloadService {
 }
 
 class _StaticExploreRemoteSearchNotifier extends ExploreRemoteSearchNotifier {
-  _StaticExploreRemoteSearchNotifier(super.ref, ExploreRemoteState initial) {
+  _StaticExploreRemoteSearchNotifier(
+    super.ref,
+    ExploreRemoteState initial, {
+    this.searchCalls,
+  }) {
     state = initial;
   }
+
+  final List<String>? searchCalls;
 
   @override
   Future<void> search({
     required String keyword,
     required String source,
     required ExploreSearchType type,
-  }) async {}
+  }) async {
+    final calls = searchCalls;
+    if (calls == null) return;
+    calls.add(keyword);
+    state = ExploreRemoteState(
+      query: keyword,
+      source: source,
+      searchType: type,
+      isLoading: true,
+    );
+  }
 
   @override
   Future<void> loadNextPage() async {}

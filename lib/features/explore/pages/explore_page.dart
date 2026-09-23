@@ -30,9 +30,14 @@ class ExplorePage extends ConsumerStatefulWidget {
 
 class _ExplorePageState extends ConsumerState<ExplorePage> {
   static const _logTag = 'EXPLORE';
+  static const String _pageStorageStateKey = 'echo-explore-page-state';
+  static const String _localResultsStorageKey = 'echo-explore-local-results';
+  static const String _remoteResultsStorageKey = 'echo-explore-remote-results';
   final _searchController = TextEditingController();
   final _scrollController = ScrollController();
   String _query = '';
+  String _draftQuery = '';
+  bool _restoredPageState = false;
   String? _resolvingSongId;
   bool _isBatchDownloading = false;
   final Set<String> _submittingDownloadKeys = <String>{};
@@ -46,6 +51,33 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_restoredPageState) return;
+    _restoredPageState = true;
+
+    final savedState = PageStorage.maybeOf(
+      context,
+    )?.readState(context, identifier: _pageStorageStateKey);
+    if (savedState is! Map) return;
+
+    final query = savedState['query'];
+    final draftQuery = savedState['draftQuery'];
+    _query = query is String ? query : '';
+    _draftQuery = draftQuery is String ? draftQuery : _query;
+    _searchController.value = TextEditingValue(
+      text: _draftQuery,
+      selection: TextSelection.collapsed(offset: _draftQuery.length),
+    );
+
+    if (_query.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _resumeRemoteQuery(_query);
+      });
+    }
   }
 
   @override
@@ -68,8 +100,10 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
     final q = value.trim();
     setState(() {
       _query = q;
+      _draftQuery = value;
       _selectedSongIds.clear();
     });
+    _savePageStorageState();
 
     final mode = ref.read(exploreSearchModeProvider);
     if (mode == ExploreSearchMode.remote && q.isNotEmpty) {
@@ -79,6 +113,40 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
           .read(exploreRemoteSearchProvider.notifier)
           .search(keyword: q, source: source, type: type);
     }
+  }
+
+  void _handleQueryChanged(String value) {
+    setState(() => _draftQuery = value);
+    _savePageStorageState();
+  }
+
+  void _savePageStorageState() {
+    PageStorage.maybeOf(context)?.writeState(context, <String, String>{
+      'query': _query,
+      'draftQuery': _draftQuery,
+    }, identifier: _pageStorageStateKey);
+  }
+
+  void _resumeRemoteQuery(String query) {
+    if (query.trim().isEmpty ||
+        ref.read(exploreSearchModeProvider) != ExploreSearchMode.remote) {
+      return;
+    }
+
+    final source = ref.read(exploreRemoteSourceProvider);
+    final type = ref.read(exploreSearchTypeProvider);
+    final remoteState = ref.read(exploreRemoteSearchProvider);
+    if (remoteState.query == query.trim() &&
+        remoteState.source == source &&
+        remoteState.searchType == type) {
+      return;
+    }
+
+    unawaited(
+      ref
+          .read(exploreRemoteSearchProvider.notifier)
+          .search(keyword: query, source: source, type: type),
+    );
   }
 
   String _searchTypeLabel(ExploreSearchType type) {
@@ -529,7 +597,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                           hintText: _hintText(),
                           leadingIcon: AppIcons.search,
                           textInputAction: TextInputAction.search,
-                          onChanged: (_) => setState(() {}),
+                          onChanged: _handleQueryChanged,
                           onSubmitted: _submitQuery,
                           trailing: value.text.isEmpty
                               ? null
@@ -625,8 +693,10 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
     _searchController.clear();
     setState(() {
       _query = '';
+      _draftQuery = '';
       _selectedSongIds.clear();
     });
+    _savePageStorageState();
     ref.read(exploreRemoteSearchProvider.notifier).reset();
   }
 
@@ -792,6 +862,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 1000),
             child: ListView.builder(
+              key: const PageStorageKey<String>(_localResultsStorageKey),
               padding: EdgeInsets.fromLTRB(
                 context.echoPageHorizontalPadding,
                 context.echoSpacing.xs,
@@ -872,6 +943,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
               ),
             Expanded(
               child: ListView.builder(
+                key: const PageStorageKey<String>(_remoteResultsStorageKey),
                 controller: _scrollController,
                 padding: EdgeInsets.fromLTRB(
                   context.echoPageHorizontalPadding,
