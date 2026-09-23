@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/design/echo_design.dart';
+import '../../../core/navigation/route_return.dart';
 import '../../../data/models/embed_service_config.dart';
 import '../../../data/models/music_library.dart';
 import '../../../data/models/server_address.dart';
@@ -516,7 +517,11 @@ class _EditLibraryPageState extends ConsumerState<EditLibraryPage> {
     await repository.updateLibrary(updated);
     if (!mounted) return;
     showEchoMessage(context, '保存成功', kind: EchoMessageKind.success);
-    context.pop();
+    _returnFromEditor();
+  }
+
+  void _returnFromEditor() {
+    popCurrentRouteOrGoHome(context);
   }
 
   Future<void> _confirmDelete(MusicLibrary library) async {
@@ -551,7 +556,7 @@ class _EditLibraryPageState extends ConsumerState<EditLibraryPage> {
       await repository.setActiveLibrary(next.id);
       ref.read(authStateProvider.notifier).switchLibrary(next);
       ref.invalidate(playerProvider);
-      if (mounted) context.go('/home');
+      if (mounted) _returnFromEditor();
     } catch (_) {
       if (libraryDeleted) {
         ref.invalidate(playerProvider);

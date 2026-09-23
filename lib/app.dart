@@ -215,7 +215,9 @@ final routerProvider = Provider<GoRouter>((ref) {
             ...state.uri.queryParameters,
           },
           restorationId: state.pageKey.value,
-          child: const LoginPage(),
+          child: LoginPage(
+            isAddingLibrary: state.uri.queryParameters['add'] == 'true',
+          ),
         ),
       ),
       // Library Edit

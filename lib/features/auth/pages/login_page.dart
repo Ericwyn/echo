@@ -3,12 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/design/echo_design.dart';
+import '../../../core/navigation/route_return.dart';
 import '../../../core/utils/server_url_security.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../providers/auth_provider.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
-  const LoginPage({super.key});
+  const LoginPage({super.key, this.isAddingLibrary = false});
+
+  final bool isAddingLibrary;
 
   @override
   ConsumerState<LoginPage> createState() => _LoginPageState();
@@ -91,7 +94,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             addressLabel: addressLabel,
           );
 
-    if (success && mounted) context.go('/home');
+    if (!success || !mounted) return;
+    if (widget.isAddingLibrary) {
+      popCurrentRouteOrGoHome(context);
+    } else {
+      context.go('/home');
+    }
   }
 
   Future<bool> _confirmInsecureHttpIfNeeded() async {
