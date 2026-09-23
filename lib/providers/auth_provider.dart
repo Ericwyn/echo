@@ -105,19 +105,39 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String password,
     String? libraryName,
     String? addressLabel,
+    Future<void> Function()? beforeActivateLibrary,
+    Future<void> Function()? onActivationFailed,
   }) async {
     Logger.infoWithTag('AUTH', 'password login started');
     state = state.copyWith(isLoading: true, errorMessage: null);
 
-    final result = await _repository.loginWithPassword(
-      serverUrl: serverUrl,
-      username: username,
-      password: password,
-      libraryName: libraryName,
-      addressLabel: addressLabel,
-    );
+    try {
+      final result = await _repository.loginWithPassword(
+        serverUrl: serverUrl,
+        username: username,
+        password: password,
+        libraryName: libraryName,
+        addressLabel: addressLabel,
+      );
 
-    return _handleLoginResult(result);
+      return _handleLoginResult(
+        result,
+        beforeActivateLibrary: beforeActivateLibrary,
+        onActivationFailed: onActivationFailed,
+      );
+    } catch (error, stackTrace) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: '连接服务器失败，请检查网络后重试',
+      );
+      Logger.errorWithTag(
+        'AUTH',
+        'password login request failed',
+        error,
+        stackTrace,
+      );
+      return false;
+    }
   }
 
   /// 使用 API Key 登录
@@ -127,38 +147,98 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String apiKey,
     String? libraryName,
     String? addressLabel,
+    Future<void> Function()? beforeActivateLibrary,
+    Future<void> Function()? onActivationFailed,
   }) async {
     Logger.infoWithTag('AUTH', 'API key login started');
     state = state.copyWith(isLoading: true, errorMessage: null);
 
-    final result = await _repository.loginWithApiKey(
-      serverUrl: serverUrl,
-      username: username,
-      apiKey: apiKey,
-      libraryName: libraryName,
-      addressLabel: addressLabel,
-    );
+    try {
+      final result = await _repository.loginWithApiKey(
+        serverUrl: serverUrl,
+        username: username,
+        apiKey: apiKey,
+        libraryName: libraryName,
+        addressLabel: addressLabel,
+      );
 
-    return _handleLoginResult(result);
+      return _handleLoginResult(
+        result,
+        beforeActivateLibrary: beforeActivateLibrary,
+        onActivationFailed: onActivationFailed,
+      );
+    } catch (error, stackTrace) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: '连接服务器失败，请检查网络后重试',
+      );
+      Logger.errorWithTag(
+        'AUTH',
+        'API key login request failed',
+        error,
+        stackTrace,
+      );
+      return false;
+    }
   }
 
-  Future<bool> _handleLoginResult(LoginResult result) async {
+  Future<bool> _handleLoginResult(
+    LoginResult result, {
+    Future<void> Function()? beforeActivateLibrary,
+    Future<void> Function()? onActivationFailed,
+  }) async {
     if (result.success && result.library != null) {
-      // Save to DB
-      await _libraryRepository.addLibrary(result.library!);
+      var librarySaved = false;
+      try {
+        await beforeActivateLibrary?.call();
+        final savedLibrary = result.library!.copyWith(isActive: false);
+        await _libraryRepository.addLibrary(savedLibrary);
+        librarySaved = true;
+        await _libraryRepository.setActiveLibrary(result.library!.id);
 
-      // Set Active
-      await _libraryRepository.setActiveLibrary(result.library!.id);
+        state = state.copyWith(
+          isAuthenticated: true,
+          isLoading: false,
+          currentLibrary: result.library!,
+        );
+        Logger.infoWithTag('AUTH', 'login succeeded');
 
-      // Refresh state
-      state = state.copyWith(
-        isAuthenticated: true,
-        isLoading: false,
-        currentLibrary: result.library!,
-      );
-      Logger.infoWithTag('AUTH', 'login succeeded');
-
-      return true;
+        return true;
+      } catch (error, stackTrace) {
+        if (librarySaved) {
+          try {
+            await _libraryRepository.deleteLibrary(result.library!.id);
+          } catch (cleanupError, cleanupStackTrace) {
+            Logger.errorWithTag(
+              'AUTH',
+              'failed to remove inactive library after activation failure',
+              cleanupError,
+              cleanupStackTrace,
+            );
+          }
+        }
+        try {
+          await onActivationFailed?.call();
+        } catch (rollbackError, rollbackStackTrace) {
+          Logger.errorWithTag(
+            'AUTH',
+            'failed to restore playback after library activation failure',
+            rollbackError,
+            rollbackStackTrace,
+          );
+        }
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: '保存或切换音乐库失败，请重试',
+        );
+        Logger.errorWithTag(
+          'AUTH',
+          'library activation failed',
+          error,
+          stackTrace,
+        );
+        return false;
+      }
     } else {
       state = state.copyWith(
         isLoading: false,

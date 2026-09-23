@@ -14,12 +14,14 @@ void main() {
   late MockLibraryRepository mockLibraryRepo;
 
   setUpAll(() {
-    registerFallbackValue(MusicLibrary(
-      id: '',
-      name: '',
-      createdAt: DateTime(2020),
-      updatedAt: DateTime(2020),
-    ));
+    registerFallbackValue(
+      MusicLibrary(
+        id: '',
+        name: '',
+        createdAt: DateTime(2020),
+        updatedAt: DateTime(2020),
+      ),
+    );
   });
 
   setUp(() {
@@ -28,14 +30,14 @@ void main() {
   });
 
   MusicLibrary sampleLibrary({bool isActive = true}) => MusicLibrary(
-        id: 'lib-1',
-        name: 'Test Library',
-        username: 'testuser',
-        password: 'testpass',
-        isActive: isActive,
-        createdAt: DateTime(2024, 1, 1),
-        updatedAt: DateTime(2024, 1, 1),
-      );
+    id: 'lib-1',
+    name: 'Test Library',
+    username: 'testuser',
+    password: 'testpass',
+    isActive: isActive,
+    createdAt: DateTime(2024, 1, 1),
+    updatedAt: DateTime(2024, 1, 1),
+  );
 
   // -------------------------------------------------------------------------
   // AuthState
@@ -84,9 +86,9 @@ void main() {
 
   group('AuthNotifier._init', () {
     test('sets isAuthenticated=true when active library exists', () async {
-      when(() => mockLibraryRepo.watchLibraries()).thenAnswer(
-        (_) => Stream.value([sampleLibrary(isActive: true)]),
-      );
+      when(
+        () => mockLibraryRepo.watchLibraries(),
+      ).thenAnswer((_) => Stream.value([sampleLibrary(isActive: true)]));
 
       final notifier = AuthNotifier(mockAuthRepo, mockLibraryRepo);
 
@@ -99,9 +101,9 @@ void main() {
     });
 
     test('sets isAuthenticated=false when no active library', () async {
-      when(() => mockLibraryRepo.watchLibraries()).thenAnswer(
-        (_) => Stream.value([sampleLibrary(isActive: false)]),
-      );
+      when(
+        () => mockLibraryRepo.watchLibraries(),
+      ).thenAnswer((_) => Stream.value([sampleLibrary(isActive: false)]));
 
       final notifier = AuthNotifier(mockAuthRepo, mockLibraryRepo);
       await Future.delayed(const Duration(milliseconds: 100));
@@ -111,9 +113,9 @@ void main() {
     });
 
     test('sets isAuthenticated=false when watchLibraries throws', () async {
-      when(() => mockLibraryRepo.watchLibraries()).thenAnswer(
-        (_) => Stream.error(Exception('db error')),
-      );
+      when(
+        () => mockLibraryRepo.watchLibraries(),
+      ).thenAnswer((_) => Stream.error(Exception('db error')));
 
       final notifier = AuthNotifier(mockAuthRepo, mockLibraryRepo);
       await Future.delayed(const Duration(milliseconds: 100));
@@ -129,9 +131,9 @@ void main() {
 
   group('AuthNotifier.loginWithPassword', () {
     test('successful login sets isAuthenticated=true', () async {
-      when(() => mockLibraryRepo.watchLibraries()).thenAnswer(
-        (_) => Stream.value([]),
-      );
+      when(
+        () => mockLibraryRepo.watchLibraries(),
+      ).thenAnswer((_) => Stream.value([]));
       when(
         () => mockAuthRepo.loginWithPassword(
           serverUrl: any(named: 'serverUrl'),
@@ -141,10 +143,7 @@ void main() {
           addressLabel: any(named: 'addressLabel'),
         ),
       ).thenAnswer(
-        (_) async => LoginResult(
-          success: true,
-          library: sampleLibrary(),
-        ),
+        (_) async => LoginResult(success: true, library: sampleLibrary()),
       );
       when(() => mockLibraryRepo.addLibrary(any())).thenAnswer((_) async {});
       when(
@@ -167,10 +166,10 @@ void main() {
       verify(() => mockLibraryRepo.setActiveLibrary(any())).called(1);
     });
 
-    test('failed login sets errorMessage', () async {
-      when(() => mockLibraryRepo.watchLibraries()).thenAnswer(
-        (_) => Stream.value([]),
-      );
+    test('prepares the old player before activating a new library', () async {
+      when(
+        () => mockLibraryRepo.watchLibraries(),
+      ).thenAnswer((_) => Stream.value([sampleLibrary(isActive: true)]));
       when(
         () => mockAuthRepo.loginWithPassword(
           serverUrl: any(named: 'serverUrl'),
@@ -181,9 +180,156 @@ void main() {
         ),
       ).thenAnswer(
         (_) async => LoginResult(
-          success: false,
-          errorMessage: 'Invalid credentials',
+          success: true,
+          library: sampleLibrary().copyWith(id: 'lib-2'),
         ),
+      );
+      final activationOrder = <String>[];
+      MusicLibrary? savedLibrary;
+      when(() => mockLibraryRepo.addLibrary(any())).thenAnswer((
+        invocation,
+      ) async {
+        savedLibrary = invocation.positionalArguments.single as MusicLibrary;
+        activationOrder.add('save');
+      });
+      when(() => mockLibraryRepo.setActiveLibrary(any())).thenAnswer((_) async {
+        activationOrder.add('activate');
+      });
+
+      final notifier = AuthNotifier(mockAuthRepo, mockLibraryRepo);
+      await notifier.initialized;
+
+      final result = await notifier.loginWithPassword(
+        serverUrl: 'https://music.example.com',
+        username: 'user',
+        password: 'pass',
+        beforeActivateLibrary: () async {
+          activationOrder.add('prepare');
+        },
+      );
+
+      expect(result, isTrue);
+      expect(activationOrder, <String>['prepare', 'save', 'activate']);
+      expect(savedLibrary?.isActive, isFalse);
+      expect(notifier.state.currentLibrary?.id, 'lib-2');
+    });
+
+    test(
+      'rolls back player preparation if new library persistence fails',
+      () async {
+        when(
+          () => mockLibraryRepo.watchLibraries(),
+        ).thenAnswer((_) => Stream.value([sampleLibrary(isActive: true)]));
+        when(
+          () => mockAuthRepo.loginWithPassword(
+            serverUrl: any(named: 'serverUrl'),
+            username: any(named: 'username'),
+            password: any(named: 'password'),
+            libraryName: any(named: 'libraryName'),
+            addressLabel: any(named: 'addressLabel'),
+          ),
+        ).thenAnswer(
+          (_) async => LoginResult(
+            success: true,
+            library: sampleLibrary().copyWith(id: 'lib-2'),
+          ),
+        );
+        when(
+          () => mockLibraryRepo.addLibrary(any()),
+        ).thenAnswer((_) async => throw StateError('database write failed'));
+        final activationOrder = <String>[];
+
+        final notifier = AuthNotifier(mockAuthRepo, mockLibraryRepo);
+        await notifier.initialized;
+
+        final result = await notifier.loginWithPassword(
+          serverUrl: 'https://music.example.com',
+          username: 'user',
+          password: 'pass',
+          beforeActivateLibrary: () async {
+            activationOrder.add('prepare');
+          },
+          onActivationFailed: () async {
+            activationOrder.add('rollback');
+          },
+        );
+
+        expect(result, isFalse);
+        expect(activationOrder, <String>['prepare', 'rollback']);
+        expect(notifier.state.isAuthenticated, isTrue);
+        expect(notifier.state.isLoading, isFalse);
+        expect(notifier.state.currentLibrary?.id, 'lib-1');
+        verifyNever(() => mockLibraryRepo.setActiveLibrary('lib-2'));
+      },
+    );
+
+    test(
+      'removes the inactive library if activation fails after saving',
+      () async {
+        when(
+          () => mockLibraryRepo.watchLibraries(),
+        ).thenAnswer((_) => Stream.value([sampleLibrary(isActive: true)]));
+        when(
+          () => mockAuthRepo.loginWithPassword(
+            serverUrl: any(named: 'serverUrl'),
+            username: any(named: 'username'),
+            password: any(named: 'password'),
+            libraryName: any(named: 'libraryName'),
+            addressLabel: any(named: 'addressLabel'),
+          ),
+        ).thenAnswer(
+          (_) async => LoginResult(
+            success: true,
+            library: sampleLibrary().copyWith(id: 'lib-2'),
+          ),
+        );
+        when(() => mockLibraryRepo.addLibrary(any())).thenAnswer((_) async {});
+        when(
+          () => mockLibraryRepo.setActiveLibrary('lib-2'),
+        ).thenAnswer((_) async => throw StateError('activation failed'));
+        when(
+          () => mockLibraryRepo.deleteLibrary('lib-2'),
+        ).thenAnswer((_) async {});
+        final activationOrder = <String>[];
+
+        final notifier = AuthNotifier(mockAuthRepo, mockLibraryRepo);
+        await notifier.initialized;
+
+        final result = await notifier.loginWithPassword(
+          serverUrl: 'https://music.example.com',
+          username: 'user',
+          password: 'pass',
+          beforeActivateLibrary: () async {
+            activationOrder.add('prepare');
+          },
+          onActivationFailed: () async {
+            activationOrder.add('rollback');
+          },
+        );
+
+        expect(result, isFalse);
+        expect(activationOrder, <String>['prepare', 'rollback']);
+        expect(notifier.state.currentLibrary?.id, 'lib-1');
+        verify(() => mockLibraryRepo.deleteLibrary('lib-2')).called(1);
+        verify(() => mockLibraryRepo.setActiveLibrary('lib-2')).called(1);
+      },
+    );
+
+    test('failed login sets errorMessage', () async {
+      when(
+        () => mockLibraryRepo.watchLibraries(),
+      ).thenAnswer((_) => Stream.value([]));
+      when(
+        () => mockAuthRepo.loginWithPassword(
+          serverUrl: any(named: 'serverUrl'),
+          username: any(named: 'username'),
+          password: any(named: 'password'),
+          libraryName: any(named: 'libraryName'),
+          addressLabel: any(named: 'addressLabel'),
+        ),
+      ).thenAnswer(
+        (_) async =>
+            LoginResult(success: false, errorMessage: 'Invalid credentials'),
       );
 
       final notifier = AuthNotifier(mockAuthRepo, mockLibraryRepo);
@@ -207,9 +353,9 @@ void main() {
 
   group('AuthNotifier.logout', () {
     test('clears authentication state', () async {
-      when(() => mockLibraryRepo.watchLibraries()).thenAnswer(
-        (_) => Stream.value([sampleLibrary()]),
-      );
+      when(
+        () => mockLibraryRepo.watchLibraries(),
+      ).thenAnswer((_) => Stream.value([sampleLibrary()]));
       when(
         () => mockLibraryRepo.setActiveLibrary(any()),
       ).thenAnswer((_) async {});
@@ -233,9 +379,9 @@ void main() {
 
   group('AuthNotifier.switchLibrary', () {
     test('updates currentLibrary and isAuthenticated', () async {
-      when(() => mockLibraryRepo.watchLibraries()).thenAnswer(
-        (_) => Stream.value([]),
-      );
+      when(
+        () => mockLibraryRepo.watchLibraries(),
+      ).thenAnswer((_) => Stream.value([]));
 
       final notifier = AuthNotifier(mockAuthRepo, mockLibraryRepo);
       await Future.delayed(const Duration(milliseconds: 50));
@@ -254,9 +400,9 @@ void main() {
 
   group('AuthNotifier.clearError', () {
     test('clears errorMessage', () async {
-      when(() => mockLibraryRepo.watchLibraries()).thenAnswer(
-        (_) => Stream.value([]),
-      );
+      when(
+        () => mockLibraryRepo.watchLibraries(),
+      ).thenAnswer((_) => Stream.value([]));
 
       final notifier = AuthNotifier(mockAuthRepo, mockLibraryRepo);
       await Future.delayed(const Duration(milliseconds: 50));

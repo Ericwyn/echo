@@ -7,6 +7,7 @@ import '../../../core/navigation/route_return.dart';
 import '../../../core/utils/server_url_security.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../providers/player_provider.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key, this.isAddingLibrary = false});
@@ -75,6 +76,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     final username = _usernameController.text.trim();
     final libraryName = _libraryNameController.text.trim();
     final addressLabel = _addressLabelController.text.trim();
+    final isSwitchingActiveLibrary =
+        widget.isAddingLibrary && ref.read(authStateProvider).isAuthenticated;
+    final player = isSwitchingActiveLibrary
+        ? ref.read(playerProvider.notifier)
+        : null;
 
     final success =
         _serverCapabilities?.supportsApiKey == true &&
@@ -85,6 +91,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             apiKey: _apiKeyController.text.trim(),
             libraryName: libraryName,
             addressLabel: addressLabel,
+            beforeActivateLibrary: player?.prepareForLibrarySwitch,
+            onActivationFailed: player?.cancelLibrarySwitchPreparation,
           )
         : await authNotifier.loginWithPassword(
             serverUrl: serverUrl,
@@ -92,9 +100,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             password: _passwordController.text,
             libraryName: libraryName,
             addressLabel: addressLabel,
+            beforeActivateLibrary: player?.prepareForLibrarySwitch,
+            onActivationFailed: player?.cancelLibrarySwitchPreparation,
           );
 
     if (!success || !mounted) return;
+    if (player != null) ref.invalidate(playerProvider);
     if (widget.isAddingLibrary) {
       popCurrentRouteOrGoHome(context);
     } else {
