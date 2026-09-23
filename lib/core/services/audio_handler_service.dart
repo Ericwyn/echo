@@ -21,6 +21,8 @@ class EchoAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   Future<void> Function()? onPause;
   Future<void> Function()? onStop;
   final List<StreamSubscription<dynamic>> _subscriptions = [];
+  Object? _commandOwner;
+  bool _commandsHaveBeenBound = false;
   int? _sourceTransition;
   bool _transitionPlaying = false;
   Future<void> Function(Duration position)? onSeek;
@@ -29,6 +31,41 @@ class EchoAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   EchoAudioHandler(this._audioPlayer) {
     _init();
+  }
+
+  void bindCommands({
+    required Object owner,
+    required Future<void> Function() onPlay,
+    required Future<void> Function() onPause,
+    required Future<void> Function() onStop,
+    required Future<void> Function(Duration position) onSeek,
+    required Future<void> Function() onSkipToNext,
+    required Future<void> Function() onSkipToPrevious,
+  }) {
+    _commandOwner = owner;
+    _commandsHaveBeenBound = true;
+    this.onPlay = onPlay;
+    this.onPause = onPause;
+    this.onStop = onStop;
+    this.onSeek = onSeek;
+    this.onSkipToNext = onSkipToNext;
+    this.onSkipToPrevious = onSkipToPrevious;
+  }
+
+  void unbindCommands(Object owner) {
+    if (!identical(_commandOwner, owner)) return;
+    _commandOwner = null;
+    onPlay = null;
+    onPause = null;
+    onStop = null;
+    onSeek = null;
+    onSkipToNext = null;
+    onSkipToPrevious = null;
+  }
+
+  Future<void> clearMediaItem() async {
+    mediaItem.add(null);
+    _broadcastState();
   }
 
   /// 初始化监听器
@@ -156,6 +193,7 @@ class EchoAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   Future<void> play() async {
     Logger.info('AudioHandler: play');
     if (onPlay != null) return onPlay!();
+    if (_commandsHaveBeenBound) return;
     unawaited(_audioPlayer.play());
   }
 
@@ -163,6 +201,7 @@ class EchoAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   Future<void> pause() async {
     Logger.info('AudioHandler: pause');
     if (onPause != null) return onPause!();
+    if (_commandsHaveBeenBound) return;
     await _audioPlayer.pause();
   }
 
@@ -187,6 +226,7 @@ class EchoAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       await callback(position);
       return;
     }
+    if (_commandsHaveBeenBound) return;
     await _audioPlayer.seek(position);
   }
 
@@ -238,8 +278,22 @@ class EchoAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   }
 }
 
-/// 初始化 AudioService
+Future<EchoAudioHandler>? _audioServiceFuture;
+
+/// Initialize the process-wide AudioService handler once. A PlayerNotifier can
+/// be recreated when the active library changes, but AudioService itself is a
+/// process singleton and its engine must survive that rebind.
 Future<EchoAudioHandler> initAudioService() async {
+  final future = _audioServiceFuture ??= _initializeAudioService();
+  try {
+    return await future;
+  } catch (_) {
+    if (identical(_audioServiceFuture, future)) _audioServiceFuture = null;
+    rethrow;
+  }
+}
+
+Future<EchoAudioHandler> _initializeAudioService() async {
   final audioPlayer = AudioPlayer(
     audioLoadConfiguration: const AudioLoadConfiguration(
       androidLoadControl: AndroidLoadControl(
@@ -254,22 +308,33 @@ Future<EchoAudioHandler> initAudioService() async {
     ),
   );
 
-  final handler = await AudioService.init(
-    builder: () => EchoAudioHandler(audioPlayer),
-    config: const AudioServiceConfig(
-      androidNotificationChannelId: 'com.az1n.echoes.audio',
-      androidNotificationChannelName: 'echoes Music Playback',
-      androidNotificationChannelDescription: 'echoes music player controls',
-      // Android 通知进度条/强调元素使用的底色，避免浅色主题下不可见。
-      notificationColor: AppColorScheme.defaultSeedColor,
-      androidNotificationOngoing: false, // 允许用户手动关闭通知
-      androidNotificationIcon: 'drawable/ic_notification',
-      androidShowNotificationBadge: true,
-      androidStopForegroundOnPause: false, // 暂停时保持通知栏
-      fastForwardInterval: Duration(seconds: 10),
-      rewindInterval: Duration(seconds: 10),
-    ),
-  );
-
-  return handler;
+  EchoAudioHandler? createdHandler;
+  try {
+    return await AudioService.init<EchoAudioHandler>(
+      builder: () {
+        createdHandler = EchoAudioHandler(audioPlayer);
+        return createdHandler!;
+      },
+      config: const AudioServiceConfig(
+        androidNotificationChannelId: 'com.az1n.echoes.audio',
+        androidNotificationChannelName: 'echoes Music Playback',
+        androidNotificationChannelDescription: 'echoes music player controls',
+        // Android 通知进度条/强调元素使用的底色，避免浅色主题下不可见。
+        notificationColor: AppColorScheme.defaultSeedColor,
+        androidNotificationOngoing: false, // 允许用户手动关闭通知
+        androidNotificationIcon: 'drawable/ic_notification',
+        androidShowNotificationBadge: true,
+        androidStopForegroundOnPause: false, // 暂停时保持通知栏
+        fastForwardInterval: Duration(seconds: 10),
+        rewindInterval: Duration(seconds: 10),
+      ),
+    );
+  } catch (_) {
+    if (createdHandler != null) {
+      await createdHandler!.dispose();
+    } else {
+      await audioPlayer.dispose();
+    }
+    rethrow;
+  }
 }

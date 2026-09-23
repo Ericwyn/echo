@@ -120,6 +120,46 @@ void main() {
     verifyNever(() => player.pause());
   });
 
+  test('media commands safely rebind to the current player notifier', () async {
+    final calls = <String>[];
+    final firstOwner = Object();
+    final secondOwner = Object();
+
+    handler.bindCommands(
+      owner: firstOwner,
+      onPlay: () async => calls.add('first'),
+      onPause: () async {},
+      onStop: () async {},
+      onSeek: (_) async {},
+      onSkipToNext: () async {},
+      onSkipToPrevious: () async {},
+    );
+    await handler.play();
+    handler.unbindCommands(firstOwner);
+    handler.bindCommands(
+      owner: secondOwner,
+      onPlay: () async => calls.add('second'),
+      onPause: () async {},
+      onStop: () async {},
+      onSeek: (_) async {},
+      onSkipToNext: () async {},
+      onSkipToPrevious: () async {},
+    );
+    handler.unbindCommands(firstOwner);
+    await handler.play();
+
+    expect(calls, <String>['first', 'second']);
+    verifyNever(() => player.play());
+  });
+
+  test('clearing the current library removes stale media metadata', () async {
+    await handler.updateMediaItem(const MediaItem(id: 'song', title: 'Song'));
+
+    await handler.clearMediaItem();
+
+    expect(handler.mediaItem.value, isNull);
+  });
+
   test('fallback system play does not reset the user volume', () async {
     when(() => player.play()).thenAnswer((_) async {});
 

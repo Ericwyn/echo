@@ -13,6 +13,8 @@ class LocalStorage {
   static const String _keyPlaybackMode = 'playback_mode';
   static const String _keyPlaybackSession = 'playback_session_v1';
   static const String _keyPlaybackSessionV2 = 'playback_session_v2';
+  static const String _keyPlaybackSessionLibraryPrefix =
+      'playback_session_v2_library_';
   static const String _keyThemeMode = 'theme_mode';
   static const String _keyThemeSeedColor = 'theme_seed_color';
   static const String _keyDynamicPlayerBackground =
@@ -155,40 +157,108 @@ class LocalStorage {
   }
 
   /// 保存播放会话（队列 + 索引 + 进度 + 播放状态）
-  static Future<void> savePlaybackSession(Map<String, dynamic> session) async {
+  static Future<void> savePlaybackSession(
+    Map<String, dynamic> session, {
+    String? libraryId,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyPlaybackSessionV2, jsonEncode(session));
-    await prefs.remove(_keyPlaybackSession);
+    final normalizedLibraryId =
+        _normalizePlaybackLibraryId(libraryId) ??
+        _normalizePlaybackLibraryId(session['libraryId']?.toString());
+    final payload = <String, dynamic>{
+      ...session,
+      if (normalizedLibraryId != null) 'libraryId': normalizedLibraryId,
+    };
+    final key = _playbackSessionKeyForLibrary(normalizedLibraryId);
+    await prefs.setString(key, jsonEncode(payload));
+    if (normalizedLibraryId == null) {
+      await prefs.remove(_keyPlaybackSession);
+    } else {
+      await _removeLegacyPlaybackSessionsOwnedBy(prefs, normalizedLibraryId);
+    }
     Logger.debugWithTag(_logTag, 'playback session saved');
   }
 
   /// 读取播放会话
-  static Future<Map<String, dynamic>?> getPlaybackSession() async {
+  static Future<Map<String, dynamic>?> getPlaybackSession({
+    String? libraryId,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
-    final candidates = <String?>[
-      prefs.getString(_keyPlaybackSessionV2),
-      prefs.getString(_keyPlaybackSession),
+    final normalizedLibraryId = _normalizePlaybackLibraryId(libraryId);
+    final scopedKey = _playbackSessionKeyForLibrary(normalizedLibraryId);
+    final candidates = <(String, String?)>[
+      if (normalizedLibraryId != null) (scopedKey, prefs.getString(scopedKey)),
+      (_keyPlaybackSessionV2, prefs.getString(_keyPlaybackSessionV2)),
+      (_keyPlaybackSession, prefs.getString(_keyPlaybackSession)),
     ];
-    if (candidates.every((raw) => raw == null || raw.isEmpty)) {
+    if (candidates.every(
+      (candidate) => candidate.$2 == null || candidate.$2!.isEmpty,
+    )) {
       Logger.debugWithTag(_logTag, 'playback session not found');
       return null;
     }
 
-    for (final raw in candidates) {
+    for (final (key, raw) in candidates) {
       if (raw == null || raw.isEmpty) continue;
       final decoded = _decodePlaybackSession(raw);
-      if (decoded != null) return decoded;
+      if (decoded == null) {
+        if (key == scopedKey && normalizedLibraryId != null) {
+          await prefs.remove(key);
+        }
+        continue;
+      }
+
+      final storedLibraryId = _normalizePlaybackLibraryId(
+        decoded['libraryId']?.toString(),
+      );
+      if (normalizedLibraryId != null &&
+          storedLibraryId != null &&
+          storedLibraryId != normalizedLibraryId) {
+        if (key == _keyPlaybackSessionV2) return null;
+        continue;
+      }
+
+      if (normalizedLibraryId == null) {
+        if (storedLibraryId != null) return null;
+        return decoded;
+      }
+
+      final migrated = <String, dynamic>{
+        ...decoded,
+        'libraryId': normalizedLibraryId,
+      };
+      if (key != scopedKey || storedLibraryId == null) {
+        await prefs.setString(scopedKey, jsonEncode(migrated));
+      }
+      if (key != scopedKey) {
+        await _removeLegacyPlaybackSessionsOwnedBy(prefs, normalizedLibraryId);
+      }
+      return migrated;
     }
     return null;
   }
 
   /// Reads only the legacy snapshot when a syntactically valid v2 payload
   /// cannot be repaired by the queue codec.
-  static Future<Map<String, dynamic>?> getLegacyPlaybackSession() async {
+  static Future<Map<String, dynamic>?> getLegacyPlaybackSession({
+    String? libraryId,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_keyPlaybackSession);
     if (raw == null || raw.isEmpty) return null;
-    return _decodePlaybackSession(raw);
+    final decoded = _decodePlaybackSession(raw);
+    if (decoded == null) return null;
+    final normalizedLibraryId = _normalizePlaybackLibraryId(libraryId);
+    final storedLibraryId = _normalizePlaybackLibraryId(
+      decoded['libraryId']?.toString(),
+    );
+    if (normalizedLibraryId != null &&
+        storedLibraryId != null &&
+        storedLibraryId != normalizedLibraryId) {
+      return null;
+    }
+    if (normalizedLibraryId == null) return decoded;
+    return <String, dynamic>{...decoded, 'libraryId': normalizedLibraryId};
   }
 
   static Map<String, dynamic>? _decodePlaybackSession(String raw) {
@@ -206,11 +276,51 @@ class LocalStorage {
   }
 
   /// 清除播放会话
-  static Future<void> clearPlaybackSession() async {
+  static Future<void> clearPlaybackSession({String? libraryId}) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_keyPlaybackSessionV2);
-    await prefs.remove(_keyPlaybackSession);
+    final normalizedLibraryId = _normalizePlaybackLibraryId(libraryId);
+    if (normalizedLibraryId == null) {
+      await prefs.remove(_keyPlaybackSessionV2);
+      await prefs.remove(_keyPlaybackSession);
+    } else {
+      await prefs.remove(_playbackSessionKeyForLibrary(normalizedLibraryId));
+      await _removeLegacyPlaybackSessionsOwnedBy(prefs, normalizedLibraryId);
+    }
     Logger.debugWithTag(_logTag, 'playback session cleared');
+  }
+
+  static String? _normalizePlaybackLibraryId(String? libraryId) {
+    final normalized = libraryId?.trim() ?? '';
+    return normalized.isEmpty ? null : normalized;
+  }
+
+  static String _playbackSessionKeyForLibrary(String? libraryId) {
+    if (libraryId == null) return _keyPlaybackSessionV2;
+    final encodedId = base64Url
+        .encode(utf8.encode(libraryId))
+        .replaceAll('=', '');
+    return '$_keyPlaybackSessionLibraryPrefix$encodedId';
+  }
+
+  static Future<void> _removeLegacyPlaybackSessionsOwnedBy(
+    SharedPreferences prefs,
+    String libraryId,
+  ) async {
+    for (final key in <String>[_keyPlaybackSessionV2, _keyPlaybackSession]) {
+      final raw = prefs.getString(key);
+      if (raw == null || raw.isEmpty) continue;
+      final decoded = _decodePlaybackSession(raw);
+      if (decoded == null) {
+        await prefs.remove(key);
+        continue;
+      }
+      final storedLibraryId = _normalizePlaybackLibraryId(
+        decoded['libraryId']?.toString(),
+      );
+      if (storedLibraryId == null || storedLibraryId == libraryId) {
+        await prefs.remove(key);
+      }
+    }
   }
 
   /// 读取主题模式（system / light / dark）

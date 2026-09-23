@@ -6,6 +6,7 @@ import '../../../core/design/echo_design.dart';
 import '../../../data/models/embed_service_config.dart';
 import '../../../data/models/music_library.dart';
 import '../../../data/models/server_address.dart';
+import '../../../data/sources/local_storage.dart';
 import '../../../providers/api_provider.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/library_provider.dart';
@@ -527,25 +528,38 @@ class _EditLibraryPageState extends ConsumerState<EditLibraryPage> {
     if (!confirmed) return;
 
     final repository = ref.read(libraryRepositoryProvider);
-    if (library.isActive) ref.invalidate(playerProvider);
+    final player = library.isActive ? ref.read(playerProvider.notifier) : null;
+    await player?.prepareForLibrarySwitch();
+    var libraryDeleted = false;
+    try {
+      final allLibraries = await ref.read(librariesProvider.future);
+      final remaining = allLibraries
+          .where((item) => item.id != library.id)
+          .toList();
+      await repository.deleteLibrary(library.id);
+      libraryDeleted = true;
+      await LocalStorage.clearPlaybackSession(libraryId: library.id);
 
-    final allLibraries = await ref.read(librariesProvider.future);
-    final remaining = allLibraries
-        .where((item) => item.id != library.id)
-        .toList();
-    await repository.deleteLibrary(library.id);
-    if (!mounted) return;
+      if (remaining.isEmpty) {
+        await ref.read(authStateProvider.notifier).logout();
+        ref.invalidate(playerProvider);
+        if (mounted) context.go('/login');
+        return;
+      }
 
-    if (remaining.isEmpty) {
-      await ref.read(authStateProvider.notifier).logout();
-      if (mounted) context.go('/login');
-      return;
+      final next = remaining.first;
+      await repository.setActiveLibrary(next.id);
+      ref.read(authStateProvider.notifier).switchLibrary(next);
+      ref.invalidate(playerProvider);
+      if (mounted) context.go('/home');
+    } catch (_) {
+      if (libraryDeleted) {
+        ref.invalidate(playerProvider);
+      } else {
+        await player?.cancelLibrarySwitchPreparation();
+      }
+      rethrow;
     }
-
-    final next = remaining.first;
-    await repository.setActiveLibrary(next.id);
-    ref.read(authStateProvider.notifier).switchLibrary(next);
-    if (mounted) context.go('/home');
   }
 
   Future<bool> _confirmDestructiveAction({

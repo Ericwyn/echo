@@ -185,6 +185,8 @@ class PlayerNotifier extends StateNotifier<PlayerState>
   bool _playbackSessionPersistDirty = false;
   bool _preservePlaybackSessionOnShutdown = false;
   bool _isRestoringPlaybackSession = false;
+  bool _librarySwitchPreviousPlaybackRequested = false;
+  Duration _librarySwitchResumePosition = Duration.zero;
   NetworkType _lastObservedNetworkType = NetworkType.none;
   bool _retryCurrentPlaybackOnReconnect = false;
   bool _retryingCurrentPlayback = false;
@@ -232,6 +234,18 @@ class PlayerNotifier extends StateNotifier<PlayerState>
   String? _readActiveLibraryId() {
     final libraryId = _ref.read(authStateProvider).currentLibrary?.id.trim();
     return libraryId == null || libraryId.isEmpty ? null : libraryId;
+  }
+
+  void _bindAudioHandlerCommands() {
+    _audioHandler?.bindCommands(
+      owner: this,
+      onSkipToNext: next,
+      onSkipToPrevious: previous,
+      onPlay: play,
+      onPause: pause,
+      onStop: stop,
+      onSeek: seek,
+    );
   }
 
   PlayerNotifier(
@@ -285,17 +299,13 @@ class PlayerNotifier extends StateNotifier<PlayerState>
       player = _createAudioPlayer();
     } else {
       try {
-        _audioHandler = await initAudioService();
+        final audioHandler = await initAudioService();
+        if (!mounted) return;
+        _audioHandler = audioHandler;
         player = _audioHandler!.audioPlayer;
         Logger.info('AudioService initialized');
 
-        // 设置通知栏按钮回调
-        _audioHandler?.onSkipToNext = next;
-        _audioHandler?.onSkipToPrevious = previous;
-        _audioHandler?.onPlay = play;
-        _audioHandler?.onPause = pause;
-        _audioHandler?.onStop = stop;
-        _audioHandler?.onSeek = seek;
+        _bindAudioHandlerCommands();
       } catch (e) {
         Logger.warn('AudioService not available: $e');
         Logger.warnWithTag(
@@ -306,14 +316,14 @@ class PlayerNotifier extends StateNotifier<PlayerState>
       }
     }
     if (!mounted) {
-      await player.dispose();
+      if (_audioHandler == null) await player.dispose();
       return;
     }
     _audioPlayer = player;
     try {
       final volume = await LocalStorage.getPlaybackVolume();
       if (!mounted) {
-        await player.dispose();
+        if (_audioHandler == null) await player.dispose();
         return;
       }
       state = state.copyWith(userVolume: volume);
@@ -2608,13 +2618,14 @@ class PlayerNotifier extends StateNotifier<PlayerState>
     _playbackSessionPersistTimer?.cancel();
     _playbackSessionPersistTimer = null;
 
+    final libraryId = _currentPlaybackLibraryId;
     final payload = _buildPlaybackSessionPayload();
     _preservePlaybackSessionOnShutdown = true;
     try {
       if (payload == null) {
-        await LocalStorage.clearPlaybackSession();
+        await LocalStorage.clearPlaybackSession(libraryId: libraryId);
       } else {
-        await LocalStorage.savePlaybackSession(payload);
+        await LocalStorage.savePlaybackSession(payload, libraryId: libraryId);
       }
     } catch (error) {
       Logger.warnWithTag(
@@ -2625,6 +2636,67 @@ class PlayerNotifier extends StateNotifier<PlayerState>
     }
 
     await stop();
+  }
+
+  /// Persists the outgoing library queue, stops its audio, and detaches its
+  /// media item before a new library gets a fresh PlayerNotifier.
+  Future<void> prepareForLibrarySwitch() async {
+    await initialized;
+    if (!mounted || _preservePlaybackSessionOnShutdown) return;
+
+    _playbackSessionPersistTimer?.cancel();
+    _playbackSessionPersistTimer = null;
+    await _persistPlaybackSession();
+    _playbackSessionPersistTimer?.cancel();
+    _playbackSessionPersistTimer = null;
+
+    _librarySwitchPreviousPlaybackRequested = _playbackRequested;
+    _librarySwitchResumePosition = state.position;
+    _preservePlaybackSessionOnShutdown = true;
+    _audioHandler?.updateTransportIntent(false);
+    try {
+      await stop();
+    } catch (error) {
+      Logger.warnWithTag(
+        'PLAYBACK',
+        'could not stop audio during library switch',
+        error,
+      );
+      try {
+        await _audioPlayer?.pause();
+      } catch (pauseError) {
+        Logger.warnWithTag(
+          'PLAYBACK',
+          'could not pause audio during library switch',
+          pauseError,
+        );
+      }
+    }
+    if (mounted && state.position != _librarySwitchResumePosition) {
+      state = state.copyWith(
+        position: _librarySwitchResumePosition,
+        isPlaying: false,
+      );
+    }
+    await _audioHandler?.clearMediaItem();
+    _audioHandler?.unbindCommands(this);
+    unawaited(_wakeGuard.setActive(false, reason: 'library_switch'));
+  }
+
+  Future<void> cancelLibrarySwitchPreparation() async {
+    if (!_preservePlaybackSessionOnShutdown || !mounted) return;
+    _preservePlaybackSessionOnShutdown = false;
+    _bindAudioHandlerCommands();
+    final song = state.currentSong;
+    if (song != null) {
+      _activePlaybackEntryId = state.currentEntryId;
+      _updateMediaItem(song);
+      if (_librarySwitchPreviousPlaybackRequested) {
+        await play();
+      }
+    }
+    _librarySwitchPreviousPlaybackRequested = false;
+    _librarySwitchResumePosition = Duration.zero;
   }
 
   /// 暂停前的淡出：音量降到 0 后返回，由 pause() 执行实际暂停。
@@ -3066,10 +3138,11 @@ class PlayerNotifier extends StateNotifier<PlayerState>
       while (_playbackSessionPersistDirty && mounted) {
         _playbackSessionPersistDirty = false;
         final payload = _buildPlaybackSessionPayload();
+        final libraryId = _currentPlaybackLibraryId;
         if (payload == null) {
-          await LocalStorage.clearPlaybackSession();
+          await LocalStorage.clearPlaybackSession(libraryId: libraryId);
         } else {
-          await LocalStorage.savePlaybackSession(payload);
+          await LocalStorage.savePlaybackSession(payload, libraryId: libraryId);
         }
       }
       if (watch.elapsedMilliseconds > 200) {
@@ -3099,7 +3172,11 @@ class PlayerNotifier extends StateNotifier<PlayerState>
     _isRestoringPlaybackSession = true;
 
     try {
-      var session = await LocalStorage.getPlaybackSession();
+      await _ref.read(authStateProvider.notifier).initialized;
+      final activeLibraryId = _readActiveLibraryId();
+      var session = await LocalStorage.getPlaybackSession(
+        libraryId: activeLibraryId,
+      );
       if (session == null) return;
       _currentPlaybackLibraryId = _storedPlaybackLibraryId(session);
 
@@ -3107,9 +3184,13 @@ class PlayerNotifier extends StateNotifier<PlayerState>
       if (version >= 2) {
         final restoredQueue = PlaybackQueueState.fromJson(session);
         if (restoredQueue == null) {
-          final legacySession = await LocalStorage.getLegacyPlaybackSession();
+          final legacySession = await LocalStorage.getLegacyPlaybackSession(
+            libraryId: _currentPlaybackLibraryId,
+          );
           if (legacySession == null) {
-            await LocalStorage.clearPlaybackSession();
+            await LocalStorage.clearPlaybackSession(
+              libraryId: _currentPlaybackLibraryId,
+            );
             return;
           }
           session = legacySession;
@@ -3165,7 +3246,9 @@ class PlayerNotifier extends StateNotifier<PlayerState>
 
       final queue = _parsePlaybackSessionQueue(session['queue']);
       if (queue.isEmpty) {
-        await LocalStorage.clearPlaybackSession();
+        await LocalStorage.clearPlaybackSession(
+          libraryId: _currentPlaybackLibraryId,
+        );
         return;
       }
 
@@ -3332,7 +3415,6 @@ class PlayerNotifier extends StateNotifier<PlayerState>
     await _audioHandler?.stop();
     unawaited(_wakeGuard.setActive(false, reason: 'queue_cleared'));
     _activePlaybackEntryId = null;
-    _currentPlaybackLibraryId = null;
     _invalidateLoadedSource(reason: 'queue_cleared');
     _invalidateSeekRequests();
     state = state.copyWith(
@@ -4552,8 +4634,7 @@ class PlayerNotifier extends StateNotifier<PlayerState>
     // Since it was 'late', we can't check.
     // Converting to nullable field:
     if (_audioHandler != null) {
-      _audioHandler!.onStop = null;
-      unawaited(_audioHandler!.dispose());
+      _audioHandler!.unbindCommands(this);
     } else {
       _audioPlayer?.dispose();
     }

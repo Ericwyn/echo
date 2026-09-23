@@ -535,16 +535,23 @@ class _AppSettingsPageState extends ConsumerState<AppSettingsPage> {
 
   Future<void> _switchLibrary(MusicLibrary library) async {
     try {
+      final player = ref.read(playerProvider.notifier);
+      await player.prepareForLibrarySwitch();
       final repository = ref.read(libraryRepositoryProvider);
-      await repository.setActiveLibrary(library.id);
-      ref.read(authStateProvider.notifier).switchLibrary(library);
-      ref.invalidate(playerProvider);
-      ref.invalidate(randomSongsProvider);
-      ref.invalidate(recentAlbumsProvider);
-      ref.invalidate(frequentAlbumsProvider);
-      ref.invalidate(playlistsProvider);
-      ref.invalidate(starredProvider);
-      _showMessage('已切换到“${library.name}”', kind: EchoMessageKind.success);
+      try {
+        await repository.setActiveLibrary(library.id);
+        ref.read(authStateProvider.notifier).switchLibrary(library);
+        ref.invalidate(playerProvider);
+        ref.invalidate(randomSongsProvider);
+        ref.invalidate(recentAlbumsProvider);
+        ref.invalidate(frequentAlbumsProvider);
+        ref.invalidate(playlistsProvider);
+        ref.invalidate(starredProvider);
+        _showMessage('已切换到“${library.name}”', kind: EchoMessageKind.success);
+      } catch (_) {
+        await player.cancelLibrarySwitchPreparation();
+        rethrow;
+      }
     } catch (error) {
       _showMessage('切换音乐库失败: $error', kind: EchoMessageKind.error);
     }

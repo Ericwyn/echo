@@ -55,9 +55,10 @@ class AuthState {
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthRepository _repository;
   final LibraryRepository _libraryRepository;
+  late final Future<void> initialized;
 
   AuthNotifier(this._repository, this._libraryRepository) : super(AuthState()) {
-    _init();
+    initialized = _init();
   }
 
   /// 初始化：加载活跃的 Library

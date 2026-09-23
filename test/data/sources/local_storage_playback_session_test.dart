@@ -44,4 +44,64 @@ void main() {
     expect(preferences.containsKey('playback_session_v1'), isFalse);
     expect(preferences.containsKey('playback_session_v2'), isFalse);
   });
+
+  test('playback sessions are isolated by library', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+
+    await LocalStorage.savePlaybackSession(<String, dynamic>{
+      'version': 2,
+      'libraryId': 'library-a',
+    }, libraryId: 'library-a');
+    await LocalStorage.savePlaybackSession(<String, dynamic>{
+      'version': 2,
+      'libraryId': 'library-b',
+    }, libraryId: 'library-b');
+
+    expect(
+      (await LocalStorage.getPlaybackSession(
+        libraryId: 'library-a',
+      ))?['libraryId'],
+      'library-a',
+    );
+    expect(
+      (await LocalStorage.getPlaybackSession(
+        libraryId: 'library-b',
+      ))?['libraryId'],
+      'library-b',
+    );
+    expect(await LocalStorage.getPlaybackSession(), isNull);
+
+    await LocalStorage.clearPlaybackSession(libraryId: 'library-a');
+    expect(
+      await LocalStorage.getPlaybackSession(libraryId: 'library-a'),
+      isNull,
+    );
+    expect(
+      (await LocalStorage.getPlaybackSession(
+        libraryId: 'library-b',
+      ))?['libraryId'],
+      'library-b',
+    );
+  });
+
+  test('legacy global session migrates only to its owning library', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'playback_session_v2': jsonEncode(<String, dynamic>{
+        'version': 2,
+        'libraryId': 'library-a',
+      }),
+    });
+
+    expect(
+      await LocalStorage.getPlaybackSession(libraryId: 'library-b'),
+      isNull,
+    );
+    final migrated = await LocalStorage.getPlaybackSession(
+      libraryId: 'library-a',
+    );
+    expect(migrated?['libraryId'], 'library-a');
+
+    final preferences = await SharedPreferences.getInstance();
+    expect(preferences.containsKey('playback_session_v2'), isFalse);
+  });
 }
