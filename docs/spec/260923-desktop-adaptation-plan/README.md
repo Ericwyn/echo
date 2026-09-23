@@ -4,9 +4,9 @@
 
 目标：同一 Flutter 工程复用 Android/Linux/Windows 播放与数据核心，为桌面提供完整资料库导航、常驻播放条、封面与歌词/队列工作区、系统媒体控制、托盘以及可安装产物。当前优先验证用户的 Ubuntu 22.04 + GNOME 42 + X11；Windows CI 暂缓，相关代码和实机能力仍标记为未验证。
 
-目前桌面侧栏、常驻播放条、歌词/队列工作区、Linux MPRIS 和托盘已有首轮实现。用户确认 Ubuntu 系统媒体卡片能控制播放并显示封面，托盘基础功能正常，音量条外观可接受。桌面与手机路由策略分开，目的地定义共享；桌面隐藏账户/服务器底栏和离线状态入口，品牌区/主工具栏对齐，播放栏贴齐主面板，手机窄屏抽屉保留移动入口。封面动态背景可持久化关闭；退出保存恢复快照，托盘 watcher 可处理宿主重启。路由前进复用 PageStorageBucket，搜索/筛选/滚动、收藏标签和曲库列表状态逐步接入。全部歌曲页滚动时复用数据签名，避免封面窗口更新反复扫描整份曲库；长队列当前项定位记录已渲染行索引和队列 revision，并在滚动后清理离屏 `GlobalKey`；桌面队列标题栏新增“定位当前”入口，队列行按宽度显示序号、专辑和时长，窄空间隐藏专辑。P1 已抽出共享播放进度/transport widget，内建与宿主注入的歌曲操作统一为 `SongAction`；MiniPlayer、FullPlayer、桌面播放条、共享队列、键盘快捷键、托盘和同步歌词 seek 的播放命令现经 `PlaybackCommands`，桌面播放条与 transport 控件读取 `PlaybackSnapshot`。`76b964af` 的 Linux `1.1.0+2042` `.deb` 和 Android arm64 APK 均已构建；Android 本机脚本自动递增产出 versionCode `2031`。构建产物未安装或启动；新增用例未运行。窗口/DPI、MPRIS seek、托盘故障恢复、1654/5000 首 release/profile 性能、干净安装及 Android 真机回归仍待实测。按用户要求不启动应用或运行测试，手动交互由用户执行。
+目前桌面侧栏、常驻播放条、歌词/队列工作区、Linux MPRIS 和托盘已有首轮实现。用户确认 Ubuntu 系统媒体卡片能控制播放并显示封面，托盘基础功能正常，音量条外观可接受。桌面与手机路由策略分开，目的地定义共享；桌面隐藏账户/服务器底栏和离线状态入口，品牌区/主工具栏对齐，播放栏贴齐主面板，手机窄屏抽屉保留移动入口。封面动态背景可持久化关闭；退出保存恢复快照，托盘 watcher 可处理宿主重启。路由前进复用 PageStorageBucket，搜索/筛选/滚动、收藏标签和曲库列表状态逐步接入。全部歌曲页滚动时复用数据签名，避免封面窗口更新反复扫描整份曲库；长队列当前项定位记录已渲染行索引和队列 revision，并在滚动后清理离屏 `GlobalKey`；桌面队列标题栏新增“定位当前”入口，队列行按宽度显示序号、专辑和时长，窄空间隐藏专辑。P1 已抽出共享播放进度/transport widget，内建与宿主注入的歌曲操作统一为 `SongAction`；MiniPlayer、FullPlayer、桌面播放条、共享队列、键盘快捷键、托盘和同步歌词 seek 的播放命令现经 `PlaybackCommands`，桌面播放条与 transport 控件读取 `PlaybackSnapshot`。`87b994e3` 补上桌面队列双击播放，Android 仍使用单击播放；Linux `1.1.0+2043` `.deb` 和签名 Android arm64 APK（versionCode `2032`）均已构建。构建产物未安装或启动；双击回归及其他新增用例未运行。窗口/DPI、MPRIS seek、托盘故障恢复、1654/5000 首 release/profile 性能、干净安装及 Android 真机回归仍待实测。按用户要求不启动应用或运行测试，手动交互由用户执行。
 
-最近应用代码检查点：`76b964af`（`PlaybackSnapshotProvider` 接入桌面播放条与共享 transport 控件）；Linux 版本 `1.1.0+2042`；Android 本机 ARM64 脚本产出 versionCode `2031`；Linux 自定义 bundle 打包支持提交：`c25e22aa`。
+最近应用代码检查点：`87b994e3`（桌面播放队列双击播放）；Linux 版本 `1.1.0+2043`；Android 本机 ARM64 脚本产出 versionCode `2032`；Linux 自定义 bundle 打包支持提交：`c25e22aa`。
 
 ## 阅读入口
 
@@ -46,9 +46,9 @@ flowchart LR
 | P0 | Linux 部分通过 | Ubuntu 22.04/libmpv 0.34 兼容路径已验证；全新 CMake build-dir 构建需要 LLD 14，系统 LLVM 目录当前未安装。使用从 Ubuntu 包解压至 `/tmp` 的真实 LLD 14 后构建成功，未改系统。runner 已改为 GTK 单实例并复用现有窗口；二次启动、MPRIS seek、托盘恢复和干净环境交互证据仍待补 |
 | P1 | 部分实现 | 单播放器、命令/快照、用户音量、封面缓存、共享 metadata 和导航模型已接入；`682907f3` 抽出跨桌面/手机消费的播放进度与控制 widget，`7e0c991b` 将内建和宿主注入歌曲操作统一为 `SongAction`，`7eea69e9`、`8149800f` 让桌面/手机播放控件、队列、快捷键、托盘和歌词 seek 通过 `PlaybackCommands`，`76b964af` 让桌面播放条/transport 控件选择 `PlaybackSnapshot`；Linux 与 Android arm64 release 编译通过。AudioService 兜底不重置用户音量；`1b597ed0` 和新用例未运行；自动回归和 Android 最终实机回归仍待补 |
 | P2 | 桌面统一返回/前进栈及主要浏览状态恢复已实现，等待用户复测 | 手机保留分支路由，桌面使用单 Navigator；无账户/服务器底栏与离线任务状态页；品牌区/主工具栏对齐、播放条贴边；前进复用 PageStorageBucket，搜索、音乐流展开、曲库列表、全部歌曲两种排序模式、详情排序、收藏页签和各自滚动位置、歌手内容区及 Explore 查询/草稿/滚动位置可恢复；新增回归未运行，窗口与页面状态仍待用户验证 |
-| P3 | 首轮实现中 | 宽屏/紧凑工作区、歌词/队列切换与关闭重开后的状态保留、队列右键、可关闭的封面动态背景、拖动冲突提示和“定位当前”按钮已实现；队列显示序号，并按可用宽度显示专辑；当前项定位避免全队列重复索引，离屏锚点会清理；相关用例未运行，release/profile 性能采样和真实窗口验收待补 |
+| P3 | 首轮实现中 | 宽屏/紧凑工作区、歌词/队列切换与关闭重开后的状态保留、队列右键、可关闭的封面动态背景、拖动冲突提示、“定位当前”和桌面单击选中/双击播放已实现；队列显示序号，并按可用宽度显示专辑；当前项定位避免全队列重复索引，离屏锚点会清理；相关用例未运行，release/profile 性能采样和真实窗口验收待补 |
 | P4 | Linux 基础可用 | 用户确认 MPRIS 控制/封面与托盘基础功能；单实例、关窗选择、下载退出提示及 SetPosition/Seeked/error 隔离已编译；Seeked 现依据成功 seek revision 发送，新增测试未运行；watcher 别名、查询竞态和重新注册已修正，宿主仍待验收 |
-| P5 | 当前 Linux `1.1.0+2042` bundle/.deb 与 Android arm64 APK 均已构建 | Linux 使用系统 Clang 与从 Ubuntu 包解压至 `/tmp` 的真实 LLD 14，在全新 `build/linux-lldtmp-2042` 构建；Debian 包版本 `1.1.0+2042`、amd64，元数据已核对。Android arm64 APK 使用本机 release keystore 签名，version code 2031，签名和包信息已校验。产物未安装或启动；Ubuntu/Android 实机验收和 Linux 性能采样待完成；Windows CI 与实机验收暂缓。最新产物见 [共享播放器构建证据](evidence/260924-shared-player-layer-build/README.md) |
+| P5 | 当前 Linux `1.1.0+2043` bundle/.deb 与 Android arm64 APK 均已构建 | Linux 使用系统 Clang 与从 Ubuntu 包解压至 `/tmp` 的真实 LLD 14，在全新 `build/linux-lldtmp-2043` 构建；Debian 包版本 `1.1.0+2043`、amd64，元数据已核对。Android arm64 APK 使用本机 release keystore 签名，version code 2032，签名和包信息已校验。产物未安装或启动；Ubuntu/Android 实机验收和 Linux 性能采样待完成；Windows CI 与实机验收暂缓。最新产物见 [桌面队列交互构建证据](evidence/260924-desktop-queue-interaction-build/README.md) |
 
 - **M1 可试用版**：P1、P2 加 P4 的基础 Linux 媒体会话；旧完整播放器可暂作过渡。托盘恢复尚未通过时，不开放关闭后隐藏窗口。
 - **M2 Ubuntu 桌面候选版**：P3、P4-Linux 和 P5-Linux 完成，并通过共享代码的 Android 回归。
