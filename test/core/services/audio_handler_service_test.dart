@@ -120,6 +120,15 @@ void main() {
     verifyNever(() => player.pause());
   });
 
+  test('fallback system play does not reset the user volume', () async {
+    when(() => player.play()).thenAnswer((_) async {});
+
+    await handler.play();
+
+    verify(() => player.play()).called(1);
+    verifyNever(() => player.setVolume(any()));
+  });
+
   test(
     'native events update seek progress without UI position ticks',
     () async {

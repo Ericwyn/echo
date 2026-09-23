@@ -156,7 +156,6 @@ class EchoAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   Future<void> play() async {
     Logger.info('AudioHandler: play');
     if (onPlay != null) return onPlay!();
-    await _audioPlayer.setVolume(1);
     unawaited(_audioPlayer.play());
   }
 
