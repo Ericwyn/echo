@@ -61,7 +61,7 @@ D1–D8 是待讨论的可执行默认方案。后续用户调整时记录日期
 | K2 | Linux MPRIS 实现 | 选择薄 D-Bus adapter；测试和用户实测覆盖基础状态、控制、封面 | 已实现首轮；完整 seek/能力字段仍待实测 |
 | K3 | Windows SMTC 适配 | 事件、时间轴、封面与生命周期，Windows 原生依赖 | 暂缓验证；不运行 Windows CI |
 | K4 | 托盘/窗口管理依赖 | `tray_manager` 与 `window_manager` 已锁定并通过 Ubuntu release build，用户确认托盘基础功能 | 已选型；恢复与宿主故障场景待测 |
-| K5 | 单实例与托盘宿主失效检测 | Linux activation、隐藏时宿主消失后的恢复路径 | 待验证；Windows 实例通信暂不处理 |
+| K5 | 单实例与托盘宿主失效检测 | Linux activation、隐藏时宿主消失后的恢复路径 | `21cf973f` 已分别追踪 watcher 别名，订阅先于初始 owner 查询并在宿主重启后刷新 tray；新增状态测试未运行，Ubuntu 宿主失效/恢复仍待实测；Windows 实例通信暂不处理 |
 | K6 | `.deb`/bundle 的 libmpv 分发方式 | 用户系统 libmpv 0.34.1 可由本地兼容补丁运行；安装依赖/许可证/干净环境待验证 | 部分确定；当前 bundle 依赖目标机可加载 libmpv |
 
 2026-09-23 音流文章调研补充：K3 的候选扩为 `audio_service_win`、`smtc_windows`、薄 C++/WinRT SMTC 适配；Rust/FRB 按已证实的缺口和维护收益评估。统一比较本地/无封面、时间轴、事件释放、Windows x64 原生产物和重复命令。文章中的历史缺陷不当作当前插件缺陷，最终选择仍为未决定。[调研说明](research-stream-music.md)

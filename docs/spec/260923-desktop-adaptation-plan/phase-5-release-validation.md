@@ -2,7 +2,7 @@
 
 [返回 spec](README.md) · [验收矩阵](acceptance.md) · [决策](decisions.md)
 
-状态：`c2496e94` 的 Linux release bundle 与 Ubuntu `.deb` 已构建；已核对 ELF x64、desktop entry、图标及 GTK/AppIndicator/libmpv 依赖，尚未安装或实播。前置：P0–P4 仍有完整系统操作、恢复和安装场景待验证。当前优先 Ubuntu/Linux；Windows CI 暂缓，不能据此宣称 Windows 发布支持。
+状态：`21cf973f` 的 Linux release bundle 与 Ubuntu `.deb` 已构建；已核对 ELF x64、desktop entry、图标及 GTK/AppIndicator/libmpv 依赖，尚未安装或实播。前置：P0–P4 仍有完整系统操作、恢复和安装场景待验证。当前优先 Ubuntu/Linux；Windows CI 暂缓，不能据此宣称 Windows 发布支持。
 
 ## 目标与交付范围
 
@@ -75,6 +75,7 @@ Ubuntu 24.04/Wayland 若仍未验收，只能先发布明确限定 22.04/X11 的
 | Ubuntu 22.04 X11 | `4046eb32` / 2026-09-23 release bundle 与 `.deb` | 包含侧栏/桌面壳调整、桌面队列右键菜单与封面动态背景开关；release build 和 `.deb` 组装成功；核对 x64 ELF、desktop entry、图标和 `libgtk-3-0`/`libayatana-appindicator3-1`/`libmpv1` 依赖。未启动、未安装、未运行 Flutter 测试，等用户手动验收 |
 | Ubuntu 22.04 X11 | `5df8140e` / 2026-09-23 release bundle 与 `.deb` | 另包含逐项限时的桌面退出清理；Linux release build 和包组装成功。未启动、未安装、未运行 Flutter 测试；关窗、显式退出与恢复仍由用户实测 |
 | Ubuntu 22.04 X11 | `c2496e94` / 2026-09-23 release bundle 与 `.deb` | 另包含退出前播放会话快照保存和防覆盖；release build 与 `.deb` 组装成功，核对 x64 ELF、desktop entry、图标和运行依赖。未启动、未安装、未运行 Flutter 测试；退出位置恢复由用户实测 |
+| Ubuntu 22.04 X11 | `21cf973f` / 2026-09-23 release bundle 与 `.deb` | 另包含 StatusNotifier watcher 状态合并、初始查询竞态处理及宿主出现后图标/菜单刷新；release build 与 `.deb` 组装成功，核对 amd64、desktop entry、图标和运行依赖。未启动、未安装、未运行 Flutter 测试；宿主重启恢复由用户实测 |
 | Ubuntu 24.04 / Wayland | — | 待提供环境与结果 |
 | Windows | — | Windows CI 暂缓；未编译/未实机验收 |
 | Android 回归 | 本任务 Flutter 测试 431 项通过 | artwork/shared player 自动回归通过；最终 Android 真机锁屏/通知栏/封面验证待完成 |

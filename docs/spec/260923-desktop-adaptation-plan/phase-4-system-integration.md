@@ -2,7 +2,7 @@
 
 [返回 spec](README.md) · [决策](decisions.md) · [验收](acceptance.md)
 
-状态：Linux 首轮已实现，部分实机通过。MPRIS SetPosition、Seeked、track ID 校验和远程 command error 隔离已落代码；显式退出中的各清理步骤现独立捕获、分别限时并继续执行。新增 MPRIS/生命周期用例尚未运行，Ubuntu 关窗、恢复和宿主失效仍待实测。前置：Linux P0 路径与 P1 命令/快照契约已建立；与 P2/P3 联调完成后才能认定桌面交互闭环。当前不运行 Windows CI，Windows 原生接入和实机仍未验证。
+状态：Linux 首轮已实现，部分实机通过。MPRIS SetPosition、Seeked、track ID 校验和远程 command error 隔离已落代码；显式退出中的各清理步骤现独立捕获、分别限时并继续执行；StatusNotifier 两个 watcher 别名现合并跟踪，订阅先于初始查询以防漏事件，宿主恢复时刷新托盘图标与菜单。新增 MPRIS/生命周期/宿主状态用例尚未运行，Ubuntu 关窗、恢复和宿主失效仍待实测。前置：Linux P0 路径与 P1 命令/快照契约已建立；与 P2/P3 联调完成后才能认定桌面交互闭环。当前不运行 Windows CI，Windows 原生接入和实机仍未验证。
 
 ## 目标与拆分
 
@@ -83,5 +83,6 @@ P4-A 不依赖托盘存在；P4-B 的隐藏行为必须等托盘或其他恢复�
 | P4-B Linux close/quit | 2026-09-23 / `19c9fb4e` | 设置页可选择关闭时退出或保持托盘/最小化；显式退出检测活跃本地下载，允许取消退出或暂停下载后退出；批量暂停保护队列并处理取消与初始状态写入竞争。Linux release bundle 已编译，窗口关闭、托盘退出、取消和恢复下载流程待用户实测 |
 | P4-B exit cleanup hardening | 2026-09-23 / `5df8140e`，bundle `5df8140e` | 显式退出对窗口状态保存、播放器停止、D-Bus/托盘/监听器释放和窗口销毁逐项处理；单步失败记录日志后继续，异步步骤有 4 秒默认限时、播放器停止 15 秒、窗口销毁 8 秒。只格式化/diff 检查与 Linux release build；未运行测试或启动应用 | 用户需验证正常退出、下载确认、慢/故障释放时仍能结束，并确认音频和恢复快照行为符合预期 |
 | P4-B exit playback snapshot | 2026-09-23 / `c2496e94`，bundle `c2496e94` | 显式退出等待已有会话写入完成，在 native stop 前保存最新队列与逻辑进度；stop 后与 dispose 阶段不再写入清零状态。新增位置保留回归测试未运行；Linux release bundle 和 `.deb` 构建成功 | 用户需实测退出后重启是否从退出前进度恢复；自动回归由用户执行 |
+| P4-C StatusNotifier host recovery | 2026-09-23 / `21cf973f`，bundle `21cf973f` | KDE 与 freedesktop watcher 名称分别维护；先订阅再查询初始 owner，并忽略查询期间已由事件更新的过期快照；全部宿主消失时恢复隐藏窗口，宿主重新出现时刷新图标和菜单。新增纯状态 tracker 测试未运行；Linux release bundle 与 `.deb` 已构建，核对 amd64、desktop entry、图标和 GTK/AppIndicator/libmpv 依赖 | 用户需验证 GNOME 扩展/宿主重启及隐藏恢复；该实现仍以状态通知宿主和插件重新注册正常为前提 |
 | P4-C Android/Linux 联调 | 2026-09-23 / 自动测试 | artwork 过期响应和 MPRIS 状态测试在私有 D-Bus 会话中通过；全量 Flutter 测试 431 项通过。睡眠/音频设备和多个异常宿主组合仍待实机测试 |
 | Windows | 暂缓 | 暂不跑 Windows CI；任何 Windows Dart/native SMTC 代码均未获 Windows 编译或实机验证，不列入当前可交付范围 |
