@@ -892,6 +892,51 @@ void main() {
     expect(nextRound.queueEntryIds.toSet(), previousEntries);
   });
 
+  playbackTest('repeat and shuffle commands preserve the other setting', (
+    tester,
+  ) async {
+    createFixture();
+    await notifier.initialized;
+    await notifier.playQueue(<Song>[
+      for (var index = 0; index < 6; index++)
+        song.copyWith(id: 'mode-song-$index'),
+    ]);
+
+    await notifier.setLoopMode(audio.LoopMode.all);
+    await notifier.setShuffleEnabled(true);
+    var state = container.read(playerProvider);
+    expect(state.loopMode, audio.LoopMode.all);
+    expect(state.shuffleEnabled, isTrue);
+
+    await notifier.setLoopMode(audio.LoopMode.one);
+    state = container.read(playerProvider);
+    expect(state.loopMode, audio.LoopMode.one);
+    expect(state.shuffleEnabled, isTrue);
+
+    await notifier.setShuffleEnabled(false);
+    state = container.read(playerProvider);
+    expect(state.loopMode, audio.LoopMode.one);
+    expect(state.shuffleEnabled, isFalse);
+  });
+
+  playbackTest('shuffle with repeat off stops at the end of a one-song queue', (
+    tester,
+  ) async {
+    createFixture();
+    await notifier.initialized;
+    await notifier.playSong(song);
+    await notifier.setLoopMode(audio.LoopMode.off);
+    await notifier.setShuffleEnabled(true);
+
+    expect(container.read(playerProvider).hasNext, isFalse);
+    states.add(audio.PlayerState(true, audio.ProcessingState.completed));
+    await tester.pump();
+
+    expect(container.read(playerProvider).hasNext, isFalse);
+    expect(container.read(playerProvider).isPlaying, isFalse);
+    expect(loads, 1);
+  });
+
   playbackTest('normal reorder updates the durable base without reloading', (
     tester,
   ) async {
@@ -934,6 +979,8 @@ void main() {
     final payload = <String, dynamic>{
       'version': 2,
       'mode': PlaybackMode.shuffle.name,
+      'loopMode': audio.LoopMode.all.name,
+      'shuffleEnabled': true,
       ...queue.toJson(),
       'positionMs': 0,
       'isPlaying': true,
@@ -949,6 +996,7 @@ void main() {
 
     final restored = container.read(playerProvider);
     expect(restored.shuffleEnabled, isTrue);
+    expect(restored.loopMode, audio.LoopMode.all);
     expect(restored.queueEntryIds, queue.playOrder);
     expect(restored.playbackQueue.baseOrder, queue.baseOrder);
     expect(restored.currentEntryId, queue.currentEntryId);

@@ -20,6 +20,7 @@ abstract interface class PlaybackCommands {
   Future<void> setMuted(bool muted);
   Future<void> setPlaybackMode(PlaybackMode mode, {bool persist = true});
   Future<void> cyclePlaybackMode();
+  Future<void> cycleLoopMode();
   Future<void> setLoopMode(LoopMode mode);
   Future<void> setShuffleEnabled(bool enabled);
   Future<void> playQueue(List<Song> songs, {int startIndex = 0});

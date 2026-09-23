@@ -170,14 +170,12 @@ class PlayerState {
 
   bool get hasNext {
     if (!_hasValidCurrent) return false;
-    return shuffleEnabled ||
-        loopMode != LoopMode.off ||
-        currentIndex < queue.length - 1;
+    return loopMode != LoopMode.off || currentIndex < queue.length - 1;
   }
 
   bool get hasPrevious {
     if (!_hasValidCurrent) return false;
-    return shuffleEnabled || loopMode != LoopMode.off || currentIndex > 0;
+    return loopMode != LoopMode.off || currentIndex > 0;
   }
 }
 

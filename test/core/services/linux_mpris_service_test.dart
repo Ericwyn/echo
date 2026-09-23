@@ -82,6 +82,36 @@ void main() {
     }
   });
 
+  test(
+    'MPRIS Shuffle and LoopStatus writes use independent commands',
+    () async {
+      final commands = _RecordingPlaybackCommands();
+      final service = LinuxMprisService(commands: commands);
+      final client = DBusClient.session();
+      await service.updateSnapshot(_snapshot(loopMode: LoopMode.all));
+      await service.start();
+
+      try {
+        await _setPlayerProperty(client, 'Shuffle', const DBusBoolean(true));
+        expect(commands.shuffleChanges, <bool>[true]);
+        expect(commands.loopModeChanges, isEmpty);
+        expect(commands.playbackModeChanges, isEmpty);
+
+        await _setPlayerProperty(
+          client,
+          'LoopStatus',
+          const DBusString('Track'),
+        );
+        expect(commands.loopModeChanges, <LoopMode>[LoopMode.one]);
+        expect(commands.shuffleChanges, <bool>[true]);
+        expect(commands.playbackModeChanges, isEmpty);
+      } finally {
+        await client.close();
+        await service.dispose();
+      }
+    },
+  );
+
   test('track IDs distinguish ambiguous library and entry ID pairs', () async {
     final commands = _RecordingPlaybackCommands();
     final service = LinuxMprisService(commands: commands);
@@ -404,6 +434,25 @@ Future<Map<String, DBusValue>> _getPlayerProperties(DBusClient client) async {
   return result.returnValues.single.asStringVariantDict();
 }
 
+Future<void> _setPlayerProperty(
+  DBusClient client,
+  String name,
+  DBusValue value,
+) async {
+  await client.callMethod(
+    destination: _busName,
+    path: DBusObjectPath(_objectPath),
+    interface: _propertiesInterface,
+    name: 'Set',
+    values: <DBusValue>[
+      const DBusString(_playerInterface),
+      DBusString(name),
+      DBusVariant(value),
+    ],
+    replySignature: DBusSignature(''),
+  );
+}
+
 PlaybackSnapshot _snapshot({
   bool isPlaying = false,
   String? libraryId,
@@ -444,6 +493,9 @@ PlaybackSnapshot _snapshot({
 class _RecordingPlaybackCommands implements PlaybackCommands {
   int nextCount = 0;
   final List<Duration> seeks = <Duration>[];
+  final List<PlaybackMode> playbackModeChanges = <PlaybackMode>[];
+  final List<LoopMode> loopModeChanges = <LoopMode>[];
+  final List<bool> shuffleChanges = <bool>[];
   bool failNext = false;
 
   @override
@@ -483,13 +535,17 @@ class _RecordingPlaybackCommands implements PlaybackCommands {
   Future<void> setPlaybackMode(
     PlaybackMode mode, {
     bool persist = true,
-  }) async {}
+  }) async => playbackModeChanges.add(mode);
 
   @override
-  Future<void> setLoopMode(LoopMode mode) async {}
+  Future<void> cycleLoopMode() async {}
 
   @override
-  Future<void> setShuffleEnabled(bool enabled) async {}
+  Future<void> setLoopMode(LoopMode mode) async => loopModeChanges.add(mode);
+
+  @override
+  Future<void> setShuffleEnabled(bool enabled) async =>
+      shuffleChanges.add(enabled);
 
   @override
   Future<void> playQueue(List<Song> songs, {int startIndex = 0}) async {}

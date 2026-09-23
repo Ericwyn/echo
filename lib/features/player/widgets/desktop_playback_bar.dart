@@ -37,9 +37,7 @@ class DesktopPlaybackBar extends ConsumerWidget {
     if (playback.songId == null) return const SizedBox.shrink();
     final commands = ref.read(playbackCommandsProvider);
 
-    final mode = playback.shuffle
-        ? PlaybackMode.shuffle
-        : playback.loopMode == LoopMode.one
+    final mode = playback.loopMode == LoopMode.one
         ? PlaybackMode.repeatOne
         : playback.loopMode == LoopMode.all
         ? PlaybackMode.repeatAll
@@ -106,7 +104,7 @@ class DesktopPlaybackBar extends ConsumerWidget {
                     icon: modeIcon,
                     label: '$modeLabel，点击切换',
                     selected: mode != PlaybackMode.sequential,
-                    onPressed: () => unawaited(commands.cyclePlaybackMode()),
+                    onPressed: () => unawaited(commands.cycleLoopMode()),
                   ),
                 SizedBox(width: compact ? spacing.xs : spacing.md),
                 const Expanded(child: ProgressBar()),
@@ -344,7 +342,7 @@ class _CompactPlaybackOptions extends ConsumerWidget {
         MenuItemButton(
           leadingIcon: Icon(modeIcon),
           trailingIcon: const Icon(AppIcons.chevronRight),
-          onPressed: () => unawaited(commands.cyclePlaybackMode()),
+          onPressed: () => unawaited(commands.cycleLoopMode()),
           child: Text('$modeLabel，点击切换'),
         ),
       ],

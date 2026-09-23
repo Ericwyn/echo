@@ -11,6 +11,7 @@ class LocalStorage {
   static const String _keyAutoFallback = 'auto_fallback';
   static const String _keyAudioQualitySettings = 'audio_quality_settings';
   static const String _keyPlaybackMode = 'playback_mode';
+  static const String _keyPlaybackModesV2 = 'playback_modes_v2';
   static const String _keyPlaybackSession = 'playback_session_v1';
   static const String _keyPlaybackSessionV2 = 'playback_session_v2';
   static const String _keyPlaybackSessionLibraryPrefix =
@@ -154,6 +155,71 @@ class LocalStorage {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyPlaybackMode, mode);
     Logger.infoWithTag(_logTag, 'playback mode saved: $mode');
+  }
+
+  /// Reads independently persisted shuffle and repeat settings.
+  ///
+  /// A null result means this installation only has the legacy combined mode
+  /// (or no valid V2 value), so the caller should migrate from
+  /// [getPlaybackMode].
+  static Future<({String loopMode, bool shuffleEnabled})?>
+  getPlaybackModes() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_keyPlaybackModesV2);
+    if (raw == null) return null;
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) return null;
+      final loopMode = decoded['loopMode'];
+      final shuffleEnabled = decoded['shuffleEnabled'];
+      if (loopMode is! String ||
+          !const <String>{'off', 'one', 'all'}.contains(loopMode) ||
+          shuffleEnabled is! bool) {
+        Logger.warnWithTag(_logTag, 'invalid independent playback modes');
+        return null;
+      }
+      return (loopMode: loopMode, shuffleEnabled: shuffleEnabled);
+    } catch (error) {
+      Logger.warnWithTag(
+        _logTag,
+        'failed to parse independent playback modes',
+        error,
+      );
+      return null;
+    }
+  }
+
+  /// Saves independent shuffle and repeat settings and keeps the legacy
+  /// combined key synchronized for older application builds.
+  static Future<void> setPlaybackModes({
+    required String loopMode,
+    required bool shuffleEnabled,
+  }) async {
+    if (!const <String>{'off', 'one', 'all'}.contains(loopMode)) {
+      throw ArgumentError.value(loopMode, 'loopMode');
+    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _keyPlaybackModesV2,
+      jsonEncode(<String, Object>{
+        'loopMode': loopMode,
+        'shuffleEnabled': shuffleEnabled,
+      }),
+    );
+    final legacyMode = shuffleEnabled
+        ? 'shuffle'
+        : switch (loopMode) {
+            'off' => 'sequential',
+            'one' => 'repeatOne',
+            'all' => 'repeatAll',
+            _ => 'repeatAll',
+          };
+    await prefs.setString(_keyPlaybackMode, legacyMode);
+    Logger.infoWithTag(
+      _logTag,
+      'playback modes saved: loop=$loopMode shuffle=$shuffleEnabled',
+    );
   }
 
   /// 保存播放会话（队列 + 索引 + 进度 + 播放状态）

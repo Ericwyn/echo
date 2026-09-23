@@ -2773,7 +2773,9 @@ class PlayerNotifier extends StateNotifier<PlayerState>
       return;
     }
 
-    if (state.shuffleEnabled) {
+    if (state.shuffleEnabled &&
+        state.loopMode != LoopMode.off &&
+        state.queue.isNotEmpty) {
       final nextRound = state.playbackQueue.nextShuffleRound(_random);
       state = state.copyWith(playbackQueue: nextRound);
       await playSong(nextRound.currentSong!, queue: state.queue, index: 0);
@@ -2925,11 +2927,10 @@ class PlayerNotifier extends StateNotifier<PlayerState>
   /// 设置循环模式
   @override
   Future<void> setLoopMode(LoopMode mode) async {
-    await setPlaybackMode(switch (mode) {
-      LoopMode.off => PlaybackMode.sequential,
-      LoopMode.all => PlaybackMode.repeatAll,
-      LoopMode.one => PlaybackMode.repeatOne,
-    });
+    await _applyPlaybackModes(
+      loopMode: mode,
+      shuffleEnabled: state.shuffleEnabled,
+    );
   }
 
   /// 切换循环模式
@@ -2945,14 +2946,9 @@ class PlayerNotifier extends StateNotifier<PlayerState>
   /// 设置随机播放
   @override
   Future<void> setShuffleEnabled(bool enabled) async {
-    await setPlaybackMode(
-      enabled
-          ? PlaybackMode.shuffle
-          : (state.loopMode == LoopMode.one
-                ? PlaybackMode.repeatOne
-                : state.loopMode == LoopMode.all
-                ? PlaybackMode.repeatAll
-                : PlaybackMode.sequential),
+    await _applyPlaybackModes(
+      loopMode: state.loopMode,
+      shuffleEnabled: enabled,
     );
   }
 
@@ -2985,66 +2981,55 @@ class PlayerNotifier extends StateNotifier<PlayerState>
   /// 设置播放模式
   @override
   Future<void> setPlaybackMode(PlaybackMode mode, {bool persist = true}) async {
-    switch (mode) {
-      case PlaybackMode.sequential:
-        await _audioPlayer?.setShuffleModeEnabled(false);
-        if (mounted) {
-          state = state.copyWith(
-            playbackQueue: state.shuffleEnabled
-                ? state.playbackQueue.restoreBaseOrder()
-                : state.playbackQueue,
-            loopMode: LoopMode.off,
-            shuffleEnabled: false,
-          );
-        }
-        break;
-      case PlaybackMode.shuffle:
-        // The application shuffles its visible queue; the engine owns only the
-        // current source and must not maintain an independent shuffle order.
-        await _audioPlayer?.setShuffleModeEnabled(false);
-        if (mounted) {
-          state = state.copyWith(
-            playbackQueue: state.shuffleEnabled
-                ? state.playbackQueue
-                : state.playbackQueue.enableShuffle(_random),
-            loopMode: LoopMode.off,
-            shuffleEnabled: true,
-          );
-        }
-        break;
-      case PlaybackMode.repeatAll:
-        // 队列切歌由外层状态机驱动，原生播放器仍使用 LoopMode.off
-        // 避免底层播放器在单音源下自动回放当前曲目。
-        await _audioPlayer?.setShuffleModeEnabled(false);
-        if (mounted) {
-          state = state.copyWith(
-            playbackQueue: state.shuffleEnabled
-                ? state.playbackQueue.restoreBaseOrder()
-                : state.playbackQueue,
-            loopMode: LoopMode.all,
-            shuffleEnabled: false,
-          );
-        }
-        break;
-      case PlaybackMode.repeatOne:
-        await _audioPlayer?.setShuffleModeEnabled(false);
-        if (mounted) {
-          state = state.copyWith(
-            playbackQueue: state.shuffleEnabled
-                ? state.playbackQueue.restoreBaseOrder()
-                : state.playbackQueue,
-            loopMode: LoopMode.one,
-            shuffleEnabled: false,
-          );
-        }
-        break;
-    }
+    final modes = switch (mode) {
+      PlaybackMode.sequential => (
+        loopMode: LoopMode.off,
+        shuffleEnabled: false,
+      ),
+      // Preserve the old combined-mode behavior: cycling to Shuffle also
+      // repeats the shuffled playlist. Direct shuffle/loop commands remain
+      // independent.
+      PlaybackMode.shuffle => (loopMode: LoopMode.all, shuffleEnabled: true),
+      PlaybackMode.repeatAll => (loopMode: LoopMode.all, shuffleEnabled: false),
+      PlaybackMode.repeatOne => (loopMode: LoopMode.one, shuffleEnabled: false),
+    };
+    await _applyPlaybackModes(
+      loopMode: modes.loopMode,
+      shuffleEnabled: modes.shuffleEnabled,
+      persist: persist,
+    );
+  }
 
-    _onQueueOrderChanged();
-    await _syncNativeLoopMode();
-    if (persist) {
-      await _persistPlaybackMode(mode);
+  Future<void> _applyPlaybackModes({
+    required LoopMode loopMode,
+    required bool shuffleEnabled,
+    PlaybackQueueState? queue,
+    bool persist = true,
+  }) async {
+    final previous = state;
+    final baseQueue = queue ?? previous.playbackQueue;
+    final shuffleChanged = previous.shuffleEnabled != shuffleEnabled;
+    final modesChanged = shuffleChanged || previous.loopMode != loopMode;
+    final queueChanged = !identical(baseQueue, previous.playbackQueue);
+    final nextQueue = queue != null || !shuffleChanged
+        ? baseQueue
+        : shuffleEnabled
+        ? baseQueue.enableShuffle(_random)
+        : baseQueue.restoreBaseOrder();
+
+    // The engine only loads one source; ordering and repeat behavior belong to
+    // this notifier so external controls cannot create a second queue policy.
+    await _audioPlayer?.setShuffleModeEnabled(false);
+    if (mounted) {
+      state = state.copyWith(
+        playbackQueue: nextQueue,
+        loopMode: loopMode,
+        shuffleEnabled: shuffleEnabled,
+      );
     }
+    if (modesChanged || queueChanged) _onQueueOrderChanged();
+    await _syncNativeLoopMode();
+    if (persist) await _persistPlaybackModes();
   }
 
   /// 顺序播放 -> 列表循环 -> 单曲循环 -> 随机播放 -> 顺序播放
@@ -3059,27 +3044,62 @@ class PlayerNotifier extends StateNotifier<PlayerState>
     await setPlaybackMode(nextMode);
   }
 
+  /// Cycles only repeat mode, preserving the independent shuffle setting.
+  @override
+  Future<void> cycleLoopMode() async {
+    final nextMode = switch (state.loopMode) {
+      LoopMode.off => LoopMode.all,
+      LoopMode.all => LoopMode.one,
+      LoopMode.one => LoopMode.off,
+    };
+    await setLoopMode(nextMode);
+  }
+
   Future<void> _restorePlaybackMode() async {
     try {
+      final storedModes = await LocalStorage.getPlaybackModes();
+      if (storedModes != null) {
+        final loopMode = LoopMode.values.firstWhere(
+          (mode) => mode.name == storedModes.loopMode,
+          orElse: () => LoopMode.all,
+        );
+        await _applyPlaybackModes(
+          loopMode: loopMode,
+          shuffleEnabled: storedModes.shuffleEnabled,
+          persist: false,
+        );
+        Logger.infoWithTag(
+          _playerLogTag,
+          'playback modes restored: loop=${loopMode.name} '
+          'shuffle=${storedModes.shuffleEnabled}',
+        );
+        return;
+      }
+
       final storedMode = await LocalStorage.getPlaybackMode();
       final mode = PlaybackMode.values.firstWhere(
         (item) => item.name == storedMode,
         orElse: () => PlaybackMode.repeatAll,
       );
       await setPlaybackMode(mode, persist: false);
+      await _persistPlaybackModes();
       Logger.infoWithTag(_playerLogTag, 'playback mode restored: ${mode.name}');
     } catch (e) {
       Logger.warnWithTag(_playerLogTag, 'failed to restore playback mode', e);
     }
   }
 
-  Future<void> _persistPlaybackMode(PlaybackMode mode) async {
+  Future<void> _persistPlaybackModes() async {
     try {
-      await LocalStorage.setPlaybackMode(mode.name);
+      await LocalStorage.setPlaybackModes(
+        loopMode: state.loopMode.name,
+        shuffleEnabled: state.shuffleEnabled,
+      );
     } catch (e) {
       Logger.warnWithTag(
         _playerLogTag,
-        'failed to persist playback mode: ${mode.name}',
+        'failed to persist playback modes: loop=${state.loopMode.name} '
+        'shuffle=${state.shuffleEnabled}',
         e,
       );
     }
@@ -3113,6 +3133,8 @@ class PlayerNotifier extends StateNotifier<PlayerState>
     return {
       'version': 2,
       'mode': playbackMode.name,
+      'loopMode': state.loopMode.name,
+      'shuffleEnabled': state.shuffleEnabled,
       'libraryId': _currentPlaybackLibraryId,
       ...state.playbackQueue.toJson(),
       'positionMs': normalizedPosition.inMilliseconds,
@@ -3200,19 +3222,27 @@ class PlayerNotifier extends StateNotifier<PlayerState>
           _currentPlaybackLibraryId =
               _storedPlaybackLibraryId(session) ?? _readActiveLibraryId();
         } else {
+          final sessionPayload = session!;
           final restoredMode = PlaybackMode.values.firstWhere(
-            (mode) => mode.name == session!['mode']?.toString(),
+            (mode) => mode.name == sessionPayload['mode']?.toString(),
             orElse: () => PlaybackMode.repeatAll,
           );
-          await _audioPlayer?.setShuffleModeEnabled(false);
-          state = state.copyWith(
-            playbackQueue: restoredQueue,
-            shuffleEnabled: restoredMode == PlaybackMode.shuffle,
-            loopMode: switch (restoredMode) {
+          final storedLoopMode = LoopMode.values.firstWhere(
+            (mode) => mode.name == sessionPayload['loopMode']?.toString(),
+            orElse: () => switch (restoredMode) {
               PlaybackMode.repeatOne => LoopMode.one,
-              PlaybackMode.repeatAll => LoopMode.all,
+              PlaybackMode.repeatAll || PlaybackMode.shuffle => LoopMode.all,
               _ => LoopMode.off,
             },
+          );
+          final storedShuffleEnabled = sessionPayload['shuffleEnabled'] is bool
+              ? sessionPayload['shuffleEnabled']! as bool
+              : restoredMode == PlaybackMode.shuffle;
+          await _applyPlaybackModes(
+            loopMode: storedLoopMode,
+            shuffleEnabled: storedShuffleEnabled,
+            queue: restoredQueue,
+            persist: false,
           );
           if (restoredQueue.currentSong == null) {
             Logger.infoWithTag(
@@ -3223,7 +3253,8 @@ class PlayerNotifier extends StateNotifier<PlayerState>
             restored = true;
             return;
           }
-          final storedPositionMs = _parseStoredInt(session['positionMs']) ?? 0;
+          final storedPositionMs =
+              _parseStoredInt(sessionPayload['positionMs']) ?? 0;
           final restoredPosition = Duration(
             milliseconds: max(0, storedPositionMs),
           );
@@ -3515,16 +3546,7 @@ class PlayerNotifier extends StateNotifier<PlayerState>
       unawaited(_scrobble(completedSongId, submission: true));
     }
 
-    // 随机模式按已经展示的顺序前进；轮末由 next() 生成下一轮。
-    if (state.shuffleEnabled) {
-      if (state.queue.isNotEmpty) {
-        _seekDbg('completed -> shuffle next song=$completedSongId');
-        await next();
-      }
-      return;
-    }
-
-    // 根据循环模式决定下一步
+    // Repeat-one is independent from shuffle and repeats the current entry.
     if (state.loopMode == LoopMode.one ||
         (state.loopMode == LoopMode.all && state.queue.length == 1)) {
       // 单曲循环
@@ -3572,8 +3594,9 @@ class PlayerNotifier extends StateNotifier<PlayerState>
         );
       }
     } else if (state.hasNext) {
-      // 播放下一首
-      _seekDbg('completed -> sequential next song=$completedSongId');
+      // Follow the visible shuffle order when enabled; next() starts another
+      // randomized round only when repeat is enabled.
+      _seekDbg('completed -> next song=$completedSongId');
       await next();
     } else {
       _seekDbg('completed -> queue end song=$completedSongId');

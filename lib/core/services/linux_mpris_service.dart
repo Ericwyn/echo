@@ -6,7 +6,6 @@ import 'package:dbus/dbus.dart';
 import 'package:just_audio/just_audio.dart' show LoopMode;
 
 import '../../providers/player/playback_contract.dart';
-import '../../providers/player/player_state.dart' show PlaybackMode;
 import '../utils/logger.dart';
 
 const _mprisRootInterface = 'org.mpris.MediaPlayer2';
@@ -247,11 +246,11 @@ class LinuxMprisService {
   Future<void> _setLoopStatus(String value) async {
     switch (value) {
       case 'None':
-        await commands.setPlaybackMode(PlaybackMode.sequential);
+        await commands.setLoopMode(LoopMode.off);
       case 'Track':
-        await commands.setPlaybackMode(PlaybackMode.repeatOne);
+        await commands.setLoopMode(LoopMode.one);
       case 'Playlist':
-        await commands.setPlaybackMode(PlaybackMode.repeatAll);
+        await commands.setLoopMode(LoopMode.all);
       default:
         throw const FormatException('Unknown MPRIS LoopStatus');
     }

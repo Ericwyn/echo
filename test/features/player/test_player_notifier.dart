@@ -56,6 +56,16 @@ class TestPlayerNotifier extends StateNotifier<PlayerState>
   }
 
   @override
+  Future<void> cycleLoopMode() async {
+    final next = switch (state.loopMode) {
+      LoopMode.off => LoopMode.all,
+      LoopMode.all => LoopMode.one,
+      LoopMode.one => LoopMode.off,
+    };
+    state = state.copyWith(loopMode: next);
+  }
+
+  @override
   Future<void> toggleFavorite() async {
     final song = state.currentSong;
     if (song == null) return;
