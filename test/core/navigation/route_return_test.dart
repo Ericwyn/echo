@@ -40,6 +40,50 @@ void main() {
     expect(find.text('Save'), findsNothing);
   });
 
+  testWidgets('deleted-route return keeps mobile nested Navigator behavior', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Navigator(
+          onGenerateRoute: (_) => MaterialPageRoute<void>(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                key: const ValueKey<String>('open-mobile-editor'),
+                onPressed: () => Navigator.of(context).push<void>(
+                  MaterialPageRoute<void>(
+                    builder: (editorContext) => Scaffold(
+                      body: TextButton(
+                        key: const ValueKey<String>('delete-mobile-editor'),
+                        onPressed: () =>
+                            popCurrentRouteAndDiscardForwardOrGoHome(
+                              editorContext,
+                            ),
+                        child: const Text('Delete'),
+                      ),
+                    ),
+                  ),
+                ),
+                child: const Text('Mobile settings'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey<String>('open-mobile-editor')));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey<String>('delete-mobile-editor')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Mobile settings'), findsOneWidget);
+    expect(find.text('Delete'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('falls back to Home when there is no previous route', (
     tester,
   ) async {
