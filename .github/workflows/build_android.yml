@@ -150,6 +150,9 @@ jobs:
       - name: Verify ARM64 APK
         env:
           SIGNING_MODE: ${{ steps.options.outputs.signing }}
+          ECHO_STORE_FILE: ${{ runner.temp }}/echoes-release.jks
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
         run: |
           apk='build/app/outputs/flutter-apk/app-arm64-v8a-release.apk'
           build_tools_dir="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
@@ -172,12 +175,13 @@ jobs:
           fi
 
           if [[ "$SIGNING_MODE" == 'release' ]]; then
-            certificate="$("$apksigner" verify --print-certs "$apk" | awk -F': ' '/Signer #1 certificate SHA-256 digest:/ { print $2; exit }')"
-            expected_certificate='8604465c3ee1282b48a1b2759801f784ace32447d1188e0481fab0fe8ac74c94'
-            if [[ "$certificate" != "$expected_certificate" ]]; then
-              echo "::error::APK is not signed with the existing Echoes release certificate."
+            certificate="$("$apksigner" verify --print-certs "$apk" | awk -F': ' '/Signer #1 certificate SHA-256 digest:/ { print tolower($2); exit }')"
+            expected_certificate="$(keytool -exportcert -alias "$KEY_ALIAS" -keystore "$ECHO_STORE_FILE" -storepass:env STORE_PASSWORD | sha256sum | cut -d' ' -f1)"
+            if [[ -z "$certificate" || "$certificate" != "$expected_certificate" ]]; then
+              echo "::error::APK signer does not match the configured release keystore."
               exit 1
             fi
+            echo "::notice::Release signer SHA-256: $certificate"
           fi
 
       - name: Get package version

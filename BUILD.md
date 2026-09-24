@@ -100,10 +100,10 @@ Linux GTK 应用 ID 与安装的 `com.az1n.echoes.desktop` 对齐，窗口和应
 
 将含工作流的提交推送到 GitHub 默认分支后，打开仓库的 **Actions**，选 **Build Linux** 或 **Build Android**，点击 **Run workflow** 并选择要构建的分支。手动构建完成后，从该次运行页面的 **Artifacts** 下载产物；不会自动创建 GitHub Release。GitHub 要求手动触发的工作流文件先存在于默认分支。
 
-- **Build Linux**：在 Ubuntu 22.04 上生成完整 bundle 的 ZIP 和 DEB，保留 14 天。
+- **Build Linux**：在 Ubuntu 22.04 上生成完整 bundle 的 ZIP 和 DEB，分别上传为 `echoes-linux-bundle-*` 和 `echoes-linux-deb-*` 两个 Artifact，可单独下载，保留 14 天。GitHub Actions 下载 Artifact 时仍会额外套一层 ZIP。
 - **Build Android**：默认只构建 ARM64、使用发布证书签名；也可在运行前选择全部 ABI。推送 `v2.0.0` 之类与 `pubspec.yaml` 的版本名一致的标签时，仍会自动构建全部 ABI 并发布 GitHub Release。
 - **构建信息**：两项工作流会把 Git 提交和 Flutter 版本写入应用内的 **设置 → 关于**；本地直接构建仍会显示从安装包读取的版本、构建号、应用 ID 和平台。
-- **Android 签名配置**：在仓库 **Settings → Secrets and variables → Actions** 添加 `KEYSTORE_BASE64`（发布 keystore 文件的 Base64 内容）、`KEY_ALIAS`、`KEY_PASSWORD`、`STORE_PASSWORD`。工作流会校验密钥完整性、APK 包名与版本，并核对已有发布证书的 SHA-256 指纹。密钥只在 GitHub runner 的临时目录中解码，不提交到仓库。
+- **Android 签名配置**：在仓库 **Settings → Secrets and variables → Actions** 添加 `KEYSTORE_BASE64`（发布 keystore 文件的 Base64 内容）、`KEY_ALIAS`、`KEY_PASSWORD`、`STORE_PASSWORD`。工作流会校验密钥完整性、APK 包名与版本，并确认 APK 的签名证书与本次配置的 keystore 一致；不再要求它匹配写死的本机证书指纹。密钥只在 GitHub runner 的临时目录中解码，不提交到仓库。若 GitHub Secrets 使用的证书与用户设备上已安装版本的证书不同，新 APK 仍无法覆盖安装旧版本。
 - **临时验证**：尚未配置发布密钥时，可以在手动触发 Android 构建时选择 `debug` 签名。该构建产生的 APK 会明确标记为调试签名，不能覆盖安装已有的正式版；标签发布始终要求发布密钥。
 
 更多操作方式见 [GitHub 手动运行工作流文档](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow) 和 [GitHub Actions Secrets 文档](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets)。

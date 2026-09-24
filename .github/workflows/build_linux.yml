@@ -50,12 +50,20 @@ jobs:
       - name: Package Ubuntu deb
         run: bash scripts/package_linux_deb.sh
 
-      - name: Upload Linux Build
+      - name: Upload Ubuntu DEB
         uses: actions/upload-artifact@v6
         with:
-          name: linux-release-${{ steps.version.outputs.name }}-${{ github.run_number }}-${{ github.run_attempt }}
-          path: |
-            build/linux/packages/*.deb
-            build/linux/packages/*_linux-x64-bundle.zip
+          name: echoes-linux-deb-${{ steps.version.outputs.name }}-${{ github.run_number }}-${{ github.run_attempt }}
+          path: build/linux/packages/*.deb
           if-no-files-found: error
           retention-days: 14
+          compression-level: 0
+
+      - name: Upload portable Linux bundle
+        uses: actions/upload-artifact@v6
+        with:
+          name: echoes-linux-bundle-${{ steps.version.outputs.name }}-${{ github.run_number }}-${{ github.run_attempt }}
+          path: build/linux/packages/*_linux-x64-bundle.zip
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
