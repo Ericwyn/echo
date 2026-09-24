@@ -1,17 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/design/echo_design.dart';
 import '../../../data/models/song.dart';
 import '../../../providers/palette_provider.dart';
-import '../../../providers/navigation_provider.dart';
 import '../../../providers/player_provider.dart';
 import '../../../widgets/echo_artwork.dart';
-import '../../library/pages/album_detail_page.dart';
-import '../../library/pages/artist_detail_page.dart';
 import '../widgets/current_lyrics_panel.dart';
 import '../widgets/player_backdrop.dart';
 import '../widgets/play_queue_sheet.dart';
@@ -28,6 +24,8 @@ class DesktopPlayerWorkspace extends ConsumerStatefulWidget {
     required this.panel,
     required this.onPanelChanged,
     required this.onClose,
+    this.onOpenArtist,
+    this.onOpenAlbum,
     this.isFullScreen = false,
     this.onToggleFullScreen,
   });
@@ -35,6 +33,8 @@ class DesktopPlayerWorkspace extends ConsumerStatefulWidget {
   final DesktopPlayerPanel panel;
   final ValueChanged<DesktopPlayerPanel> onPanelChanged;
   final VoidCallback onClose;
+  final ValueChanged<String>? onOpenArtist;
+  final ValueChanged<String>? onOpenAlbum;
   final bool isFullScreen;
   final VoidCallback? onToggleFullScreen;
 
@@ -117,6 +117,8 @@ class _DesktopPlayerWorkspaceState
                             onToggleFullScreen: widget.onToggleFullScreen,
                             onPanelChanged: widget.onPanelChanged,
                             onClose: widget.onClose,
+                            onOpenArtist: widget.onOpenArtist,
+                            onOpenAlbum: widget.onOpenAlbum,
                             compact: true,
                           ),
                           SizedBox(height: spacing.sm),
@@ -147,6 +149,8 @@ class _DesktopPlayerWorkspaceState
                           child: _DesktopArtworkPane(
                             song: song,
                             size: coverSize,
+                            onOpenArtist: widget.onOpenArtist,
+                            onOpenAlbum: widget.onOpenAlbum,
                           ),
                         ),
                         SizedBox(width: columnGap),
@@ -161,6 +165,8 @@ class _DesktopPlayerWorkspaceState
                                 onToggleFullScreen: widget.onToggleFullScreen,
                                 onPanelChanged: widget.onPanelChanged,
                                 onClose: widget.onClose,
+                                onOpenArtist: widget.onOpenArtist,
+                                onOpenAlbum: widget.onOpenAlbum,
                               ),
                               SizedBox(height: spacing.md),
                               const EchoDivider(),
@@ -214,10 +220,17 @@ class _DesktopPlayerWorkspaceState
 }
 
 class _DesktopArtworkPane extends StatelessWidget {
-  const _DesktopArtworkPane({required this.song, required this.size});
+  const _DesktopArtworkPane({
+    required this.song,
+    required this.size,
+    required this.onOpenArtist,
+    required this.onOpenAlbum,
+  });
 
   final Song song;
   final double size;
+  final ValueChanged<String>? onOpenArtist;
+  final ValueChanged<String>? onOpenAlbum;
 
   @override
   Widget build(BuildContext context) {
@@ -253,7 +266,11 @@ class _DesktopArtworkPane extends StatelessWidget {
         ),
         if (hasMetadata) ...<Widget>[
           SizedBox(height: context.echoSpacing.xs),
-          _DesktopTrackMetadata(song: song),
+          _DesktopTrackMetadata(
+            song: song,
+            onOpenArtist: onOpenArtist,
+            onOpenAlbum: onOpenAlbum,
+          ),
         ],
       ],
     );
@@ -268,6 +285,8 @@ class _DesktopWorkspaceHeader extends StatelessWidget {
     required this.onToggleFullScreen,
     required this.onPanelChanged,
     required this.onClose,
+    required this.onOpenArtist,
+    required this.onOpenAlbum,
     this.compact = false,
   });
 
@@ -277,6 +296,8 @@ class _DesktopWorkspaceHeader extends StatelessWidget {
   final VoidCallback? onToggleFullScreen;
   final ValueChanged<DesktopPlayerPanel> onPanelChanged;
   final VoidCallback onClose;
+  final ValueChanged<String>? onOpenArtist;
+  final ValueChanged<String>? onOpenAlbum;
   final bool compact;
 
   @override
@@ -316,7 +337,12 @@ class _DesktopWorkspaceHeader extends StatelessWidget {
                   ),
                 ),
                 SizedBox(height: spacing.xxs),
-                _DesktopTrackMetadata(song: song, centered: false),
+                _DesktopTrackMetadata(
+                  song: song,
+                  centered: false,
+                  onOpenArtist: onOpenArtist,
+                  onOpenAlbum: onOpenAlbum,
+                ),
               ],
             ),
           ),
@@ -354,35 +380,36 @@ class _DesktopWorkspaceHeader extends StatelessWidget {
   }
 }
 
-class _DesktopTrackMetadata extends ConsumerWidget {
-  const _DesktopTrackMetadata({required this.song, this.centered = true});
+class _DesktopTrackMetadata extends StatelessWidget {
+  const _DesktopTrackMetadata({
+    required this.song,
+    required this.onOpenArtist,
+    required this.onOpenAlbum,
+    this.centered = true,
+  });
 
   final Song song;
+  final ValueChanged<String>? onOpenArtist;
+  final ValueChanged<String>? onOpenAlbum;
   final bool centered;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final artist = song.artist?.trim() ?? '';
     final album = song.album?.trim() ?? '';
+    final openArtist = onOpenArtist;
+    final openAlbum = onOpenAlbum;
     if (artist.isEmpty && album.isEmpty) return const SizedBox.shrink();
 
-    final branchIndex = ref.watch(currentVisibleBranchIndexProvider);
     final parts = <Widget>[];
     if (artist.isNotEmpty) {
       parts.add(
         _MetadataLink(
           label: artist,
           tooltip: '打开歌手 $artist',
-          onPressed: song.artistId?.trim().isNotEmpty == true
-              ? () => Navigator.of(context).push<void>(
-                  EchoPageRoute<void>(
-                    context: context,
-                    builder: (_) => ArtistDetailPage(
-                      artistId: song.artistId!,
-                      branchIndex: branchIndex,
-                    ),
-                  ),
-                )
+          onPressed:
+              song.artistId?.trim().isNotEmpty == true && openArtist != null
+              ? () => openArtist(song.artistId!)
               : null,
         ),
       );
@@ -402,16 +429,9 @@ class _DesktopTrackMetadata extends ConsumerWidget {
         _MetadataLink(
           label: album,
           tooltip: '打开专辑 $album',
-          onPressed: song.albumId?.trim().isNotEmpty == true
-              ? () => Navigator.of(context).push<void>(
-                  EchoPageRoute<void>(
-                    context: context,
-                    builder: (_) => AlbumDetailPage(
-                      albumId: song.albumId!,
-                      branchIndex: branchIndex,
-                    ),
-                  ),
-                )
+          onPressed:
+              song.albumId?.trim().isNotEmpty == true && openAlbum != null
+              ? () => openAlbum(song.albumId!)
               : null,
         ),
       );

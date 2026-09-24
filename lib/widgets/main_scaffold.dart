@@ -17,6 +17,8 @@ import '../features/discover/pages/discover_page.dart';
 import '../features/player/widgets/mini_player.dart';
 import '../features/player/pages/desktop_player_workspace.dart';
 import '../features/player/widgets/desktop_playback_bar.dart';
+import '../features/library/pages/album_detail_page.dart';
+import '../features/library/pages/artist_detail_page.dart';
 import '../features/discover/pages/search_page.dart';
 import '../features/navigation/app_navigation_model.dart';
 import '../providers/api_provider.dart';
@@ -655,6 +657,20 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
     });
   }
 
+  void _openDesktopMetadataPage({
+    required Widget page,
+    required int branchIndex,
+  }) {
+    final didPush = _desktopNavigationStrategy.pushPage(
+      context: context,
+      branchIndex: branchIndex,
+      page: page,
+    );
+    if (didPush) {
+      setState(() => _showDesktopPlayerWorkspace = false);
+    }
+  }
+
   List<EchoDesktopSidebarAction> _desktopSidebarActions({
     required bool showExploreTab,
   }) => AppNavigationModel.desktopSidebar(showExploreTab: showExploreTab)
@@ -785,6 +801,30 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
                             onClose: () => setState(
                               () => _showDesktopPlayerWorkspace = false,
                             ),
+                            onOpenArtist: (artistId) {
+                              final branchIndex = ref.read(
+                                currentVisibleBranchIndexProvider,
+                              );
+                              _openDesktopMetadataPage(
+                                branchIndex: branchIndex,
+                                page: ArtistDetailPage(
+                                  artistId: artistId,
+                                  branchIndex: branchIndex,
+                                ),
+                              );
+                            },
+                            onOpenAlbum: (albumId) {
+                              final branchIndex = ref.read(
+                                currentVisibleBranchIndexProvider,
+                              );
+                              _openDesktopMetadataPage(
+                                branchIndex: branchIndex,
+                                page: AlbumDetailPage(
+                                  albumId: albumId,
+                                  branchIndex: branchIndex,
+                                ),
+                              );
+                            },
                           ),
                         ),
                       ),

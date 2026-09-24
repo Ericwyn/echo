@@ -77,7 +77,6 @@ class DesktopPlaybackBar extends ConsumerWidget {
             ),
             padding: EdgeInsets.symmetric(
               horizontal: compact ? spacing.sm : spacing.lg,
-              vertical: spacing.xs,
             ),
             child: Row(
               children: <Widget>[
@@ -98,47 +97,41 @@ class DesktopPlaybackBar extends ConsumerWidget {
                       ? spacing.sm
                       : spacing.lg,
                 ),
-                if (compact)
-                  PlaybackIconButton(
-                    icon: AppIcons.shuffle,
-                    label: playback.shuffle ? '关闭随机播放' : '开启随机播放',
-                    selected: playback.shuffle,
-                    dimension: 40,
-                    iconSize: 20,
-                    onPressed: () => unawaited(
-                      commands.setShuffleEnabled(!playback.shuffle),
-                    ),
-                  )
-                else
-                  EchoIconButton(
-                    icon: AppIcons.shuffle,
-                    label: playback.shuffle ? '关闭随机播放' : '开启随机播放',
-                    selected: playback.shuffle,
-                    onPressed: () => unawaited(
-                      commands.setShuffleEnabled(!playback.shuffle),
-                    ),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: <Widget>[
+                          PlaybackIconButton(
+                            icon: AppIcons.shuffle,
+                            label: playback.shuffle ? '关闭随机播放' : '开启随机播放',
+                            selected: playback.shuffle,
+                            dimension: 40,
+                            iconSize: 20,
+                            onPressed: () => unawaited(
+                              commands.setShuffleEnabled(!playback.shuffle),
+                            ),
+                          ),
+                          SizedBox(width: spacing.xxs),
+                          const PlaybackControls(compact: true),
+                          SizedBox(width: spacing.xxs),
+                          PlaybackIconButton(
+                            icon: modeIcon,
+                            label: '$modeLabel，点击切换',
+                            selected: mode != PlaybackMode.sequential,
+                            dimension: 40,
+                            iconSize: 20,
+                            onPressed: () =>
+                                unawaited(commands.cycleLoopMode()),
+                          ),
+                        ],
+                      ),
+                      const ProgressBar(centerTrack: true, compactLabels: true),
+                    ],
                   ),
-                if (compact) SizedBox(width: spacing.xxs),
-                const PlaybackControls(compact: true),
-                if (compact) SizedBox(width: spacing.xxs),
-                if (compact)
-                  PlaybackIconButton(
-                    icon: modeIcon,
-                    label: '$modeLabel，点击切换',
-                    selected: mode != PlaybackMode.sequential,
-                    dimension: 40,
-                    iconSize: 20,
-                    onPressed: () => unawaited(commands.cycleLoopMode()),
-                  )
-                else
-                  EchoIconButton(
-                    icon: modeIcon,
-                    label: '$modeLabel，点击切换',
-                    selected: mode != PlaybackMode.sequential,
-                    onPressed: () => unawaited(commands.cycleLoopMode()),
-                  ),
-                SizedBox(width: compact ? spacing.xxs : spacing.md),
-                const Expanded(child: ProgressBar(centerTrack: true)),
+                ),
                 SizedBox(width: compact ? spacing.xxs : spacing.sm),
                 _DesktopVolumeControl(compact: compact),
                 SizedBox(width: compact ? spacing.xxs : spacing.md),

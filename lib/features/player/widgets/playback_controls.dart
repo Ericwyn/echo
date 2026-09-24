@@ -10,11 +10,16 @@ import 'player_scrubber.dart';
 
 /// Buffered playback progress with a 48dp interaction target.
 class ProgressBar extends ConsumerStatefulWidget {
-  const ProgressBar({super.key, this.centerTrack = false});
+  const ProgressBar({
+    super.key,
+    this.centerTrack = false,
+    this.compactLabels = false,
+  });
 
   /// On desktop, keep the scrubber centered in the playback bar while the
   /// elapsed and total time sit below it without shifting the track upward.
   final bool centerTrack;
+  final bool compactLabels;
 
   @override
   ConsumerState<ProgressBar> createState() => _ProgressBarState();
@@ -215,9 +220,11 @@ class _ProgressBarState extends ConsumerState<ProgressBar>
           PositionedDirectional(
             start: 0,
             end: 0,
-            top:
-                context.echoInteraction.minimumTouchTarget -
-                context.echoSpacing.xxs,
+            top: widget.compactLabels
+                ? context.echoInteraction.minimumTouchTarget -
+                      context.echoSpacing.md
+                : context.echoInteraction.minimumTouchTarget -
+                      context.echoSpacing.xxs,
             child: timeLabels,
           ),
         ],
@@ -264,8 +271,8 @@ class PlaybackControls extends ConsumerWidget {
       ),
     );
 
-    final playDimension = compact ? 56.0 : 64.0;
-    final playIconSize = compact ? 30.0 : 32.0;
+    final playDimension = compact ? 48.0 : 64.0;
+    final playIconSize = compact ? 28.0 : 32.0;
     final sideButtonDimension = compact ? 40.0 : 48.0;
     final buttons = <Widget>[
       PlaybackIconButton(
@@ -318,6 +325,7 @@ class PlaybackControls extends ConsumerWidget {
 
 class PlaybackIconButton extends StatelessWidget {
   const PlaybackIconButton({
+    super.key,
     required this.icon,
     required this.label,
     required this.onPressed,

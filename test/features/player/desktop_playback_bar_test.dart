@@ -53,16 +53,12 @@ void main() {
     await tester.tap(volumeButton);
     await tester.pumpAndSettle();
     expect(scrubbers, findsNWidgets(2));
+    final playbackBarRect = tester.getRect(
+      find.byKey(const ValueKey<String>('echo-desktop-playback-bar')),
+    );
     expect(
       tester.getCenter(scrubbers.first).dy,
-      closeTo(
-        tester
-            .getCenter(
-              find.byKey(const ValueKey<String>('echo-desktop-playback-bar')),
-            )
-            .dy,
-        1,
-      ),
+      closeTo(playbackBarRect.top + playbackBarRect.height * 0.75, 1),
     );
     expect(find.text('3:00'), findsOneWidget);
     expect(tester.takeException(), isNull);

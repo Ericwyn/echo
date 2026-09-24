@@ -20,6 +20,7 @@ class DesktopNavigationStrategy {
 
   final GlobalKey<NavigatorState> navigatorKey;
   final _DesktopNavigationObserver _observer;
+  int _pageSequence = 0;
 
   bool get canGoBack => navigatorKey.currentState?.canPop() ?? false;
   bool get canGoForward => _observer.canGoForward;
@@ -82,6 +83,32 @@ class DesktopNavigationStrategy {
       ),
       (route) => route.isFirst,
     );
+  }
+
+  /// Push a detail page into the desktop content panel while retaining the
+  /// current sidebar destination and shared back/forward history.
+  bool pushPage({
+    required BuildContext context,
+    required int branchIndex,
+    required Widget page,
+  }) {
+    final navigator = navigatorKey.currentState;
+    if (navigator == null) return false;
+    final destinationId = _observer.currentDestinationId ?? 'music-flow';
+    navigator.push<void>(
+      EchoPageRoute<void>(
+        context: context,
+        settings: RouteSettings(
+          name: 'desktop-page:${++_pageSequence}',
+          arguments: <String, Object>{
+            'destinationId': destinationId,
+            'branchIndex': branchIndex,
+          },
+        ),
+        builder: (_) => page,
+      ),
+    );
+    return true;
   }
 
   Future<bool> maybePop() async {
