@@ -143,7 +143,6 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
                     SliverToBoxAdapter(
                       child: _ArtistIdentityHeader(
                         artistName: artist.name,
-                        coverArtId: artist.coverArt,
                         starred: artist.starred,
                         songCount: songs.length,
                         albumCount: albums.length,
@@ -492,7 +491,6 @@ class _ArtistDetailPageState extends ConsumerState<ArtistDetailPage> {
 class _ArtistIdentityHeader extends StatelessWidget {
   const _ArtistIdentityHeader({
     required this.artistName,
-    required this.coverArtId,
     required this.starred,
     required this.songCount,
     required this.albumCount,
@@ -501,7 +499,6 @@ class _ArtistIdentityHeader extends StatelessWidget {
   });
 
   final String artistName;
-  final String? coverArtId;
   final bool starred;
   final int songCount;
   final int albumCount;
@@ -511,22 +508,11 @@ class _ArtistIdentityHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MediaDetailHeaderSurface(
-      coverArtId: coverArtId,
       child: Padding(
         padding: EdgeInsets.all(context.echoSpacing.lg),
         child: LayoutBuilder(
           builder: (context, constraints) {
             final wide = constraints.maxWidth >= 680;
-            final portrait = SizedBox.square(
-              dimension: wide ? 200 : 160,
-              child: MediaDetailArtwork(
-                coverArtId: coverArtId,
-                semanticLabel: '$artistName 照片',
-                heroTag: 'artist-cover-$artistName',
-                circular: true,
-                requestSize: 480,
-              ),
-            );
             final information = Column(
               crossAxisAlignment: wide
                   ? CrossAxisAlignment.start
@@ -570,21 +556,11 @@ class _ArtistIdentityHeader extends StatelessWidget {
               ],
             );
 
-            if (!wide) {
-              return Column(
-                children: <Widget>[
-                  portrait,
-                  SizedBox(height: context.echoSpacing.lg),
-                  information,
-                ],
-              );
-            }
-            return Row(
-              children: <Widget>[
-                portrait,
-                SizedBox(width: context.echoSpacing.xl),
-                Expanded(child: information),
-              ],
+            return Align(
+              alignment: wide
+                  ? AlignmentDirectional.centerStart
+                  : Alignment.center,
+              child: information,
             );
           },
         ),

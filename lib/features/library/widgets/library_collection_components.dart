@@ -240,8 +240,6 @@ class EchoArtistRow extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: <Widget>[
-            ClipOval(child: _ArtistImage(artist: artist)),
-            SizedBox(width: context.echoSpacing.sm),
             Expanded(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -269,38 +267,6 @@ class EchoArtistRow extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _ArtistImage extends StatelessWidget {
-  const _ArtistImage({required this.artist});
-
-  final Artist artist;
-
-  @override
-  Widget build(BuildContext context) {
-    final coverArt = artist.coverArt?.trim() ?? '';
-    if (coverArt.isEmpty) {
-      return ColoredBox(
-        color: context.echoColors.raised,
-        child: SizedBox.square(
-          dimension: 56,
-          child: Center(
-            child: Icon(
-              AppIcons.profile,
-              size: 24,
-              color: context.echoColors.muted,
-            ),
-          ),
-        ),
-      );
-    }
-    return CoverArtImage(
-      coverArtId: coverArt,
-      size: 56,
-      requestSize: 192,
-      semanticLabel: '${artist.name} 图片',
     );
   }
 }

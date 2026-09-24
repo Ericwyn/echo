@@ -30,7 +30,6 @@ class _ArtistListPageState extends ConsumerState<ArtistListPage> {
         (artist) => Object.hash(
           artist.id,
           artist.name,
-          artist.coverArt,
           artist.albumCount,
           artist.starred,
         ),
