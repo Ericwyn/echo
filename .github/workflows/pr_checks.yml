@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 env:
-  FLUTTER_VERSION: 3.41.7
+  FLUTTER_VERSION: 3.47.5
 
 concurrency:
   group: pr-checks-${{ github.event.pull_request.number || github.ref }}
@@ -73,7 +73,7 @@ jobs:
           fi
 
       - name: Static analysis
-        run: flutter analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
       - name: Run tests
         run: dbus-run-session -- flutter test

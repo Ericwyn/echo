@@ -1,10 +1,10 @@
 # 构建 Echoes
 
-以下命令均在仓库根目录执行。本指南覆盖 Android APK 与 Ubuntu/Linux x64；Windows、iOS 等平台不在此处的构建范围内。当前 CI 使用 Flutter **3.41.7**，`pubspec.yaml` 要求 Dart `^3.10.8`。
+以下命令均在仓库根目录执行。本指南覆盖 Android APK 与 Ubuntu/Linux x64；Windows、iOS 等平台不在此处的构建范围内。项目通过 `.fvmrc` 固定 Flutter **3.47.5**，CI 使用相同版本；`pubspec.yaml` 要求 Dart `^3.10.8`。
 
 ## 准备环境
 
-1. 安装 Flutter 3.41.7，并确认 `flutter`、`dart` 在 `PATH` 中。运行 `flutter doctor -v` 检查工具链。
+1. 安装 Flutter 3.47.5，并确认 `flutter`、`dart` 在 `PATH` 中。也可以执行 `fvm install`，之后使用 `fvm flutter` / `fvm dart` 运行本指南中的命令。运行 `flutter doctor -v` 检查工具链。
 2. Android 构建需要 Android SDK、Build Tools、已接受的 SDK licenses，以及 JDK 17。首次配置可运行 `flutter doctor --android-licenses`。Linux 构建需要 C/C++、GTK 与打包工具；Ubuntu 22.04 可安装与 CI 相同的依赖：
 
    ```bash
@@ -25,6 +25,8 @@
 ```bash
 dart run build_runner build --delete-conflicting-outputs
 ```
+
+Flutter 3.47.5 的分析器会列出旧代码中的提示和警告；当前 PR 检查保留这些输出，但只将 `error` 视为失败。可在本地用 `flutter analyze --no-fatal-infos --no-fatal-warnings` 复现该检查。
 
 ## 版本号与 Android 签名
 

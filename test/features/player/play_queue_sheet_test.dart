@@ -6,6 +6,7 @@ import 'package:echoes/providers/player_provider.dart';
 import 'package:echoes/widgets/cover_art_image.dart';
 import 'package:echoes/widgets/song_list_item.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart' show kSecondaryMouseButton;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -167,7 +168,7 @@ void main() {
       find.byType(ReorderableListView),
     );
     expect(list.proxyDecorator, isNotNull);
-    list.onReorder(0, 2);
+    list.onReorder!(0, 2);
     expect(moves, <(int, int)>[(0, 2)]);
   });
 
@@ -205,7 +206,7 @@ void main() {
     await tester.pumpWidget(subject(changedState));
 
     list = tester.widget<ReorderableListView>(find.byType(ReorderableListView));
-    list.onReorder(0, 2);
+    list.onReorder!(0, 2);
     await tester.pump();
 
     expect(moves, isEmpty);
@@ -228,23 +229,26 @@ void main() {
     final deleted = <String>[];
     String? selectedEntryId;
     await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.dark(),
-        home: StatefulBuilder(
-          builder: (context, setState) => Scaffold(
-            body: PlaybackQueueContent(
-              scrollController: scrollController,
-              playerState: state,
-              desktopInteraction: true,
-              onEntrySelected: (entryId) {
-                if (entryId != null) selected.add(entryId);
-                setState(() => selectedEntryId = entryId);
-              },
-              selectedEntryId: selectedEntryId,
-              onDeleteEntry: deleted.add,
-              onSelect: (index) async => played.add(state.queueEntryIds[index]),
-              onReorder: (_, _) {},
-              onOpenSongActions: (context, index, song, entryId) async {},
+      ProviderScope(
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          home: StatefulBuilder(
+            builder: (context, setState) => Scaffold(
+              body: PlaybackQueueContent(
+                scrollController: scrollController,
+                playerState: state,
+                desktopInteraction: true,
+                onEntrySelected: (entryId) {
+                  if (entryId != null) selected.add(entryId);
+                  setState(() => selectedEntryId = entryId);
+                },
+                selectedEntryId: selectedEntryId,
+                onDeleteEntry: deleted.add,
+                onSelect: (index) async =>
+                    played.add(state.queueEntryIds[index]),
+                onReorder: (_, _) {},
+                onOpenSongActions: (context, index, song, entryId) async {},
+              ),
             ),
           ),
         ),
@@ -255,7 +259,7 @@ void main() {
     expect(find.byType(ReorderableDragStartListener), findsNWidgets(2));
     expect(find.byType(ReorderableDelayedDragStartListener), findsNothing);
     await tester.tap(find.text(songs[1].title));
-    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
     expect(selected, <String>[state.queueEntryIds[1]]);
     expect(played, isEmpty);
 
@@ -267,7 +271,9 @@ void main() {
     await tester.pump();
     expect(played, <String>[state.queueEntryIds[1], state.queueEntryIds[1]]);
 
-    await tester.doubleTap(find.text(songs[0].title));
+    await tester.tap(find.text(songs[0].title));
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.tap(find.text(songs[0].title));
     await tester.pump();
     expect(played, <String>[
       state.queueEntryIds[1],
@@ -275,6 +281,8 @@ void main() {
       state.queueEntryIds[0],
     ]);
 
+    await tester.tap(find.text(songs[1].title));
+    await tester.pump(const Duration(milliseconds: 400));
     await tester.sendKeyEvent(LogicalKeyboardKey.delete);
     await tester.pump();
     expect(deleted, <String>[state.queueEntryIds[1]]);
@@ -310,18 +318,20 @@ void main() {
     final scrollController = ScrollController();
     addTearDown(scrollController.dispose);
 
-    Widget subject() => MaterialApp(
-      theme: AppTheme.dark(),
-      home: Scaffold(
-        body: PlaybackQueueContent(
-          scrollController: scrollController,
-          playerState: state,
-          desktopInteraction: true,
-          onEntrySelected: (_) {},
-          onDeleteEntry: (_) {},
-          onSelect: (_) async {},
-          onReorder: (_, _) {},
-          onOpenSongActions: (context, index, song, entryId) async {},
+    Widget subject() => ProviderScope(
+      child: MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: PlaybackQueueContent(
+            scrollController: scrollController,
+            playerState: state,
+            desktopInteraction: true,
+            onEntrySelected: (_) {},
+            onDeleteEntry: (_) {},
+            onSelect: (_) async {},
+            onReorder: (_, _) {},
+            onOpenSongActions: (context, index, song, entryId) async {},
+          ),
         ),
       ),
     );
@@ -357,25 +367,28 @@ void main() {
     String? selectedEntryId;
 
     await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.dark(),
-        home: StatefulBuilder(
-          builder: (context, setState) => Scaffold(
-            body: PlaybackQueueContent(
-              scrollController: scrollController,
-              playerState: state,
-              desktopInteraction: true,
-              selectedEntryId: selectedEntryId,
-              onEntrySelected: (entryId) {
-                if (entryId != null) selected.add(entryId);
-                setState(() => selectedEntryId = entryId);
-              },
-              onDeleteEntry: deleted.add,
-              onSelect: (index) async => played.add(state.queueEntryIds[index]),
-              onReorder: (_, _) {},
-              onOpenSongActions: (context, index, song, entryId) async {
-                opened.add((index, entryId));
-              },
+      ProviderScope(
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          home: StatefulBuilder(
+            builder: (context, setState) => Scaffold(
+              body: PlaybackQueueContent(
+                scrollController: scrollController,
+                playerState: state,
+                desktopInteraction: true,
+                selectedEntryId: selectedEntryId,
+                onEntrySelected: (entryId) {
+                  if (entryId != null) selected.add(entryId);
+                  setState(() => selectedEntryId = entryId);
+                },
+                onDeleteEntry: deleted.add,
+                onSelect: (index) async =>
+                    played.add(state.queueEntryIds[index]),
+                onReorder: (_, _) {},
+                onOpenSongActions: (context, index, song, entryId) async {
+                  opened.add((index, entryId));
+                },
+              ),
             ),
           ),
         ),
@@ -386,7 +399,11 @@ void main() {
     final targetEntryId = state.queueEntryIds[1];
     final targetTitle = find.text(songs[1].title);
 
-    await tester.click(targetTitle, buttons: kSecondaryMouseButton);
+    var gesture = await tester.startGesture(
+      tester.getCenter(targetTitle),
+      buttons: kSecondaryMouseButton,
+    );
+    await gesture.up();
     await tester.pumpAndSettle();
     expect(find.text('播放此曲'), findsOneWidget);
     await tester.tap(find.text('播放此曲'));
@@ -394,13 +411,21 @@ void main() {
     expect(selected, <String>[targetEntryId]);
     expect(played, <String>[targetEntryId]);
 
-    await tester.click(targetTitle, buttons: kSecondaryMouseButton);
+    gesture = await tester.startGesture(
+      tester.getCenter(targetTitle),
+      buttons: kSecondaryMouseButton,
+    );
+    await gesture.up();
     await tester.pumpAndSettle();
     await tester.tap(find.text('从队列移除'));
     await tester.pumpAndSettle();
     expect(deleted, <String>[targetEntryId]);
 
-    await tester.click(targetTitle, buttons: kSecondaryMouseButton);
+    gesture = await tester.startGesture(
+      tester.getCenter(targetTitle),
+      buttons: kSecondaryMouseButton,
+    );
+    await gesture.up();
     await tester.pumpAndSettle();
     await tester.tap(find.text('更多操作…'));
     await tester.pumpAndSettle();
@@ -473,26 +498,28 @@ void main() {
     var locateCurrentRequestId = 0;
 
     await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.dark(),
-        home: StatefulBuilder(
-          builder: (context, setState) {
-            updateHost = setState;
-            return Scaffold(
-              body: PlaybackQueueContent(
-                scrollController: scrollController,
-                playerState: playerState,
-                desktopInteraction: true,
-                locateCurrentRequestId: locateCurrentRequestId,
-                selectedEntryId: null,
-                onEntrySelected: (_) {},
-                onDeleteEntry: (_) {},
-                onSelect: (_) async {},
-                onReorder: (_, _) {},
-                onOpenSongActions: (context, index, song, entryId) async {},
-              ),
-            );
-          },
+      ProviderScope(
+        child: MaterialApp(
+          theme: AppTheme.dark(),
+          home: StatefulBuilder(
+            builder: (context, setState) {
+              updateHost = setState;
+              return Scaffold(
+                body: PlaybackQueueContent(
+                  scrollController: scrollController,
+                  playerState: playerState,
+                  desktopInteraction: true,
+                  locateCurrentRequestId: locateCurrentRequestId,
+                  selectedEntryId: null,
+                  onEntrySelected: (_) {},
+                  onDeleteEntry: (_) {},
+                  onSelect: (_) async {},
+                  onReorder: (_, _) {},
+                  onOpenSongActions: (context, index, song, entryId) async {},
+                ),
+              );
+            },
+          ),
         ),
       ),
     );

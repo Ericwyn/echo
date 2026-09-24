@@ -14,6 +14,13 @@ analyzer:
   # lint baseline separate from Echoes application code.
   exclude:
     - packages/media_kit/**
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
 
 linter:
   # The lint rules applied to this project can be customized in the

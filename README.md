@@ -130,7 +130,7 @@ Echo 使用自有的 **Echo Listening System**，以“**Album Light, Quiet Chro
 
 ### 前置环境
 
-- **Flutter stable**：Android/iOS/Windows/macOS/Linux CI 使用 `3.41.7`，Web CI 仍使用 `3.38.9`；`pubspec.yaml` 要求 Dart `^3.10.8`，使用满足该约束的 Flutter SDK。
+- **Flutter stable**：项目使用 `.fvmrc` 固定 `3.47.5`，各平台 CI 使用相同版本；`pubspec.yaml` 要求 Dart `^3.10.8`。
 - **Android**：Android Studio、Android SDK、Platform-Tools、Android Emulator 和至少一个 AVD；Android 构建使用 Java 17 目标，建议使用 Android Studio 提供的 JDK，并通过 `flutter doctor -v` 检查工具链。
 - **其他平台**：iOS / macOS 需要 macOS 与 Xcode；Windows 需要 Visual Studio 的 C++ 桌面开发工具；Linux 需要 GTK、CMake、Ninja 等原生构建依赖。
 

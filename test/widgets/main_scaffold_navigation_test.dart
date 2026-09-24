@@ -2,6 +2,7 @@ import 'package:echoes/core/theme/app_theme.dart';
 import 'package:echoes/core/design/echo_design.dart';
 import 'package:echoes/core/navigation/route_return.dart';
 import 'package:echoes/data/models/song.dart';
+import 'package:echoes/providers/api_provider.dart';
 import 'package:echoes/providers/navigation_provider.dart';
 import 'package:echoes/providers/player_provider.dart';
 import 'package:echoes/widgets/main_scaffold.dart';
@@ -500,8 +501,6 @@ void main() {
     testWidgets(
       'wide Android shell does not expose native fullscreen controls',
       (tester) async {
-        debugDefaultTargetPlatformOverride = TargetPlatform.android;
-        addTearDown(() => debugDefaultTargetPlatformOverride = null);
         final song = Song(id: 'wide-android-song', title: 'Wide Android song');
         await _pumpMainScaffold(
           tester,
@@ -521,13 +520,12 @@ void main() {
         expect(find.bySemanticsLabel('退出全屏'), findsNothing);
         expect(tester.takeException(), isNull);
       },
+      variant: TargetPlatformVariant.only(TargetPlatform.android),
     );
 
     testWidgets('Escape exits fullscreen before closing the player workspace', (
       tester,
     ) async {
-      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
-      addTearDown(() => debugDefaultTargetPlatformOverride = null);
       const channel = MethodChannel('window_manager');
       final messenger =
           TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
@@ -571,6 +569,17 @@ void main() {
 
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await tester.pumpAndSettle();
+      final leaveFullScreen = const StandardMethodCodec().encodeMethodCall(
+        const MethodCall('onEvent', <String, Object>{
+          'eventName': 'leave-full-screen',
+        }),
+      );
+      await messenger.handlePlatformMessage(
+        channel.name,
+        leaveFullScreen,
+        (_) {},
+      );
+      await tester.pumpAndSettle();
 
       expect(fullScreenRequests, <bool>[false]);
       expect(
@@ -579,7 +588,7 @@ void main() {
       );
       expect(find.bySemanticsLabel('进入全屏'), findsOneWidget);
       expect(tester.takeException(), isNull);
-    });
+    }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
     testWidgets('desktop forward restores a detail page scroll position', (
       tester,
@@ -758,6 +767,7 @@ Future<_MainScaffoldHarness> _pumpMainScaffold(
 
   final container = ProviderContainer(
     overrides: <Override>[
+      networkManagerProvider.overrideWith((ref) {}),
       if (playerState != null)
         playerProvider.overrideWith((ref) => TestPlayerNotifier(playerState)),
     ],

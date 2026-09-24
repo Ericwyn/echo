@@ -164,8 +164,8 @@ void main() {
           sender: _busName,
           interface: _playerInterface,
           name: 'Seeked',
-          path: const DBusObjectPath(_objectPath),
-          signature: const DBusSignature('x'),
+          path: DBusObjectPath(_objectPath),
+          signature: DBusSignature('x'),
         ).listen((signal) {
           if (!seeked.isCompleted) seeked.complete(signal);
         });
@@ -182,7 +182,7 @@ void main() {
         interface: _playerInterface,
         name: 'SetPosition',
         values: <DBusValue>[
-          const DBusObjectPath('$_objectPath/Track/stale'),
+          DBusObjectPath('$_objectPath/Track/stale'),
           const DBusInt64(60000000),
         ],
         replySignature: DBusSignature(''),
@@ -224,8 +224,8 @@ void main() {
           sender: _busName,
           interface: _playerInterface,
           name: 'Seeked',
-          path: const DBusObjectPath(_objectPath),
-          signature: const DBusSignature('x'),
+          path: DBusObjectPath(_objectPath),
+          signature: DBusSignature('x'),
         ).listen((signal) {
           final position = Duration(
             microseconds: signal.values.single.asInt64(),

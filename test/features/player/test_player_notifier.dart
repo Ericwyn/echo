@@ -1,4 +1,5 @@
 import 'package:echoes/data/models/song.dart';
+import 'package:echoes/providers/player/playback_contract.dart';
 import 'package:echoes/providers/player_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart' hide PlayerState;
@@ -8,6 +9,9 @@ import 'package:just_audio/just_audio.dart' hide PlayerState;
 class TestPlayerNotifier extends StateNotifier<PlayerState>
     implements PlayerNotifier {
   TestPlayerNotifier(super.state);
+
+  @override
+  PlaybackSnapshot get snapshot => PlaybackSnapshot.fromState(state);
 
   int toggleCount = 0;
   int previousCount = 0;
