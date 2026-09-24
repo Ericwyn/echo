@@ -40,7 +40,8 @@ static void my_application_activate(GApplication* application) {
   gtk_window_set_title(window, "echoes");
 
   // Rounded GTK corners expose the opaque Flutter view as dark corner pixels.
-  // Keep the native CSD/shadow but make the visible window rectangular.
+  // Keep the visible window rectangular and let the GTK theme own shadow
+  // geometry during resize and restore.
   gtk_style_context_add_class(
       gtk_widget_get_style_context(GTK_WIDGET(window)), "echoes-desktop");
   GtkCssProvider* window_css = gtk_css_provider_new();
@@ -51,12 +52,7 @@ static void my_application_activate(GApplication* application) {
       "}"
       "window.echoes-desktop decoration {"
       "  border-radius: 0;"
-      "  box-shadow: 0 6px 20px 3px rgba(0, 0, 0, 0.22),"
-      "              0 1px 4px rgba(0, 0, 0, 0.16);"
-      "}"
-      "window.echoes-desktop.maximized decoration,"
-      "window.echoes-desktop.fullscreen decoration,"
-      "window.echoes-desktop.tiled decoration { box-shadow: none; }",
+      "}",
       -1, nullptr);
   gtk_style_context_add_provider_for_screen(
       gtk_widget_get_screen(GTK_WIDGET(window)), GTK_STYLE_PROVIDER(window_css),
