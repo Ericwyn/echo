@@ -70,6 +70,13 @@ static void my_application_activate(GApplication* application) {
                                 GDK_HINT_MIN_SIZE);
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
+  // Keep the default Flutter renderer for normal runs. This opt-in diagnostic
+  // switch lets us compare Impeller and the legacy renderer on the same Linux
+  // bundle when investigating compositor flicker during resize or restore.
+  if (g_strcmp0(g_getenv("ECHO_DISABLE_IMPELLER"), "1") == 0) {
+    fl_dart_project_set_enable_impeller(project, FALSE);
+    g_message("Echoes: Impeller disabled for this diagnostic run");
+  }
   fl_dart_project_set_dart_entrypoint_arguments(
       project, self->dart_entrypoint_arguments);
 
