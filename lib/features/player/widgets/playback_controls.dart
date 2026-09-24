@@ -10,16 +10,11 @@ import 'player_scrubber.dart';
 
 /// Buffered playback progress with a 48dp interaction target.
 class ProgressBar extends ConsumerStatefulWidget {
-  const ProgressBar({
-    super.key,
-    this.centerTrack = false,
-    this.compactLabels = false,
-  });
+  const ProgressBar({super.key, this.inlineTimeLabels = false});
 
-  /// On desktop, keep the scrubber centered in the playback bar while the
-  /// elapsed and total time sit below it without shifting the track upward.
-  final bool centerTrack;
-  final bool compactLabels;
+  /// Desktop places elapsed and total time beside the seek track so the
+  /// controls and timeline can each occupy a clear row in the playback bar.
+  final bool inlineTimeLabels;
 
   @override
   ConsumerState<ProgressBar> createState() => _ProgressBarState();
@@ -211,21 +206,34 @@ class _ProgressBarState extends ConsumerState<ProgressBar>
       ),
     );
 
-    if (widget.centerTrack) {
-      return Stack(
-        fit: StackFit.passthrough,
-        clipBehavior: Clip.none,
+    if (widget.inlineTimeLabels) {
+      return Row(
         children: <Widget>[
-          scrubber,
-          PositionedDirectional(
-            start: 0,
-            end: 0,
-            top: widget.compactLabels
-                ? context.echoInteraction.minimumTouchTarget -
-                      context.echoSpacing.md
-                : context.echoInteraction.minimumTouchTarget -
-                      context.echoSpacing.xxs,
-            child: timeLabels,
+          ExcludeSemantics(
+            child: SizedBox(
+              width: 48,
+              child: Text(
+                _formatDuration(displayPosition),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.end,
+                style: timeStyle,
+              ),
+            ),
+          ),
+          SizedBox(width: context.echoSpacing.sm),
+          Expanded(child: scrubber),
+          SizedBox(width: context.echoSpacing.sm),
+          ExcludeSemantics(
+            child: SizedBox(
+              width: 48,
+              child: Text(
+                _formatDuration(state.duration),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: timeStyle,
+              ),
+            ),
           ),
         ],
       );
@@ -278,7 +286,7 @@ class PlaybackControls extends ConsumerWidget {
       PlaybackIconButton(
         icon: AppIcons.previous,
         label: '上一首',
-        iconSize: 30,
+        iconSize: compact ? 24 : 30,
         dimension: sideButtonDimension,
         onPressed: !state.hasPrevious
             ? null
@@ -305,7 +313,7 @@ class PlaybackControls extends ConsumerWidget {
       PlaybackIconButton(
         icon: AppIcons.next,
         label: '下一首',
-        iconSize: 30,
+        iconSize: compact ? 24 : 30,
         dimension: sideButtonDimension,
         onPressed: !state.hasNext ? null : () => unawaited(commands.next()),
       ),
@@ -330,6 +338,7 @@ class PlaybackIconButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.selected = false,
+    this.quietSelected = false,
     this.emphasized = false,
     this.dimension = 48,
     this.iconSize = 22,
@@ -341,6 +350,7 @@ class PlaybackIconButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
   final bool selected;
+  final bool quietSelected;
   final bool emphasized;
   final double dimension;
   final double iconSize;
@@ -353,12 +363,14 @@ class PlaybackIconButton extends StatelessWidget {
     final enabled = onPressed != null;
     final foreground = emphasized
         ? EchoColors.readableOn(colors.ink)
+        : selected && quietSelected
+        ? colors.accent
         : enabled
         ? colors.ink
         : colors.onDisabled;
     final background = emphasized
         ? colors.ink
-        : selected
+        : selected && !quietSelected
         ? colors.ink.withValues(alpha: 0.14)
         : Colors.transparent;
 
@@ -375,7 +387,7 @@ class PlaybackIconButton extends StatelessWidget {
           decoration: BoxDecoration(
             color: background,
             borderRadius: context.echoRadii.pill,
-            border: !emphasized && selected
+            border: !emphasized && selected && !quietSelected
                 ? Border.all(color: colors.accent)
                 : null,
           ),

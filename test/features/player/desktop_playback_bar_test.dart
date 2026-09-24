@@ -56,9 +56,14 @@ void main() {
     final playbackBarRect = tester.getRect(
       find.byKey(const ValueKey<String>('echo-desktop-playback-bar')),
     );
+    final progressCenter = tester.getCenter(scrubbers.first);
     expect(
-      tester.getCenter(scrubbers.first).dy,
-      closeTo(playbackBarRect.top + playbackBarRect.height * 0.75, 1),
+      progressCenter.dy,
+      closeTo(tester.getCenter(find.text('3:00')).dy, 1),
+    );
+    expect(
+      playbackBarRect.bottom - tester.getRect(scrubbers.first).bottom,
+      greaterThan(8),
     );
     expect(find.text('3:00'), findsOneWidget);
     expect(tester.takeException(), isNull);

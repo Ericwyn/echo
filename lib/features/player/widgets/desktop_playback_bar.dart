@@ -77,6 +77,7 @@ class DesktopPlaybackBar extends ConsumerWidget {
             ),
             padding: EdgeInsets.symmetric(
               horizontal: compact ? spacing.sm : spacing.lg,
+              vertical: spacing.xs,
             ),
             child: Row(
               children: <Widget>[
@@ -86,7 +87,11 @@ class DesktopPlaybackBar extends ConsumerWidget {
                     title: playback.title,
                     artist: playback.artist,
                     artworkReference: playback.artworkReference,
-                    artworkSize: compact ? 40 : 56,
+                    artworkSize: tight
+                        ? 48
+                        : compact
+                        ? 64
+                        : 72,
                     onPressed: () => onOpenWorkspace(DesktopPlayerPanel.lyrics),
                   ),
                 ),
@@ -108,6 +113,7 @@ class DesktopPlaybackBar extends ConsumerWidget {
                             icon: AppIcons.shuffle,
                             label: playback.shuffle ? '关闭随机播放' : '开启随机播放',
                             selected: playback.shuffle,
+                            quietSelected: true,
                             dimension: 40,
                             iconSize: 20,
                             onPressed: () => unawaited(
@@ -121,6 +127,7 @@ class DesktopPlaybackBar extends ConsumerWidget {
                             icon: modeIcon,
                             label: '$modeLabel，点击切换',
                             selected: mode != PlaybackMode.sequential,
+                            quietSelected: true,
                             dimension: 40,
                             iconSize: 20,
                             onPressed: () =>
@@ -128,7 +135,7 @@ class DesktopPlaybackBar extends ConsumerWidget {
                           ),
                         ],
                       ),
-                      const ProgressBar(centerTrack: true, compactLabels: true),
+                      const ProgressBar(inlineTimeLabels: true),
                     ],
                   ),
                 ),

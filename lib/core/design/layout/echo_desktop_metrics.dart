@@ -1,6 +1,6 @@
 /// Shared desktop chrome metrics used to align the sidebar and player bar.
 const double echoDesktopNavigationHeaderHeight = 53;
-const double echoDesktopPlaybackBarHeight = 96;
+const double echoDesktopPlaybackBarHeight = 120;
 
 /// Keep desktop windows inside the expanded shell instead of switching to the
 /// compact/mobile route presentation when resized narrowly.
