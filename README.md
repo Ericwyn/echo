@@ -177,39 +177,7 @@ flutter run -d DEVICE_ID
 
 ### 构建应用
 
-在具备对应平台工具链的主机上执行：
-
-```bash
-flutter build apk --release --split-per-abi
-flutter build ios --release --no-codesign
-flutter build windows
-flutter build macos
-flutter build linux
-flutter build web
-```
-
-Android APK 输出到 `build/app/outputs/flutter-apk/`。正式分发应配置 `android/key.properties` 或 `ECHO_STORE_FILE`、`ECHO_STORE_PASSWORD`、`ECHO_KEY_ALIAS`、`ECHO_KEY_PASSWORD` 环境变量；未配置完整发布签名时，当前构建脚本使用调试签名。`--no-codesign` 的 iOS 构建仅生成未签名产物，不能直接作为已签名应用安装。
-
-#### Linux 桌面 bundle 与 Ubuntu `.deb`
-
-Linux 桌面当前以 Ubuntu 22.04 x64 为验证基线，窗口最小尺寸为 840×560 逻辑像素。构建 bundle 和本地 `.deb`：
-
-```bash
-flutter build linux --release --no-pub
-bash scripts/package_linux_deb.sh
-```
-
-bundle 位于 `build/linux/x64/release/bundle/`，启动程序为 `echoes`；Debian 包输出到 `build/linux/packages/`。`.deb` 安装到 `/opt/echoes`，并添加应用菜单项与图标。包依赖 Ubuntu 的 `libgtk-3-0`、`libayatana-appindicator3-1` 和 `libmpv1`；安装包会通过 APT 声明这些依赖。
-
-安装本地生成的包：
-
-```bash
-DEB_PATH="$(bash scripts/package_linux_deb.sh | sed -n 's/^Created //p')"
-test -n "$DEB_PATH"
-sudo apt install "$DEB_PATH"
-```
-
-安装命令会从当前 bundle 生成 `.deb`，再把打包脚本输出的准确路径交给 APT，避免误选目录中的旧版本。当前 Linux CI 同时上传 bundle 压缩包与 `.deb` 构建产物；CI artifact 暂不是 GitHub Release 下载项。它们是适配验收产物，干净环境安装、升级和播放仍需单独验证；Ubuntu 24.04、Wayland、Windows 与 macOS 不在这份 Linux 产物的已验证范围内。
+Android 的 ARM64 单包、按 ABI 拆分 APK、通用 APK，以及 Linux release bundle、DEB 和 ZIP 的前置环境、签名、版本号、命令与产物路径统一见 [BUILD.md](BUILD.md)。Linux 安装包是当前 Ubuntu 验收产物；请在目标环境中另行验证安装、播放与窗口行为。
 
 ### 开发检查
 
