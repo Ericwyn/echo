@@ -52,6 +52,18 @@ void main() {
       tester.getCenter(scrubbers.first).dy,
       tester.getCenter(scrubbers.last).dy,
     );
+    expect(
+      tester.getCenter(scrubbers.first).dy,
+      closeTo(
+        tester
+            .getCenter(
+              find.byKey(const ValueKey<String>('echo-desktop-playback-bar')),
+            )
+            .dy,
+        1,
+      ),
+    );
+    expect(find.text('3:00'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

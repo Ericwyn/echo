@@ -111,7 +111,7 @@ class DesktopPlaybackBar extends ConsumerWidget {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      const Expanded(child: ProgressBar()),
+                      const Expanded(child: ProgressBar(centerTrack: true)),
                       if (!compact) ...<Widget>[
                         SizedBox(width: spacing.md),
                         const _DesktopVolumeControl(),
