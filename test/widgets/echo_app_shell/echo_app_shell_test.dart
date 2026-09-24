@@ -148,6 +148,33 @@ void main() {
       expect(sidebarHeader.bottom, closeTo(toolbar.bottom, 0.01));
     });
 
+    testWidgets('integrated Linux title bar removes both shell header rows', (
+      tester,
+    ) async {
+      await _pumpShell(
+        tester,
+        size: const Size(1440, 900),
+        integratedWindowChrome: true,
+        desktopNavigationToolbar: EchoDesktopNavigationToolbar(
+          canGoBack: false,
+          canGoForward: false,
+          onBack: () {},
+          onForward: () {},
+          onSearch: () {},
+        ),
+      );
+
+      expect(
+        find.byKey(const ValueKey<String>('echo-desktop-sidebar-brand')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('echo-desktop-navigation-toolbar')),
+        findsNothing,
+      );
+      expect(_expandedNavigation, findsOneWidget);
+    });
+
     testWidgets('desktop playback chrome is flush and account footer is gone', (
       tester,
     ) async {
@@ -628,6 +655,7 @@ Future<void> _pumpShell(
   ThemeData? theme,
   List<EchoDesktopSidebarAction> desktopActions = const [],
   Widget? desktopNavigationToolbar,
+  bool integratedWindowChrome = false,
   VoidCallback? onOpenDrawer,
 }) async {
   tester.view.devicePixelRatio = 1;
@@ -655,6 +683,7 @@ Future<void> _pumpShell(
             networkStatus: networkStatus,
             desktopActions: desktopActions,
             desktopNavigationToolbar: desktopNavigationToolbar,
+            integratedWindowChrome: integratedWindowChrome,
             onOpenDrawer: onOpenDrawer,
             miniPlayer:
                 miniPlayer ??

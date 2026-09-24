@@ -3,7 +3,6 @@ import 'package:echoes/widgets/echo_app_shell/echo_desktop_window_chrome.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:window_manager/window_manager.dart' show VirtualWindowFrame;
 
 void main() {
   testWidgets(
@@ -27,7 +26,9 @@ void main() {
       expect(find.bySemanticsLabel('最小化窗口'), findsOneWidget);
       expect(find.bySemanticsLabel('最大化窗口'), findsOneWidget);
       expect(find.bySemanticsLabel('关闭窗口'), findsOneWidget);
-      expect(tester.getSize(titleBar).height, 42);
+      expect(find.text('Echo'), findsOneWidget);
+      expect(find.text('Echoes'), findsNothing);
+      expect(tester.getSize(titleBar).height, 53);
     },
   );
 
@@ -49,7 +50,7 @@ void main() {
     expect(find.bySemanticsLabel('关闭窗口'), findsOneWidget);
   });
 
-  testWidgets('title bar buttons receive clicks above resize hit zones', (
+  testWidgets('title bar buttons receive clicks with native GTK frame', (
     tester,
   ) async {
     const channel = MethodChannel('window_manager');
@@ -67,11 +68,8 @@ void main() {
       MaterialApp(
         theme: AppTheme.light(),
         home: const Scaffold(body: Center(child: Text('Route content'))),
-        builder: (context, child) => VirtualWindowFrame(
-          child: EchoDesktopWindowChrome(
-            child: child ?? const SizedBox.shrink(),
-          ),
-        ),
+        builder: (context, child) =>
+            EchoDesktopWindowChrome(child: child ?? const SizedBox.shrink()),
       ),
     );
     await tester.pumpAndSettle();
@@ -89,5 +87,73 @@ void main() {
 
     expect(calls, containsAll(<String>['minimize', 'maximize', 'close']));
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('one title bar contains brand, navigation, search and controls', (
+    tester,
+  ) async {
+    late EchoDesktopWindowChromeController controller;
+    var backCount = 0;
+    var searchCount = 0;
+    final owner = Object();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: EchoDesktopWindowChrome(
+          child: Builder(
+            builder: (context) {
+              controller = EchoDesktopWindowChromeScope.maybeOf(context)!;
+              return const Scaffold(body: Text('Desktop route'));
+            },
+          ),
+        ),
+      ),
+    );
+    controller.showNavigation(
+      owner,
+      EchoDesktopChromeNavigation(
+        canGoBack: true,
+        canGoForward: false,
+        onBack: () => backCount++,
+        onForward: () {},
+        onSearch: () => searchCount++,
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Echo'), findsOneWidget);
+    expect(find.text('Echoes'), findsNothing);
+    expect(
+      find.byKey(const ValueKey<String>('echo-desktop-back')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('echo-desktop-forward')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('echo-desktop-search')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('echo-window-close')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey<String>('echo-desktop-back')));
+    await tester.tap(find.byKey(const ValueKey<String>('echo-desktop-search')));
+    expect(backCount, 1);
+    expect(searchCount, 1);
+
+    controller.clearNavigation(owner);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey<String>('echo-desktop-back')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('echo-desktop-search')),
+      findsNothing,
+    );
   });
 }

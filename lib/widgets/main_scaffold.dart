@@ -26,6 +26,7 @@ import 'app_drawer.dart';
 import 'echo_app_shell/echo_app_shell.dart';
 import 'echo_app_shell/desktop_navigation_strategy.dart';
 import 'echo_app_shell/echo_desktop_navigation_toolbar.dart';
+import 'echo_app_shell/echo_desktop_window_chrome.dart';
 import 'echo_app_shell/echo_network_status_bar.dart';
 import 'echo_app_shell/echo_shell_navigation.dart';
 
@@ -230,6 +231,9 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
   bool _desktopCanGoBack = false;
   bool _desktopCanGoForward = false;
   bool _desktopIsFullScreen = false;
+  final Object _desktopChromeOwner = Object();
+  EchoDesktopWindowChromeController? _desktopChromeController;
+  int _desktopChromeRevision = 0;
   late final DesktopNavigationStrategy _desktopNavigationStrategy;
 
   @override
@@ -261,6 +265,11 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final chromeController = EchoDesktopWindowChromeScope.maybeOf(context);
+    if (_desktopChromeController != chromeController) {
+      _desktopChromeController?.clearNavigation(_desktopChromeOwner);
+      _desktopChromeController = chromeController;
+    }
     final windowClass = context.echoBreakpoints.classify(
       MediaQuery.sizeOf(context).width,
     );
@@ -277,6 +286,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
   @override
   void dispose() {
     _stopNetworkObservation();
+    _desktopChromeController?.clearNavigation(_desktopChromeOwner);
     if (_supportsDesktopWindowControls) windowManager.removeListener(this);
     super.dispose();
   }
@@ -396,6 +406,45 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
     _desktopNavigationStrategy.goForward(context);
   }
 
+  void _navigateDesktopBack() {
+    unawaited(_handleBackPressed());
+  }
+
+  void _openDesktopSearch() {
+    _selectDesktopDestination(
+      destinationId: 'search',
+      branchIndex: discoverBranchIndex,
+      page: const SearchPage(),
+    );
+  }
+
+  void _scheduleDesktopChromeSync({required bool isDesktop}) {
+    final controller = _desktopChromeController;
+    if (controller == null) return;
+    final revision = ++_desktopChromeRevision;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          revision != _desktopChromeRevision ||
+          controller != _desktopChromeController) {
+        return;
+      }
+      if (!isDesktop) {
+        controller.clearNavigation(_desktopChromeOwner);
+        return;
+      }
+      controller.showNavigation(
+        _desktopChromeOwner,
+        EchoDesktopChromeNavigation(
+          canGoBack: _desktopCanGoBack,
+          canGoForward: _desktopCanGoForward,
+          onBack: _navigateDesktopBack,
+          onForward: _navigateDesktopForward,
+          onSearch: _openDesktopSearch,
+        ),
+      );
+    });
+  }
+
   Widget _withDesktopShortcuts(Widget child) {
     return Shortcuts(
       shortcuts: const <ShortcutActivator, Intent>{
@@ -433,11 +482,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
           _OpenDesktopSearchIntent:
               _DesktopCallbackAction<_OpenDesktopSearchIntent>(
                 enabled: () => !_isTextOrValueControlFocused(),
-                callback: () => _selectDesktopDestination(
-                  destinationId: 'search',
-                  branchIndex: discoverBranchIndex,
-                  page: const SearchPage(),
-                ),
+                callback: _openDesktopSearch,
               ),
           _DesktopEscapeIntent: _DesktopCallbackAction<_DesktopEscapeIntent>(
             callback: () => unawaited(_handleDesktopEscape()),
@@ -674,6 +719,9 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
       MediaQuery.sizeOf(context).width,
     );
     final isDesktop = windowClass == EchoWindowClass.expanded;
+    final integratedWindowChrome =
+        isDesktop && _desktopChromeController != null;
+    _scheduleDesktopChromeSync(isDesktop: isDesktop);
     final destinations = echoMainDestinations(showExploreTab: showExploreTab);
     final desktopWorkspaceVisible = isDesktop && _showDesktopPlayerWorkspace;
     final currentBranchIsVisible = destinations.any(
@@ -784,17 +832,14 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
       desktopActions: isDesktop
           ? _desktopSidebarActions(showExploreTab: showExploreTab)
           : const [],
-      desktopNavigationToolbar: isDesktop
+      integratedWindowChrome: integratedWindowChrome,
+      desktopNavigationToolbar: isDesktop && !integratedWindowChrome
           ? EchoDesktopNavigationToolbar(
               canGoBack: _desktopCanGoBack,
               canGoForward: _desktopCanGoForward,
-              onBack: () => unawaited(_handleBackPressed()),
+              onBack: _navigateDesktopBack,
               onForward: _navigateDesktopForward,
-              onSearch: () => _selectDesktopDestination(
-                destinationId: 'search',
-                branchIndex: discoverBranchIndex,
-                page: const SearchPage(),
-              ),
+              onSearch: _openDesktopSearch,
             )
           : null,
     );

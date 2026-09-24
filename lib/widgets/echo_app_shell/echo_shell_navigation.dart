@@ -163,12 +163,14 @@ class EchoExpandedNavigationSidebar extends StatelessWidget {
     required this.selectedBranchIndex,
     required this.onDestinationSelected,
     this.actions = const <EchoDesktopSidebarAction>[],
+    this.showBrand = true,
   });
 
   final List<EchoShellDestination> destinations;
   final int selectedBranchIndex;
   final ValueChanged<int> onDestinationSelected;
   final List<EchoDesktopSidebarAction> actions;
+  final bool showBrand;
 
   @override
   Widget build(BuildContext context) {
@@ -188,51 +190,52 @@ class EchoExpandedNavigationSidebar extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                Container(
-                  key: const ValueKey<String>('echo-desktop-sidebar-brand'),
-                  height: echoDesktopNavigationHeaderHeight,
-                  decoration: BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(color: context.echoColors.divider),
+                if (showBrand)
+                  Container(
+                    key: const ValueKey<String>('echo-desktop-sidebar-brand'),
+                    height: echoDesktopNavigationHeaderHeight,
+                    decoration: BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(color: context.echoColors.divider),
+                      ),
+                    ),
+                    padding: EdgeInsets.fromLTRB(
+                      spacing.sm,
+                      spacing.xs,
+                      spacing.md,
+                      spacing.xs,
+                    ),
+                    child: Row(
+                      children: <Widget>[
+                        DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: context.echoColors.accent.withValues(
+                              alpha: 0.13,
+                            ),
+                            borderRadius: context.echoRadii.control,
+                          ),
+                          child: Padding(
+                            padding: EdgeInsets.all(spacing.xs),
+                            child: Icon(
+                              AppIcons.musicFlowFilled,
+                              size: 20,
+                              color: context.echoColors.accent,
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: spacing.sm),
+                        Expanded(
+                          child: Semantics(
+                            header: true,
+                            child: Text(
+                              'Echo',
+                              style: context.echoTypography.title,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  padding: EdgeInsets.fromLTRB(
-                    spacing.sm,
-                    spacing.xs,
-                    spacing.md,
-                    spacing.xs,
-                  ),
-                  child: Row(
-                    children: <Widget>[
-                      DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: context.echoColors.accent.withValues(
-                            alpha: 0.13,
-                          ),
-                          borderRadius: context.echoRadii.control,
-                        ),
-                        child: Padding(
-                          padding: EdgeInsets.all(spacing.xs),
-                          child: Icon(
-                            AppIcons.musicFlowFilled,
-                            size: 20,
-                            color: context.echoColors.accent,
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: spacing.sm),
-                      Expanded(
-                        child: Semantics(
-                          header: true,
-                          child: Text(
-                            'Echo',
-                            style: context.echoTypography.title,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
                 Expanded(
                   child: ListView(
                     padding: EdgeInsets.symmetric(

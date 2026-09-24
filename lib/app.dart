@@ -19,7 +19,6 @@ import 'features/library/pages/library_page.dart';
 import 'features/library/pages/catalog_page.dart';
 import 'features/library/pages/edit_library_page.dart';
 import 'widgets/echo_app_shell/echo_desktop_window_chrome.dart';
-import 'package:window_manager/window_manager.dart';
 
 /// 应用主入口 Widget
 class App extends ConsumerWidget {
@@ -126,9 +125,7 @@ class App extends ConsumerWidget {
           );
         }
         if (_usesEchoLinuxWindowChrome()) {
-          content = VirtualWindowFrame(
-            child: EchoDesktopWindowChrome(child: content),
-          );
+          content = EchoDesktopWindowChrome(child: content);
         }
 
         return AnnotatedRegion<SystemUiOverlayStyle>(

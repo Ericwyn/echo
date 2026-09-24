@@ -1,9 +1,6 @@
 #include "my_application.h"
 
 #include <flutter_linux/flutter_linux.h>
-#ifdef GDK_WINDOWING_X11
-#include <gdk/gdkx.h>
-#endif
 
 #include "flutter/generated_plugin_registrant.h"
 
@@ -33,32 +30,38 @@ static void my_application_activate(GApplication* application) {
   GtkWindow* window =
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
 
-  // Use a header bar when running in GNOME as this is the common style used
-  // by applications and is the setup most users will be using (e.g. Ubuntu
-  // desktop).
-  // If running on X and not using GNOME then just use a traditional title bar
-  // in case the window manager does more exotic layout, e.g. tiling.
-  // If running on Wayland assume the header bar will work (may need changing
-  // if future cases occur).
-  gboolean use_header_bar = TRUE;
-#ifdef GDK_WINDOWING_X11
-  GdkScreen* screen = gtk_window_get_screen(window);
-  if (GDK_IS_X11_SCREEN(screen)) {
-    const gchar* wm_name = gdk_x11_screen_get_window_manager_name(screen);
-    if (g_strcmp0(wm_name, "GNOME Shell") != 0) {
-      use_header_bar = FALSE;
-    }
-  }
-#endif
-  if (use_header_bar) {
-    GtkHeaderBar* header_bar = GTK_HEADER_BAR(gtk_header_bar_new());
-    gtk_widget_show(GTK_WIDGET(header_bar));
-    gtk_header_bar_set_title(header_bar, "echoes");
-    gtk_header_bar_set_show_close_button(header_bar, TRUE);
-    gtk_window_set_titlebar(window, GTK_WIDGET(header_bar));
-  } else {
-    gtk_window_set_title(window, "echoes");
-  }
+  // Retain GTK client-side decorations so the compositor can draw the window
+  // shadow and resize frame. window_manager hides this header bar before the
+  // first Flutter frame; Flutter draws the one visible navigation/title bar.
+  GtkHeaderBar* header_bar = GTK_HEADER_BAR(gtk_header_bar_new());
+  gtk_widget_show(GTK_WIDGET(header_bar));
+  gtk_header_bar_set_title(header_bar, "echoes");
+  gtk_window_set_titlebar(window, GTK_WIDGET(header_bar));
+  gtk_window_set_title(window, "echoes");
+
+  // Rounded GTK corners expose the opaque Flutter view as dark corner pixels.
+  // Keep the native CSD/shadow but make the visible window rectangular.
+  gtk_style_context_add_class(
+      gtk_widget_get_style_context(GTK_WIDGET(window)), "echoes-desktop");
+  GtkCssProvider* window_css = gtk_css_provider_new();
+  gtk_css_provider_load_from_data(
+      window_css,
+      "window.echoes-desktop, window.echoes-desktop.background {"
+      "  border-radius: 0;"
+      "}"
+      "window.echoes-desktop decoration {"
+      "  border-radius: 0;"
+      "  box-shadow: 0 6px 20px 3px rgba(0, 0, 0, 0.22),"
+      "              0 1px 4px rgba(0, 0, 0, 0.16);"
+      "}"
+      "window.echoes-desktop.maximized decoration,"
+      "window.echoes-desktop.fullscreen decoration,"
+      "window.echoes-desktop.tiled decoration { box-shadow: none; }",
+      -1, nullptr);
+  gtk_style_context_add_provider_for_screen(
+      gtk_widget_get_screen(GTK_WIDGET(window)), GTK_STYLE_PROVIDER(window_css),
+      GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+  g_object_unref(window_css);
 
   gtk_window_set_default_size(window, 1280, 720);
   // Keep the Linux product shell above Echo's expanded breakpoint so a user

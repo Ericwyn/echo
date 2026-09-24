@@ -44,10 +44,10 @@ void main() {
           await windowManager.setResizable(true);
           await windowManager.setMaximizable(true);
           await windowManager.setMinimizable(true);
-          // GNOME's GTK header bar currently renders its own title strip. Hide
-          // it before Flutter's first frame; Echo draws the Linux window chrome.
+          // Hide GTK's header widget before the first Flutter frame. Keep its
+          // client-side decoration so the window manager can draw the shadow
+          // and native resize frame around Echo's own single title bar.
           await windowManager.setTitleBarStyle(TitleBarStyle.hidden);
-          await windowManager.setAsFrameless();
         }
         await DesktopWindowStateService.restoreBeforeFirstFrame();
         JustAudioMediaKit.ensureInitialized();

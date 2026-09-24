@@ -19,6 +19,7 @@ class EchoAppShell extends StatelessWidget {
     this.onOpenDrawer,
     this.desktopActions = const <EchoDesktopSidebarAction>[],
     this.desktopNavigationToolbar,
+    this.integratedWindowChrome = false,
   });
 
   final GlobalKey<ScaffoldState> scaffoldKey;
@@ -33,6 +34,7 @@ class EchoAppShell extends StatelessWidget {
   final VoidCallback? onOpenDrawer;
   final List<EchoDesktopSidebarAction> desktopActions;
   final Widget? desktopNavigationToolbar;
+  final bool integratedWindowChrome;
 
   @override
   Widget build(BuildContext context) {
@@ -63,6 +65,7 @@ class EchoAppShell extends StatelessWidget {
         networkStatusBar: networkStatusBar,
         desktopActions: desktopActions,
         desktopNavigationToolbar: desktopNavigationToolbar,
+        integratedWindowChrome: integratedWindowChrome,
       ),
     };
 
@@ -193,6 +196,7 @@ class _WideShellBody extends StatelessWidget {
     required this.networkStatusBar,
     required this.desktopActions,
     required this.desktopNavigationToolbar,
+    required this.integratedWindowChrome,
   });
 
   final EchoWindowClass windowClass;
@@ -206,6 +210,7 @@ class _WideShellBody extends StatelessWidget {
   final Widget networkStatusBar;
   final List<EchoDesktopSidebarAction> desktopActions;
   final Widget? desktopNavigationToolbar;
+  final bool integratedWindowChrome;
 
   @override
   Widget build(BuildContext context) {
@@ -224,11 +229,13 @@ class _WideShellBody extends StatelessWidget {
             selectedBranchIndex: selectedBranchIndex,
             onDestinationSelected: onDestinationSelected,
             actions: desktopActions,
+            showBrand: !integratedWindowChrome,
           ),
         Expanded(
           child: Column(
             children: <Widget>[
-              if (windowClass == EchoWindowClass.expanded &&
+              if (!integratedWindowChrome &&
+                  windowClass == EchoWindowClass.expanded &&
                   desktopNavigationToolbar != null)
                 desktopNavigationToolbar!,
               Expanded(
