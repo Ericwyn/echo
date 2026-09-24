@@ -107,9 +107,19 @@ class DesktopPlaybackBar extends ConsumerWidget {
                     onPressed: () => unawaited(commands.cycleLoopMode()),
                   ),
                 SizedBox(width: compact ? spacing.xs : spacing.md),
-                const Expanded(child: ProgressBar()),
+                Expanded(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      const Expanded(child: ProgressBar()),
+                      if (!compact) ...<Widget>[
+                        SizedBox(width: spacing.md),
+                        const _DesktopVolumeControl(),
+                      ],
+                    ],
+                  ),
+                ),
                 SizedBox(width: compact ? spacing.xs : spacing.md),
-                if (!compact) const _DesktopVolumeControl(),
                 if (compact)
                   _CompactPlaybackOptions(
                     shuffle: playback.shuffle,

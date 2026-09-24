@@ -11,6 +11,7 @@ import '../../../providers/download_provider.dart';
 import '../../../providers/music_provider.dart';
 import '../../../providers/player_provider.dart';
 import '../../../widgets/cover_art_image.dart';
+import '../download_playback_song.dart';
 
 typedef _DownloadScanResult = ({int valid, int missing, int orphan});
 
@@ -148,7 +149,7 @@ class DownloadManagerPage extends ConsumerWidget {
     final songs = <Song>[];
     for (final task in tasks) {
       final song = await repository.getSong(task.songId);
-      if (song != null) songs.add(song);
+      if (song != null) songs.add(songWithDownloadArtwork(song, task));
     }
     if (songs.isEmpty) {
       ToastNotifier.show('无法读取已下载歌曲的信息');
@@ -665,7 +666,11 @@ Future<void> _playTask(
     ToastNotifier.show('无法获取歌曲信息');
     return;
   }
-  unawaited(ref.read(playbackCommandsProvider).playQueue(<Song>[song]));
+  unawaited(
+    ref.read(playbackCommandsProvider).playQueue(<Song>[
+      songWithDownloadArtwork(song, task),
+    ]),
+  );
   ToastNotifier.show('正在播放：${task.title}');
 }
 

@@ -203,6 +203,7 @@ class _EchoDesktopWindowChromeState extends State<EchoDesktopWindowChrome>
                         key: const ValueKey<String>('echo-desktop-back'),
                         icon: AppIcons.back,
                         label: '返回',
+                        backgroundColor: Colors.transparent,
                         onPressed: navigation.canGoBack
                             ? navigation.onBack
                             : null,
@@ -211,9 +212,17 @@ class _EchoDesktopWindowChromeState extends State<EchoDesktopWindowChrome>
                         key: const ValueKey<String>('echo-desktop-forward'),
                         icon: AppIcons.forward,
                         label: '前进',
+                        backgroundColor: Colors.transparent,
                         onPressed: navigation.canGoForward
                             ? navigation.onForward
                             : null,
+                      ),
+                      const SizedBox(width: 6),
+                      EchoIconButton(
+                        key: const ValueKey<String>('echo-desktop-search'),
+                        icon: AppIcons.search,
+                        label: '搜索音乐库',
+                        onPressed: navigation.onSearch,
                       ),
                     ],
                     Expanded(
@@ -221,13 +230,6 @@ class _EchoDesktopWindowChromeState extends State<EchoDesktopWindowChrome>
                         child: const SizedBox(height: double.infinity),
                       ),
                     ),
-                    if (navigation != null)
-                      EchoIconButton(
-                        key: const ValueKey<String>('echo-desktop-search'),
-                        icon: AppIcons.search,
-                        label: '搜索音乐库',
-                        onPressed: navigation.onSearch,
-                      ),
                     _DesktopWindowButton(
                       key: const ValueKey<String>('echo-window-minimize'),
                       label: '最小化窗口',

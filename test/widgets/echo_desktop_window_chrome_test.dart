@@ -1,4 +1,5 @@
 import 'package:echoes/core/theme/app_theme.dart';
+import 'package:echoes/core/design/echo_design.dart';
 import 'package:echoes/widgets/echo_app_shell/echo_desktop_window_chrome.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -139,6 +140,35 @@ void main() {
     expect(
       find.byKey(const ValueKey<String>('echo-window-close')),
       findsOneWidget,
+    );
+    final backButton = find.byKey(const ValueKey<String>('echo-desktop-back'));
+    final forwardButton = find.byKey(
+      const ValueKey<String>('echo-desktop-forward'),
+    );
+    final searchButton = find.byKey(
+      const ValueKey<String>('echo-desktop-search'),
+    );
+    expect(
+      tester.widget<EchoIconButton>(backButton).backgroundColor,
+      Colors.transparent,
+    );
+    expect(
+      tester.widget<EchoIconButton>(forwardButton).backgroundColor,
+      Colors.transparent,
+    );
+    expect(
+      tester.getTopLeft(searchButton).dx,
+      greaterThan(tester.getTopRight(forwardButton).dx),
+    );
+    expect(
+      tester.getTopRight(searchButton).dx,
+      lessThan(
+        tester
+            .getTopLeft(
+              find.byKey(const ValueKey<String>('echo-window-minimize')),
+            )
+            .dx,
+      ),
     );
     await tester.tap(find.byKey(const ValueKey<String>('echo-desktop-back')));
     await tester.tap(find.byKey(const ValueKey<String>('echo-desktop-search')));

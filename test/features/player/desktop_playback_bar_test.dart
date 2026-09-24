@@ -1,0 +1,57 @@
+import 'package:echoes/core/theme/app_theme.dart';
+import 'package:echoes/data/models/song.dart';
+import 'package:echoes/features/player/widgets/desktop_playback_bar.dart';
+import 'package:echoes/features/player/widgets/player_scrubber.dart';
+import 'package:echoes/providers/player_provider.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import 'test_player_notifier.dart';
+
+void main() {
+  testWidgets('desktop progress and volume tracks share one vertical lane', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1280, 800);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    final song = Song(id: 'song-1', title: 'Song');
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: <Override>[
+          playerProvider.overrideWith(
+            (ref) => TestPlayerNotifier(
+              PlayerState(
+                currentSong: song,
+                queue: <Song>[song],
+                currentIndex: 0,
+                duration: const Duration(minutes: 3),
+              ),
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: Scaffold(
+            body: SizedBox(
+              width: 1280,
+              height: DesktopPlaybackBar.height,
+              child: DesktopPlaybackBar(onOpenWorkspace: (_) {}),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final scrubbers = find.byType(EchoPlayerScrubber);
+    expect(scrubbers, findsNWidgets(2));
+    expect(
+      tester.getCenter(scrubbers.first).dy,
+      tester.getCenter(scrubbers.last).dy,
+    );
+    expect(tester.takeException(), isNull);
+  });
+}
