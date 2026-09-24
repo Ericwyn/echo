@@ -70,6 +70,16 @@ static void my_application_activate(GApplication* application) {
                                 GDK_HINT_MIN_SIZE);
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
+  // A portable Flutter bundle has no installed .desktop icon theme entry.
+  // Set the GTK window icon from its bundled asset so task switchers can show
+  // the app icon even when Echoes is launched directly from the executable.
+  g_autofree gchar* icon_path = g_build_filename(
+      fl_dart_project_get_assets_path(project), "assets", "tray_icon.png", nullptr);
+  g_autoptr(GError) icon_error = nullptr;
+  if (!gtk_window_set_icon_from_file(window, icon_path, &icon_error)) {
+    g_warning("Unable to load Echoes window icon %s: %s", icon_path,
+              icon_error != nullptr ? icon_error->message : "unknown error");
+  }
   // Keep the default Flutter renderer for normal runs. This opt-in diagnostic
   // switch lets us compare Impeller and the legacy renderer on the same Linux
   // bundle when investigating compositor flicker during resize or restore.

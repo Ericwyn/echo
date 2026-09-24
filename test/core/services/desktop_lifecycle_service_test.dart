@@ -1,7 +1,28 @@
 import 'package:echoes/core/services/desktop_lifecycle_service.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  test('tray activation asks the desktop window to show and focus', () async {
+    const channel = MethodChannel('window_manager');
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    final calls = <String>[];
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      calls.add(call.method);
+      if (call.method == 'isMinimized') return false;
+      return null;
+    });
+    addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+
+    DesktopLifecycleService.instance.onTrayIconMouseDown();
+    await pumpEventQueue();
+
+    expect(calls, <String>['isMinimized', 'show', 'focus']);
+  });
+
   group('statusNotifierReconnectDelay', () {
     test('backs off to a capped 30 second retry interval', () {
       expect(statusNotifierReconnectDelay(0), const Duration(seconds: 1));

@@ -594,9 +594,7 @@ class DesktopLifecycleService with WindowListener, TrayListener {
 
   @override
   void onTrayIconMouseDown() {
-    if (defaultTargetPlatform != TargetPlatform.linux) {
-      unawaited(showWindow());
-    }
+    unawaited(showWindow());
   }
 
   @override
