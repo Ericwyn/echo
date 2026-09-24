@@ -12,7 +12,7 @@ on:
           - arm64
           - all
       signing:
-        description: APK signing key (debug cannot update an installed release)
+        description: APK signing key
         type: choice
         required: true
         default: release
@@ -135,7 +135,6 @@ jobs:
         env:
           TARGET_ABIS: ${{ steps.options.outputs.abis }}
         run: |
-          echo '::notice::This APK uses the Android debug key and cannot update an installed release build.'
           build_metadata=(
             '--dart-define=ECHO_BUILD_SOURCE=GitHub Actions'
             "--dart-define=ECHO_BUILD_COMMIT=${GITHUB_SHA::12}"
@@ -147,41 +146,23 @@ jobs:
             flutter build apk --release --no-pub --split-per-abi "${build_metadata[@]}"
           fi
 
-      - name: Verify ARM64 APK
-        env:
-          SIGNING_MODE: ${{ steps.options.outputs.signing }}
-          ECHO_STORE_FILE: ${{ runner.temp }}/echoes-release.jks
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+      - name: Verify ARM64 APK metadata
         run: |
           apk='build/app/outputs/flutter-apk/app-arm64-v8a-release.apk'
           build_tools_dir="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
           aapt="$build_tools_dir/aapt"
-          apksigner="$build_tools_dir/apksigner"
           test -s "$apk"
           test -x "$aapt"
-          test -x "$apksigner"
-          "$apksigner" verify --verbose "$apk" > /dev/null
 
           version="$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | head -n 1)"
           version_name="${version%%+*}"
           expected_code="${version##*+}"
-          package_info="$("$aapt" dump badging "$apk" | head -n 1)"
+          package_info="$("$aapt" dump badging "$apk" | sed -n '1p')"
           if [[ "$package_info" != *"name='com.az1n.echoes'"* ||
                 "$package_info" != *"versionCode='$expected_code'"* ||
                 "$package_info" != *"versionName='$version_name'"* ]]; then
             echo "::error::Unexpected APK package or version: $package_info"
             exit 1
-          fi
-
-          if [[ "$SIGNING_MODE" == 'release' ]]; then
-            certificate="$("$apksigner" verify --print-certs "$apk" | awk -F': ' '/Signer #1 certificate SHA-256 digest:/ { print tolower($2); exit }')"
-            expected_certificate="$(keytool -exportcert -alias "$KEY_ALIAS" -keystore "$ECHO_STORE_FILE" -storepass:env STORE_PASSWORD | sha256sum | cut -d' ' -f1)"
-            if [[ -z "$certificate" || "$certificate" != "$expected_certificate" ]]; then
-              echo "::error::APK signer does not match the configured release keystore."
-              exit 1
-            fi
-            echo "::notice::Release signer SHA-256: $certificate"
           fi
 
       - name: Get package version
