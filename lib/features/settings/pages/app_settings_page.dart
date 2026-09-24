@@ -10,6 +10,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/design/echo_design.dart';
+import '../../../core/constants/app_identity.dart';
 import '../../../core/services/desktop_close_settings.dart';
 import '../../../core/services/update_checker.dart';
 import '../../../core/utils/logger.dart';
@@ -97,7 +98,7 @@ class _AppSettingsPageState extends ConsumerState<AppSettingsPage> {
           mimeType: 'text/plain',
           name: 'echoes_log_$timestamp.txt',
         ),
-      ], subject: 'echoes 日志导出 $timestamp');
+      ], subject: '${echoDisplayName()} 日志导出 $timestamp');
 
       Logger.infoWithTag(
         'LOG_EXPORT',
@@ -481,7 +482,7 @@ class _AppSettingsPageState extends ConsumerState<AppSettingsPage> {
                   EchoSettingRow(
                     icon: AppIcons.info,
                     title: '关于',
-                    description: 'echoes · 基于 Subsonic API',
+                    description: '${echoDisplayName()} · 基于 Subsonic API',
                     onPressed: _showAboutSheet,
                   ),
                 ],
@@ -635,7 +636,7 @@ class _AppSettingsPageState extends ConsumerState<AppSettingsPage> {
       useRootNavigator: true,
       isScrollControlled: true,
       builder: (sheetContext) => EchoBottomSheet(
-        title: '关于 echoes',
+        title: '关于 ${echoDisplayName()}',
         constrainToAvailableHeight: true,
         child: SingleChildScrollView(
           child: Column(
@@ -666,7 +667,7 @@ class _AppSettingsPageState extends ConsumerState<AppSettingsPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
                           Text(
-                            'echoes',
+                            echoDisplayName(),
                             style: sheetContext.echoTypography.headline,
                           ),
                           SizedBox(height: sheetContext.echoSpacing.xxs),
@@ -684,7 +685,7 @@ class _AppSettingsPageState extends ConsumerState<AppSettingsPage> {
               ),
               SizedBox(height: sheetContext.echoSpacing.md),
               Text(
-                '© 2026 echoes',
+                '© 2026 ${echoDisplayName()}',
                 style: sheetContext.echoTypography.metadata.copyWith(
                   color: sheetContext.echoColors.muted,
                 ),

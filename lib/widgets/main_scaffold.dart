@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:window_manager/window_manager.dart';
 
+import '../core/constants/app_identity.dart';
 import '../core/design/echo_design.dart';
 import '../core/network/connectivity_monitor.dart';
 import '../core/utils/logger.dart';
@@ -214,7 +215,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
     with WindowListener {
   static const _logTag = 'BACK';
   static const MethodChannel _appLifecycleChannel = MethodChannel(
-    'com.az1n.echoes/app_lifecycle',
+    '$echoApplicationId/app_lifecycle',
   );
   int? _lastSyncedBranchIndex;
   EchoWindowClass? _lastWindowClass;

@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'package:window_manager/window_manager.dart';
 import 'app.dart';
+import 'core/constants/app_identity.dart';
 import 'core/design/echo_design.dart';
 import 'core/design/layout/echo_desktop_metrics.dart';
 import 'core/services/background_playback_advisor.dart';
@@ -145,14 +146,14 @@ class _DesktopLifecycleHostState extends ConsumerState<_DesktopLifecycleHost> {
     if (dialogContext == null) return false;
 
     final recoveryPath = trayAvailable
-        ? '关闭窗口后，Echoes 会继续播放。可点击系统托盘中的 Echoes 图标，再选择“显示 Echo”恢复窗口。'
-        : '当前会话没有可用的系统托盘，Echoes 会最小化到任务栏而不是退出。可从任务栏恢复窗口。';
+        ? '关闭窗口后，${echoDisplayName()} 会继续播放。可点击系统托盘图标，再选择“显示 ${echoDisplayName()}”恢复窗口。'
+        : '当前会话没有可用的系统托盘，${echoDisplayName()} 会最小化到任务栏而不是退出。可从任务栏恢复窗口。';
     final hideLabel = trayAvailable ? '隐藏到托盘' : '最小化到任务栏';
 
     return await showDialog<bool>(
           context: dialogContext,
           builder: (context) => AlertDialog(
-            title: const Text('Echoes 将继续在后台运行'),
+            title: Text('${echoDisplayName()} 将继续在后台运行'),
             content: Text('$recoveryPath\n\n也可以到设置中改为关闭窗口时退出。'),
             actions: <Widget>[
               TextButton(

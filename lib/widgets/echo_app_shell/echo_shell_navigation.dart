@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/constants/app_identity.dart';
 import '../../core/design/echo_design.dart';
 
 @immutable
@@ -228,7 +229,7 @@ class EchoExpandedNavigationSidebar extends StatelessWidget {
                           child: Semantics(
                             header: true,
                             child: Text(
-                              'Echo',
+                              echoDisplayName(),
                               style: context.echoTypography.title,
                             ),
                           ),

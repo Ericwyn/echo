@@ -26,7 +26,7 @@ Ubuntu 交付可安装 `.deb` 与完整 bundle 压缩包；Windows 交付 releas
 
 ## 当前 Linux 打包实现记录
 
-- `packaging/linux/echoes.desktop` 使用 `echoes` desktop-file basename，与 Linux MPRIS 的 `DesktopEntry=echoes` 对齐；图标安装到 hicolor `192x192/apps`。
+- `packaging/linux/com.az1n.echoes.desktop` 使用与 GTK 应用 ID 相同的 `com.az1n.echoes` desktop-file basename，并与 Linux MPRIS 的 `DesktopEntry=com.az1n.echoes` 对齐；`Name` 按 locale 显示 Echoes 或回响，图标安装到 hicolor `192x192/apps`。
 - `scripts/package_linux_deb.sh` 从 Flutter Linux bundle 组装 Debian 包和 standalone bundle ZIP，依赖声明面向当前 Ubuntu 22.04 基线：`libgtk-3-0`、`libayatana-appindicator3-1`、`libmpv1`。MPV 是运行时动态加载项，不会出现在主 ELF 的 `DT_NEEDED` 中，因此显式声明。打包前检查 bundle 必需文件；ZIP 写到临时路径后再替换目标，避免旧 archive 遗留文件。
 - `.github/workflows/build_linux.yml` 调用统一打包脚本，并上传 `.deb` 与对应 standalone bundle ZIP；`.github/workflows/pr_checks.yml` 加入包组装步骤和 `zip` 工具依赖。Windows workflow 未改。
 - 仓库 `README.md` 已增加 Linux `.deb` 安装命令、运行依赖、自绘窗口与托盘/MPRIS 说明，并明确 22.04/GNOME/X11 的验证范围；最新 Linux 桌面截图需待用户手动视觉验收后再刷新，避免把旧版界面图当作当前 release 证据。

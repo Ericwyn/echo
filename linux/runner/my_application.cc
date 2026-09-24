@@ -11,6 +11,16 @@ struct _MyApplication {
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
 
+static const gchar* application_display_name() {
+  const gchar* const* languages = g_get_language_names();
+  for (guint i = 0; languages[i] != nullptr; ++i) {
+    if (g_str_has_prefix(languages[i], "zh")) {
+      return "回响";
+    }
+  }
+  return "Echoes";
+}
+
 // Called when first Flutter frame received.
 static void first_frame_cb(MyApplication* self, FlView* view) {
   gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
@@ -35,9 +45,9 @@ static void my_application_activate(GApplication* application) {
   // first Flutter frame; Flutter draws the one visible navigation/title bar.
   GtkHeaderBar* header_bar = GTK_HEADER_BAR(gtk_header_bar_new());
   gtk_widget_show(GTK_WIDGET(header_bar));
-  gtk_header_bar_set_title(header_bar, "echoes");
+  gtk_header_bar_set_title(header_bar, application_display_name());
   gtk_window_set_titlebar(window, GTK_WIDGET(header_bar));
-  gtk_window_set_title(window, "echoes");
+  gtk_window_set_title(window, application_display_name());
 
   // Rounded GTK corners expose the opaque Flutter view as dark corner pixels.
   // Keep the visible window rectangular and let the GTK theme own shadow
@@ -173,6 +183,7 @@ MyApplication* my_application_new() {
   // corresponding .desktop file. This ensures better integration by allowing
   // the application to be recognized beyond its binary name.
   g_set_prgname(APPLICATION_ID);
+  g_set_application_name(application_display_name());
 
   return MY_APPLICATION(g_object_new(my_application_get_type(),
                                      "application-id", APPLICATION_ID, "flags",

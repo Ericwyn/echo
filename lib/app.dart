@@ -19,6 +19,7 @@ import 'features/library/pages/library_page.dart';
 import 'features/library/pages/catalog_page.dart';
 import 'features/library/pages/edit_library_page.dart';
 import 'widgets/echo_app_shell/echo_desktop_window_chrome.dart';
+import 'core/constants/app_identity.dart';
 
 /// 应用主入口 Widget
 class App extends ConsumerWidget {
@@ -88,7 +89,7 @@ class App extends ConsumerWidget {
     final themeSettings = ref.watch(themeSettingsProvider);
 
     return MaterialApp.router(
-      title: 'echoes',
+      title: echoDisplayName(),
       theme: AppTheme.light(seedColor: themeSettings.seedColor),
       darkTheme: AppTheme.dark(seedColor: themeSettings.seedColor),
       themeMode: themeSettings.mode,

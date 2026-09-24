@@ -9,6 +9,7 @@ import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../../providers/player/playback_contract.dart';
+import '../constants/app_identity.dart';
 import '../design/layout/echo_desktop_metrics.dart';
 import '../utils/logger.dart';
 import 'desktop_close_settings.dart';
@@ -76,7 +77,7 @@ class DesktopLifecycleService with WindowListener, TrayListener {
     windowManager.addListener(this);
     trayManager.addListener(this);
     try {
-      await windowManager.setTitle('Echoes');
+      await windowManager.setTitle(echoDisplayName());
       await windowManager.setMinimumSize(
         const Size(
           echoDesktopMinimumWindowWidth,
@@ -125,7 +126,7 @@ class DesktopLifecycleService with WindowListener, TrayListener {
       );
       _trayIconRegistered = true;
       if (Platform.isWindows) {
-        await trayManager.setToolTip('Echoes');
+        await trayManager.setToolTip(echoDisplayName());
       }
       await trayManager.setContextMenu(_buildTrayContextMenu());
       _trayAvailable =
@@ -347,7 +348,7 @@ class DesktopLifecycleService with WindowListener, TrayListener {
   /// both a MenuItem.onClick callback and the TrayListener for the same item.
   Menu _buildTrayContextMenu() => Menu(
     items: <MenuItem>[
-      MenuItem(key: 'show_window', label: '显示 Echo'),
+      MenuItem(key: 'show_window', label: '显示 ${echoDisplayName()}'),
       MenuItem.separator(),
       MenuItem(
         key: 'play_pause',
@@ -361,7 +362,7 @@ class DesktopLifecycleService with WindowListener, TrayListener {
       ),
       MenuItem(key: 'next', label: '下一首', disabled: !_trayMenuState.canGoNext),
       MenuItem.separator(),
-      MenuItem(key: 'quit', label: '退出 Echo'),
+      MenuItem(key: 'quit', label: '退出 ${echoDisplayName()}'),
     ],
   );
 

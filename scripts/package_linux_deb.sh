@@ -4,7 +4,7 @@ set -euo pipefail
 project_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 # Allows packaging a bundle built with a non-default Flutter build directory.
 bundle_dir="${ECHO_LINUX_BUNDLE_DIR:-$project_root/build/linux/x64/release/bundle}"
-desktop_file="$project_root/packaging/linux/echoes.desktop"
+desktop_file="$project_root/packaging/linux/com.az1n.echoes.desktop"
 icon_file="$project_root/assets/tray_icon.png"
 output_dir="${1:-$project_root/build/linux/packages}"
 
@@ -68,7 +68,7 @@ install -d \
   "$package_root/usr/share/icons/hicolor/192x192/apps"
 cp -a "$bundle_dir/." "$package_root/opt/echoes/"
 install -m 0644 "$desktop_file" \
-  "$package_root/usr/share/applications/echoes.desktop"
+  "$package_root/usr/share/applications/com.az1n.echoes.desktop"
 install -m 0644 "$icon_file" \
   "$package_root/usr/share/icons/hicolor/192x192/apps/echoes.png"
 
@@ -85,7 +85,7 @@ Description: Cross-platform music player
 EOF
 
 if command -v desktop-file-validate >/dev/null 2>&1; then
-  desktop-file-validate "$package_root/usr/share/applications/echoes.desktop"
+  desktop-file-validate "$package_root/usr/share/applications/com.az1n.echoes.desktop"
 fi
 
 package_path="$output_dir/echoes_${version}_${architecture}.deb"

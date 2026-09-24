@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+
+import '../constants/app_identity.dart';
 import '../utils/logger.dart';
 
 /// Playback CPU lock with a native heartbeat watchdog, separate from screen wake.
@@ -10,7 +12,8 @@ class PlaybackWakeGuard {
           enabled ??
           (!kIsWeb && defaultTargetPlatform == TargetPlatform.android),
       _channel =
-          channel ?? const MethodChannel('com.az1n.echoes/playback_wake_guard');
+          channel ??
+          const MethodChannel('$echoApplicationId/playback_wake_guard');
   final bool _enabled;
   final MethodChannel _channel;
   Timer? _renewal;

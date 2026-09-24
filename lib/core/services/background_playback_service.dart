@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 
+import '../constants/app_identity.dart';
 import '../utils/logger.dart';
 
 class BackgroundPlaybackStatus {
@@ -22,7 +23,9 @@ enum BackgroundSettingsTarget { battery, app, power, samsung }
 
 class BackgroundPlaybackService {
   const BackgroundPlaybackService({
-    this.channel = const MethodChannel('com.az1n.echoes/playback_wake_guard'),
+    this.channel = const MethodChannel(
+      '$echoApplicationId/playback_wake_guard',
+    ),
   });
 
   final MethodChannel channel;

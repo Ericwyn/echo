@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:just_audio/just_audio.dart';
+
+import '../constants/app_identity.dart';
 import '../utils/logger.dart';
 import '../theme/color_scheme.dart';
 
@@ -294,6 +296,8 @@ Future<EchoAudioHandler> initAudioService() async {
 }
 
 Future<EchoAudioHandler> _initializeAudioService() async {
+  final appName = echoDisplayName();
+  final isChinese = appName == '回响';
   final audioPlayer = AudioPlayer(
     audioLoadConfiguration: const AudioLoadConfiguration(
       androidLoadControl: AndroidLoadControl(
@@ -315,10 +319,14 @@ Future<EchoAudioHandler> _initializeAudioService() async {
         createdHandler = EchoAudioHandler(audioPlayer);
         return createdHandler!;
       },
-      config: const AudioServiceConfig(
-        androidNotificationChannelId: 'com.az1n.echoes.audio',
-        androidNotificationChannelName: 'echoes Music Playback',
-        androidNotificationChannelDescription: 'echoes music player controls',
+      config: AudioServiceConfig(
+        androidNotificationChannelId: '$echoApplicationId.audio',
+        androidNotificationChannelName: isChinese
+            ? '$appName 音乐播放'
+            : '$appName Music Playback',
+        androidNotificationChannelDescription: isChinese
+            ? '$appName 播放控制'
+            : '$appName music controls',
         // Android 通知进度条/强调元素使用的底色，避免浅色主题下不可见。
         notificationColor: AppColorScheme.defaultSeedColor,
         androidNotificationOngoing: false, // 允许用户手动关闭通知

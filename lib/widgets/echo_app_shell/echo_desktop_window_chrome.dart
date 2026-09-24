@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 
+import '../../core/constants/app_identity.dart';
 import '../../core/design/echo_design.dart';
 import '../../core/utils/logger.dart';
 
@@ -189,7 +190,7 @@ class _EchoDesktopWindowChromeState extends State<EchoDesktopWindowChrome>
                               Semantics(
                                 header: true,
                                 child: Text(
-                                  'Echo',
+                                  echoDisplayName(),
                                   style: context.echoTypography.title,
                                 ),
                               ),

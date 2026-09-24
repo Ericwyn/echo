@@ -30,7 +30,7 @@ Flutter 3.47.5 的分析器会列出旧代码中的提示和警告；当前 PR �
 
 ## 版本号与 Android 签名
 
-`pubspec.yaml` 中的 `version: 1.1.0+2066` 是当前示例：`1.1.0` 是 Android `versionName`，`2066` 是基础 `versionCode`，Linux 打包脚本使用完整的 `1.1.0+2066` 作为 DEB 版本。发布新版本前递增构建号；安装更新时，新 APK 的**实际** `versionCode` 必须大于设备上已有的包。
+`pubspec.yaml` 中的 `version: 1.1.0+2067` 是当前示例：`1.1.0` 是 Android `versionName`，`2067` 是基础 `versionCode`，Linux 打包脚本使用完整的 `1.1.0+2067` 作为 DEB 版本。发布新版本前递增构建号；安装更新时，新 APK 的**实际** `versionCode` 必须大于设备上已有的包。
 
 发布签名可放在被 Git 忽略的 `android/key.properties` 中：
 
@@ -45,7 +45,7 @@ keyPassword=<key-password>
 
 ### `versionCode` 与 ABI
 
-Flutter 的 `--split-per-abi` 会为不同 ABI 的 APK 添加版本码偏移；当前 Flutter 的 ARM64 拆分包在基础构建号上加 **2000**。例如基础构建号 `2066` 对应的 ARM64 拆分 APK 实际版本码是 `4066`；不拆分的通用 APK 则使用基础构建号。**从拆分包切换到通用包**时，通用包需要选用高于已安装拆分包的构建号，否则 Android 会拒绝降级。可通过 `aapt dump badging <APK 路径>` 检查实际 `versionCode`，必要时在构建命令中使用 `--build-number=<更大的整数>`；之后仍应将 `pubspec.yaml` 的构建号同步提高，避免下一次构建倒退。
+Flutter 的 `--split-per-abi` 会为不同 ABI 的 APK 添加版本码偏移；当前 Flutter 的 ARM64 拆分包在基础构建号上加 **2000**。例如基础构建号 `2067` 对应的 ARM64 拆分 APK 实际版本码是 `4067`；不拆分的通用 APK 则使用基础构建号。**从拆分包切换到通用包**时，通用包需要选用高于已安装拆分包的构建号，否则 Android 会拒绝降级。可通过 `aapt dump badging <APK 路径>` 检查实际 `versionCode`，必要时在构建命令中使用 `--build-number=<更大的整数>`；之后仍应将 `pubspec.yaml` 的构建号同步提高，避免下一次构建倒退。
 
 本机若保留了 Git 忽略的 `scripts/local/build_android_release_arm64.sh`，也可以用它生成并校验发布签名的 ARM64 单包。该脚本是这台机器的私有辅助工具，不属于仓库；它在 `build/` 之外记录上次 ARM64 版本码，清理 `build/` 后仍会递增。其他机器按下面的通用命令构建即可。
 
@@ -90,7 +90,7 @@ bash scripts/package_linux_deb.sh
 
 打包脚本检查 Flutter 引擎、插件、manifest 和资源是否齐全。DEB 声明运行依赖 `libgtk-3-0`、`libayatana-appindicator3-1` 和 `libmpv1`。当前验证基线是 Ubuntu 22.04 x64；Ubuntu 24.04 / Wayland 等环境仍需实际安装和播放验证。
 
-直接运行 bundle 中的 `echoes` 时，程序会从 bundle 资源设置 GTK 窗口图标；完整应用菜单项和主题图标仍由 DEB 安装的 `.desktop` 文件提供。当前 Ubuntu 托盘中键可触发“显示 Echo”；双击激活还取决于托盘宿主与系统 Ayatana 库是否提供 `Activate`，Ubuntu 22.04 的 0.5.90 库不提供该方法，菜单中的“显示 Echo”仍可使用。
+Linux GTK 应用 ID 与安装的 `com.az1n.echoes.desktop` 对齐，窗口和应用菜单按系统语言显示 Echoes 或“回响”；DEB 提供应用菜单项、桌面图标和系统媒体面板身份。便携 bundle 内的 `echoes` 可执行文件也会设置窗口图标和标题。Ubuntu 托盘中键可触发“显示应用名”；双击激活还取决于托盘宿主与系统 Ayatana 库是否提供 `Activate`，Ubuntu 22.04 的 0.5.90 库不提供该方法，菜单中的显示项仍可使用。
 
 若通过 `flutter config --build-dir=<其他目录>` 改过 Flutter 构建目录，可用 `ECHO_LINUX_BUNDLE_DIR=/绝对路径/到/bundle bash scripts/package_linux_deb.sh <输出目录>` 指定 bundle 和包输出目录。
 

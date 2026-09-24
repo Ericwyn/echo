@@ -1,4 +1,5 @@
 import 'package:echoes/core/theme/app_theme.dart';
+import 'package:echoes/core/constants/app_identity.dart';
 import 'package:echoes/core/design/echo_design.dart';
 import 'package:echoes/widgets/echo_app_shell/echo_desktop_window_chrome.dart';
 import 'package:flutter/material.dart';
@@ -27,8 +28,8 @@ void main() {
       expect(find.bySemanticsLabel('最小化窗口'), findsOneWidget);
       expect(find.bySemanticsLabel('最大化窗口'), findsOneWidget);
       expect(find.bySemanticsLabel('关闭窗口'), findsOneWidget);
-      expect(find.text('Echo'), findsOneWidget);
-      expect(find.text('Echoes'), findsNothing);
+      expect(find.text(echoDisplayName()), findsOneWidget);
+      expect(find.text('Echo'), findsNothing);
       expect(tester.getSize(titleBar).height, 53);
     },
   );
@@ -123,8 +124,8 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('Echo'), findsOneWidget);
-    expect(find.text('Echoes'), findsNothing);
+    expect(find.text(echoDisplayName()), findsOneWidget);
+    expect(find.text('Echo'), findsNothing);
     expect(
       find.byKey(const ValueKey<String>('echo-desktop-back')),
       findsOneWidget,

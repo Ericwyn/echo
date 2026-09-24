@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'package:dbus/dbus.dart';
 import 'package:just_audio/just_audio.dart' show LoopMode;
 
+import '../constants/app_identity.dart';
 import '../../providers/player/playback_contract.dart';
 import '../utils/logger.dart';
 
@@ -195,8 +196,8 @@ class LinuxMprisService {
     'CanSetFullscreen': const DBusBoolean(false),
     'CanRaise': DBusBoolean(onRaise != null),
     'HasTrackList': const DBusBoolean(false),
-    'Identity': const DBusString('Echoes'),
-    'DesktopEntry': const DBusString('echoes'),
+    'Identity': DBusString(echoDisplayName()),
+    'DesktopEntry': const DBusString('com.az1n.echoes'),
     'SupportedUriSchemes': DBusArray(DBusSignature('s'), const <DBusValue>[]),
     'SupportedMimeTypes': DBusArray(DBusSignature('s'), const <DBusValue>[]),
   };
