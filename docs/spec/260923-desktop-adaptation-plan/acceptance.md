@@ -4,7 +4,7 @@
 
 状态：首轮桌面实现正在验收。历史工作树有 437 项 Flutter 测试、项目级 `flutter analyze` 和 Ubuntu 22.04 Linux release 编译通过记录；近期新增的桌面导航、播放器工作区状态恢复、右键队列、动态背景和窗口几何测试未运行。
 
-最新 Linux app bundle 来自 `24e5319e` 在 `build/linux-lldtmp-2069` 的构建；`818239ea` 的统一打包脚本将 DEB 与 bundle ZIP 写入 `build/linux-lldtmp-2072/packages/`。`.deb` 为 `1.1.0+2058`/amd64，SHA-256：`8dd62dd8b7ceeaf736aa67d845f4fe763991e5ce16a496b2a195f25095028486`；`dpkg` 确认其版本高于前一 Linux 包 `1.1.0+2057`。bundle ZIP SHA-256：`884489b3c06823e6b116be2fe657661d72b9112af62eab9c8d253a898d74d340`，38 项通过完整性检查。Android arm64-only APK version name/code 为 `1.1.0`/`2056`，高于设备报告的 `2026`；本机签名证书校验通过，APK SHA-256：`5d2514fa9f6bf813981ac98475bd6e0228e304d65e048ca0a7b3dab41a2ce719`。产物未安装或启动，Flutter tests/analyze 未运行；并发 setter、打包脚本和 Android 播放模式由用户验收。详见[Linux 可重复打包产物](evidence/260924-linux-repeatable-package-artifacts/README.md)。
+最新 Linux release 产物对应 `2e15f875`：`1.1.0+2059` 的 DEB 与原始 bundle ZIP 均在 `build/linux-lldtmp-2059/packages/`。Linux 编译、打包、ZIP 完整性和 DEB 元数据检查通过；未安装或启动，阴影、直角、拖动、缩放和单行顶栏等待用户在 Ubuntu 验收。Android 上一份签名 arm64-only APK 仍为 versionCode `2056`，本次 Linux 窗口改动未重新打 Android 包。详见[单行顶栏构建证据](evidence/260924-single-linux-titlebar/README.md)与[此前可重复打包产物](evidence/260924-linux-repeatable-package-artifacts/README.md)。
 
 ## 功能与责任阶段
 
@@ -23,12 +23,12 @@
 | A11 | 尺寸与系统缩放（R3/R4） | 指定窗口/DPI/大字体/明暗组合无关键遮挡和重复 UI，连续重排不重建播放器 | P2/P3/P5 | 部分实现（工作区按宽/高空间切入紧凑布局并加入系统全屏，720×460/全屏窗口状态回归定义已添加但未运行；实际 840×560、全屏、窗口几何和 DPI 等待用户验收） |
 | A12 | Windows 等效能力（R1） | 在实际 Windows 桌面会话验证 SMTC/媒体键/托盘/退出/单实例，不只依赖 CI | P0-B/P4/P5 | 未测（当前 Linux 优先，Windows CI 暂缓） |
 | A13 | Android 不退化（R1） | 手机导航/MiniPlayer/歌词/队列和通知栏、锁屏后台、转码 seek、恢复流程通过 | P1–P5 | 最新签名 arm64-only release APK version name/code 为 `1.1.0`/`2056`，高于用户设备版 `2026`；仅含 `arm64-v8a`，证书与 package metadata 校验通过。共享播放模式并发修复已编译进 APK，但尚未安装/启动；手机四模式循环、并发模式写入、队列、通知栏/锁屏、音量和恢复流程仍待用户真机回归。 |
-| A14 | 可安装可运行（R4） | 干净环境由安装包满足 native 依赖，应用菜单启动并实际播放；升级保留用户状态 | P5 | 部分实现（Linux app bundle 来自 `build/linux-lldtmp-2069`，统一打包脚本 `818239ea` 将 DEB/bundle ZIP 产出至 `build/linux-lldtmp-2072/packages/`；DEB 元数据为 `echoes`/`1.1.0+2058`/`amd64`，依赖 GTK、Ayatana AppIndicator 和 libmpv，主程序为 ELF64 x86-64，ZIP 的 38 项完整；`dpkg` 确认新包高于 2057。Android ARM64 APK 为 `1.1.0`/versionCode `2056`，高于设备版 `2026`，签名/ABI/包信息通过。本机脚本下次默认为 `2057`。未安装或启动，干净环境依赖、播放和升级状态仍待验证） |
+| A14 | 可安装可运行（R4） | 干净环境由安装包满足 native 依赖，应用菜单启动并实际播放；升级保留用户状态 | P5 | Linux `1.1.0+2059` release bundle、DEB 和 ZIP 已构建，ZIP 完整性与 DEB 包元数据已检查；尚未安装或启动，干净环境依赖、实际播放和升级状态待用户验证。Android 已有签名 ARM64 APK versionCode `2056`，本次未重打。 |
 | A15 | 桌面性能（R3/R4） | release/profile 记录帧耗时/内存/隐藏 CPU；满足阶段预算，进度不全量重建队列 | P3/P5 | 代码优化部分实现（PlaybackQueueContent 只订阅低频队列字段；SongListPage 滚动时重用歌曲签名；队列定位用锚点缓存可见 index/revision，离屏后清理 GlobalKey，避免每个样本线性扫描和锚点随滚动历史积累；1654/5000 首 release/profile 帧耗时、内存和隐藏 CPU 仍待用户采样） |
-| A16 | Linux 自绘窗口顶栏与桌面宽度下限（R9） | GNOME 原生 GTK 标题栏隐藏；Echo 顶栏能拖动、最小化、最大化/还原、关闭；840 逻辑像素以下无法缩窗；Android 尺寸/路由不变 | P2/P5 | 用户曾报告上一版按钮不可点/闪烁且窗口缩放异常；已移除根 Overlay 外的 Tooltip、启动时清除置顶并显式恢复缩放/最大化能力。`ce6a8ddd` 新增点击用例和全屏状态用例未运行；`bb8d9af3` 最新 app 已构建但未启动，普通窗口/全屏和 Wayland 均待用户复测 |
-| A17 | 桌面导航层级与分隔线（R9） | expanded 桌面音乐流仅有一个搜索入口；搜索页仅用全局历史返回；我的歌单只显示一个页面标题；窗口栏/历史工具栏/播放条分隔线使用弱化颜色，侧栏不显示账户底栏；手机页面仍保留自己的搜索/返回 | P2 | 搜索/返回/重复标题在 `4015f879` 修正；`88ecf672` 移除桌面账户底栏和离线状态入口，并对齐标题区、弱化分隔线。当前 Linux 包已包含这些代码，尚未由用户实机检查 |
+| A16 | Linux 单行顶栏与窗口边缘（R9） | GTK 原生 HeaderBar 不可见；Echo 标识、历史导航、搜索和窗口按钮共用一行；普通窗口有原生阴影、四角为直角且无黑块；可拖动/缩放/最小化/最大化/关闭；840 逻辑像素以下无法缩窗 | P2/P5 | `2e15f875` 移除 `VirtualWindowFrame` 与 `setAsFrameless`，GTK CSD 保留阴影和边缘缩放，CSS 设置直角。Linux release 已编译打包；未运行 UI/Flutter 测试，GNOME X11/Wayland 实际操作待用户验收。 |
+| A17 | 桌面导航层级与分隔线（R9） | Linux 根级仅一行顶部导航；搜索页和内容详情无重复返回/搜索；我的歌单只显示一个页面标题；顶栏与播放条分隔线弱化；手机继续保留自己的导航 | P2 | `4015f879` 去掉页面级重复搜索/返回/标题；`2e15f875` 把品牌、前进后退、搜索与窗口按钮合并，隐藏侧栏品牌行和内容区工具栏。Linux 包已构建，用户视觉验收待完成。 |
 | A18 | 账户操作入口与桌面历史 | 桌面无账户/服务器信息底栏或重复菜单；线路选择、音乐库新增/切换/编辑都能从设置页到达；添加流程退出后回到设置/桌面导航历史 | P2 | `a6ee5e65` 将 add-library 标记传入登录页，成功后返回启动该流程的页面；`67f62407` 在新库认证成功后先交接旧播放器再切换活动库；`cab6fe11` 删除库后清空桌面前进历史，避免恢复失效编辑页，Android 保持原 Navigator 路由行为。路由用例已添加但未运行；Ubuntu 与 Android 手动验证待用户执行 |
-| A19 | 桌面壳层边界对齐 | 品牌区与主工具栏上下边界一致；桌面播放栏贴齐主面板左右与底边，Android/窄屏间距保持原样 | P2 | `88ecf672` 让品牌栏和导航工具栏共用 53px token，并让 expanded 播放栏贴齐主面板边缘；当前 Linux 包包含这些改动。布局回归用例未运行，Ubuntu 截图待验 |
+| A19 | 桌面壳层边界对齐 | Linux 标识与前进后退/搜索/窗口按钮在同一根级顶栏；桌面播放栏贴齐主面板左右与底边，Android/窄屏间距保持原样 | P2 | `2e15f875` 移除 Linux 双顶栏，保留 Windows 原布局；`88ecf672` 完成 expanded 播放栏贴边。几何 widget 用例已更新未运行，Ubuntu 截图待验。 |
 | A20 | 音乐库切换隔离（P1/P4） | 切换音乐库时分别保存/恢复各自队列；旧音频停止、旧系统媒体项清除；AudioService 不重复初始化，失败后可重试 | P1/P4 | `6f0f80e6` 实现库作用域会话、切库停播/清理媒体元数据及 Android AudioService 单例重绑；`67f62407` 将新库认证纳入同一交接流程并在失败时回滚；`d85868f1` 修复删除非活动库误切换当前库，以及活动库删除失败后残留失效认证的问题。回归用例未运行，切库成功/失败恢复与 Android 后台媒体控件待用户实测 |
 
 ## 平台与样本
