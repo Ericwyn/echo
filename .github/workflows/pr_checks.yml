@@ -39,38 +39,11 @@ jobs:
           cache: true
           pub-cache: true
 
-      - name: Cache build_runner
-        uses: actions/cache@v5
-        with:
-          path: .dart_tool/build
-          key: ${{ runner.os }}-build-runner-${{ env.FLUTTER_VERSION }}-${{ hashFiles('lib/**/*.dart', 'test/**/*.dart', 'pubspec.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-build-runner-${{ env.FLUTTER_VERSION }}-
-
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Snapshot workspace status
-        shell: bash
-        run: git status --short --untracked-files=all > /tmp/pre_codegen_status.txt
-
-      - name: Verify generated files
-        run: dart run build_runner build --delete-conflicting-outputs
-
-      - name: Fail if generated files changed
-        shell: bash
-        run: |
-          before_status="$(cat /tmp/pre_codegen_status.txt)"
-          after_status="$(git status --short --untracked-files=all)"
-
-          if [[ "$before_status" != "$after_status" ]]; then
-            echo "Workspace status before code generation:"
-            printf '%s\n' "$before_status"
-            echo "Workspace status after code generation:"
-            printf '%s\n' "$after_status"
-            echo "::error::Generated files are not up to date. Run build_runner and commit the updated files."
-            exit 1
-          fi
+      - name: Verify checked-in generated sources
+        run: python3 scripts/check_generated_sources.py
 
       - name: Static analysis
         run: flutter analyze --no-fatal-infos --no-fatal-warnings

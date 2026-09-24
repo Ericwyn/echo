@@ -20,7 +20,9 @@
    flutter pub get
    ```
 
-仓库已包含生成的 Dart 文件。修改 Freezed、JSON、Drift 或 Riverpod 的生成器输入后，再运行：
+仓库已提交 Freezed、JSON 和 Drift 的生成文件。发布构建直接使用这些文件；CI 会检查每个 `part` 指向的生成文件存在并已提交，然后通过静态分析和编译检查其可用性。发布构建不需要运行 `build_runner`。当前检查不能证明生成文件与输入完全同步；修改模型或数据库定义时须在同一提交中更新对应生成文件。
+
+当前锁定的 `analyzer 7.6.0` 只支持到较早的 Dart 语言版本，使用 Flutter 3.47.5 / Dart 3.13 执行 `build_runner` 会因 SDK 中的 dot shorthand 语法崩溃。若修改了生成器输入，需要先将 Freezed、Drift、JSON 等生成器依赖整体升级到兼容 Dart 3.13 的版本，再运行并提交生成结果：
 
 ```bash
 dart run build_runner build --delete-conflicting-outputs

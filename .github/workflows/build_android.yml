@@ -72,14 +72,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      - name: Cache build_runner
-        uses: actions/cache@v5
-        with:
-          path: .dart_tool/build
-          key: ${{ runner.os }}-build-runner-${{ env.FLUTTER_VERSION }}-${{ hashFiles('lib/**/*.dart', 'test/**/*.dart', 'pubspec.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-build-runner-${{ env.FLUTTER_VERSION }}-
-
       - name: Prepare release signing
         if: steps.options.outputs.signing == 'release'
         env:
@@ -115,8 +107,8 @@ jobs:
             exit 1
           fi
 
-      - name: Run code generation
-        run: dart run build_runner build --delete-conflicting-outputs
+      - name: Verify checked-in generated sources
+        run: python3 scripts/check_generated_sources.py
 
       - name: Build release-signed APK
         if: steps.options.outputs.signing == 'release'
