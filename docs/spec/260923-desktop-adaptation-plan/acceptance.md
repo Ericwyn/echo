@@ -4,7 +4,7 @@
 
 状态：首轮桌面实现正在验收。历史工作树有 437 项 Flutter 测试、项目级 `flutter analyze` 和 Ubuntu 22.04 Linux release 编译通过记录；近期新增的桌面导航、播放器工作区状态恢复、右键队列、动态背景和窗口几何测试未运行。
 
-最新 Linux release 产物对应 `2e15f875`：`1.1.0+2059` 的 DEB 与原始 bundle ZIP 均在 `build/linux-lldtmp-2059/packages/`。Linux 编译、打包、ZIP 完整性和 DEB 元数据检查通过；未安装或启动，阴影、直角、拖动、缩放和单行顶栏等待用户在 Ubuntu 验收。Android 上一份签名 arm64-only APK 仍为 versionCode `2056`，本次 Linux 窗口改动未重新打 Android 包。详见[单行顶栏构建证据](evidence/260924-single-linux-titlebar/README.md)与[此前可重复打包产物](evidence/260924-linux-repeatable-package-artifacts/README.md)。
+最新 Linux release 是从空 `build/` 编译的 `1.1.0+2060`：bundle 位于 `build/linux/x64/release/bundle/`，DEB 与 ZIP 位于 `build/linux/packages/`，整个目录约 141 MB。Linux 编译、打包、ZIP 完整性和 DEB 元数据检查通过；未安装或启动，窗口阴影、拖动/缩放及单行顶栏仍待用户在 Ubuntu 验收。旧 Android APK 随 `build/` 清理，本次未重打。详见[干净 Linux 构建](evidence/260924-clean-linux-build/README.md)。
 
 ## 功能与责任阶段
 
@@ -22,8 +22,8 @@
 | A10 | 单实例与恢复（R4） | 第二次启动只恢复同一窗口；多屏变化不丢窗，休眠唤醒后行为明确，用户暂停不被取消 | P0/P4 | 部分实现（Linux GTK runner 已改为唯一实例；窗口逻辑尺寸/最大化状态代码已随 `4015f879` 编译，但未实机验证；多屏/休眠/播放意图恢复未验） |
 | A11 | 尺寸与系统缩放（R3/R4） | 指定窗口/DPI/大字体/明暗组合无关键遮挡和重复 UI，连续重排不重建播放器 | P2/P3/P5 | 部分实现（工作区按宽/高空间切入紧凑布局并加入系统全屏，720×460/全屏窗口状态回归定义已添加但未运行；实际 840×560、全屏、窗口几何和 DPI 等待用户验收） |
 | A12 | Windows 等效能力（R1） | 在实际 Windows 桌面会话验证 SMTC/媒体键/托盘/退出/单实例，不只依赖 CI | P0-B/P4/P5 | 未测（当前 Linux 优先，Windows CI 暂缓） |
-| A13 | Android 不退化（R1） | 手机导航/MiniPlayer/歌词/队列和通知栏、锁屏后台、转码 seek、恢复流程通过 | P1–P5 | 最新签名 arm64-only release APK version name/code 为 `1.1.0`/`2056`，高于用户设备版 `2026`；仅含 `arm64-v8a`，证书与 package metadata 校验通过。共享播放模式并发修复已编译进 APK，但尚未安装/启动；手机四模式循环、并发模式写入、队列、通知栏/锁屏、音量和恢复流程仍待用户真机回归。 |
-| A14 | 可安装可运行（R4） | 干净环境由安装包满足 native 依赖，应用菜单启动并实际播放；升级保留用户状态 | P5 | Linux `1.1.0+2059` release bundle、DEB 和 ZIP 已构建，ZIP 完整性与 DEB 包元数据已检查；尚未安装或启动，干净环境依赖、实际播放和升级状态待用户验证。Android 已有签名 ARM64 APK versionCode `2056`，本次未重打。 |
+| A13 | Android 不退化（R1） | 手机导航/MiniPlayer/歌词/队列和通知栏、锁屏后台、转码 seek、恢复流程通过 | P1–P5 | 此前签名 ARM64 APK versionCode `2056` 的证书/ABI/package metadata 校验通过；本次清空 `build/` 后该 APK 已删除，未重新编译 Android。共享壳层在没有 Linux 窗口 scope 时保留原导航布局；手机真机回归仍待用户执行。 |
+| A14 | 可安装可运行（R4） | 干净环境由安装包满足 native 依赖，应用菜单启动并实际播放；升级保留用户状态 | P5 | 清空约 7.6 GB 旧产物后，Linux `1.1.0+2060` release bundle、DEB 和 ZIP 从空 `build/` 构建成功；当前约 141 MB，ZIP 完整性与 DEB 元数据已检查。未安装或启动，干净环境依赖、实际播放和升级状态待用户验证；Android APK 本次未重打。 |
 | A15 | 桌面性能（R3/R4） | release/profile 记录帧耗时/内存/隐藏 CPU；满足阶段预算，进度不全量重建队列 | P3/P5 | 代码优化部分实现（PlaybackQueueContent 只订阅低频队列字段；SongListPage 滚动时重用歌曲签名；队列定位用锚点缓存可见 index/revision，离屏后清理 GlobalKey，避免每个样本线性扫描和锚点随滚动历史积累；1654/5000 首 release/profile 帧耗时、内存和隐藏 CPU 仍待用户采样） |
 | A16 | Linux 单行顶栏与窗口边缘（R9） | GTK 原生 HeaderBar 不可见；Echo 标识、历史导航、搜索和窗口按钮共用一行；普通窗口有原生阴影、四角为直角且无黑块；可拖动/缩放/最小化/最大化/关闭；840 逻辑像素以下无法缩窗 | P2/P5 | `2e15f875` 移除 `VirtualWindowFrame` 与 `setAsFrameless`，GTK CSD 保留阴影和边缘缩放，CSS 设置直角。Linux release 已编译打包；未运行 UI/Flutter 测试，GNOME X11/Wayland 实际操作待用户验收。 |
 | A17 | 桌面导航层级与分隔线（R9） | Linux 根级仅一行顶部导航；搜索页和内容详情无重复返回/搜索；我的歌单只显示一个页面标题；顶栏与播放条分隔线弱化；手机继续保留自己的导航 | P2 | `4015f879` 去掉页面级重复搜索/返回/标题；`2e15f875` 把品牌、前进后退、搜索与窗口按钮合并，隐藏侧栏品牌行和内容区工具栏。Linux 包已构建，用户视觉验收待完成。 |
