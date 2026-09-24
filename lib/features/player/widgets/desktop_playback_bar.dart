@@ -8,7 +8,8 @@ import '../../../core/design/echo_design.dart';
 import '../../../providers/player_provider.dart';
 import '../../../widgets/echo_artwork.dart';
 import '../pages/desktop_player_workspace.dart';
-import 'playback_controls.dart' show PlaybackControls, ProgressBar;
+import 'playback_controls.dart'
+    show PlaybackControls, PlaybackIconButton, ProgressBar;
 import 'player_scrubber.dart';
 
 /// Persistent desktop controls. Phone and tablet layouts continue to use the
@@ -59,10 +60,11 @@ class DesktopPlaybackBar extends ConsumerWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final compact = constraints.maxWidth < 1100;
+          final tight = constraints.maxWidth < 720;
           final trackWidth = compact
-              ? constraints.maxWidth < 720
-                    ? 164.0
-                    : 188.0
+              ? tight
+                    ? 112.0
+                    : 164.0
               : 248.0;
           final spacing = context.echoSpacing;
           return Container(
@@ -85,11 +87,29 @@ class DesktopPlaybackBar extends ConsumerWidget {
                     title: playback.title,
                     artist: playback.artist,
                     artworkReference: playback.artworkReference,
+                    artworkSize: compact ? 40 : 56,
                     onPressed: () => onOpenWorkspace(DesktopPlayerPanel.lyrics),
                   ),
                 ),
-                SizedBox(width: compact ? spacing.sm : spacing.lg),
-                if (!compact)
+                SizedBox(
+                  width: tight
+                      ? spacing.xxs
+                      : compact
+                      ? spacing.sm
+                      : spacing.lg,
+                ),
+                if (compact)
+                  PlaybackIconButton(
+                    icon: AppIcons.shuffle,
+                    label: playback.shuffle ? '关闭随机播放' : '开启随机播放',
+                    selected: playback.shuffle,
+                    dimension: 40,
+                    iconSize: 20,
+                    onPressed: () => unawaited(
+                      commands.setShuffleEnabled(!playback.shuffle),
+                    ),
+                  )
+                else
                   EchoIconButton(
                     icon: AppIcons.shuffle,
                     label: playback.shuffle ? '关闭随机播放' : '开启随机播放',
@@ -98,44 +118,58 @@ class DesktopPlaybackBar extends ConsumerWidget {
                       commands.setShuffleEnabled(!playback.shuffle),
                     ),
                   ),
+                if (compact) SizedBox(width: spacing.xxs),
                 const PlaybackControls(compact: true),
-                if (!compact)
+                if (compact) SizedBox(width: spacing.xxs),
+                if (compact)
+                  PlaybackIconButton(
+                    icon: modeIcon,
+                    label: '$modeLabel，点击切换',
+                    selected: mode != PlaybackMode.sequential,
+                    dimension: 40,
+                    iconSize: 20,
+                    onPressed: () => unawaited(commands.cycleLoopMode()),
+                  )
+                else
                   EchoIconButton(
                     icon: modeIcon,
                     label: '$modeLabel，点击切换',
                     selected: mode != PlaybackMode.sequential,
                     onPressed: () => unawaited(commands.cycleLoopMode()),
                   ),
-                SizedBox(width: compact ? spacing.xs : spacing.md),
-                Expanded(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      const Expanded(child: ProgressBar(centerTrack: true)),
-                      if (!compact) ...<Widget>[
-                        SizedBox(width: spacing.md),
-                        const _DesktopVolumeControl(),
-                      ],
-                    ],
-                  ),
-                ),
-                SizedBox(width: compact ? spacing.xs : spacing.md),
+                SizedBox(width: compact ? spacing.xxs : spacing.md),
+                const Expanded(child: ProgressBar(centerTrack: true)),
+                SizedBox(width: compact ? spacing.xxs : spacing.sm),
+                _DesktopVolumeControl(compact: compact),
+                SizedBox(width: compact ? spacing.xxs : spacing.md),
                 if (compact)
-                  _CompactPlaybackOptions(
-                    shuffle: playback.shuffle,
-                    modeIcon: modeIcon,
-                    modeLabel: modeLabel,
+                  PlaybackIconButton(
+                    icon: AppIcons.lyrics,
+                    label: '打开歌词',
+                    dimension: 40,
+                    iconSize: 20,
+                    onPressed: () => onOpenWorkspace(DesktopPlayerPanel.lyrics),
+                  )
+                else
+                  EchoIconButton(
+                    icon: AppIcons.lyrics,
+                    label: '打开歌词',
+                    onPressed: () => onOpenWorkspace(DesktopPlayerPanel.lyrics),
                   ),
-                EchoIconButton(
-                  icon: AppIcons.lyrics,
-                  label: '打开歌词',
-                  onPressed: () => onOpenWorkspace(DesktopPlayerPanel.lyrics),
-                ),
-                EchoIconButton(
-                  icon: AppIcons.queue,
-                  label: '打开播放队列',
-                  onPressed: () => onOpenWorkspace(DesktopPlayerPanel.queue),
-                ),
+                if (compact)
+                  PlaybackIconButton(
+                    icon: AppIcons.queue,
+                    label: '打开播放队列',
+                    dimension: 40,
+                    iconSize: 20,
+                    onPressed: () => onOpenWorkspace(DesktopPlayerPanel.queue),
+                  )
+                else
+                  EchoIconButton(
+                    icon: AppIcons.queue,
+                    label: '打开播放队列',
+                    onPressed: () => onOpenWorkspace(DesktopPlayerPanel.queue),
+                  ),
               ],
             ),
           );
@@ -150,12 +184,14 @@ class _DesktopCurrentTrack extends StatelessWidget {
     required this.title,
     required this.artist,
     required this.artworkReference,
+    required this.artworkSize,
     required this.onPressed,
   });
 
   final String title;
   final String artist;
   final String? artworkReference;
+  final double artworkSize;
   final VoidCallback onPressed;
 
   @override
@@ -170,7 +206,7 @@ class _DesktopCurrentTrack extends StatelessWidget {
             EchoArtwork(
               coverArtId: artworkReference,
               semanticLabel: '$title 封面',
-              size: 56,
+              size: artworkSize,
               requestSize: 160,
               borderRadius: context.echoRadii.control,
             ),
@@ -209,7 +245,9 @@ class _DesktopCurrentTrack extends StatelessWidget {
 }
 
 class _DesktopVolumeControl extends ConsumerWidget {
-  const _DesktopVolumeControl();
+  const _DesktopVolumeControl({required this.compact});
+
+  final bool compact;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -219,65 +257,15 @@ class _DesktopVolumeControl extends ConsumerWidget {
         (snapshot) => (value: snapshot.volume, muted: snapshot.isMuted),
       ),
     );
+    final colors = context.echoColors;
+    final spacing = context.echoSpacing;
+    final menuWidth = compact ? 220.0 : 244.0;
+    var menuVolume = volume.value;
     final icon = volume.muted || volume.value == 0
         ? Icons.volume_off_outlined
         : volume.value < 0.5
         ? Icons.volume_down_outlined
         : Icons.volume_up_outlined;
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        EchoIconButton(
-          icon: icon,
-          label: volume.muted ? '取消静音' : '静音',
-          onPressed: () => unawaited(commands.setMuted(!volume.muted)),
-        ),
-        SizedBox(
-          width: 112,
-          child: EchoPlayerScrubber(
-            value: volume.value,
-            min: 0,
-            max: 1,
-            semanticStep: 0.05,
-            semanticValueFormatter: (value) => '${(value * 100).round()}%',
-            semanticLabel: '播放音量',
-            semanticValue: '${(volume.value * 100).round()}%',
-            onChanged: (value) => unawaited(commands.setUserVolume(value)),
-            activeColor: context.echoColors.accent,
-            inactiveColor: context.echoColors.divider,
-            thumbColor: context.echoColors.ink,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// Keeps volume adjustment and playback modes available when the desktop
-/// player bar is too narrow to show every control inline.
-class _CompactPlaybackOptions extends ConsumerWidget {
-  const _CompactPlaybackOptions({
-    required this.shuffle,
-    required this.modeIcon,
-    required this.modeLabel,
-  });
-
-  final bool shuffle;
-  final IconData modeIcon;
-  final String modeLabel;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final colors = context.echoColors;
-    final spacing = context.echoSpacing;
-    final volume = ref.watch(
-      playbackSnapshotProvider.select(
-        (snapshot) => (value: snapshot.volume, muted: snapshot.isMuted),
-      ),
-    );
-    final commands = ref.read(playbackCommandsProvider);
-    var menuVolume = volume.value;
 
     return MenuAnchor(
       menuChildren: <Widget>[
@@ -285,8 +273,8 @@ class _CompactPlaybackOptions extends ConsumerWidget {
           builder: (context, setMenuState) {
             final percent = (menuVolume * 100).round();
             return SizedBox(
-              width: 244,
-              height: 68,
+              width: menuWidth,
+              height: 64,
               child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: spacing.sm),
                 child: Row(
@@ -332,7 +320,7 @@ class _CompactPlaybackOptions extends ConsumerWidget {
         Padding(
           padding: EdgeInsets.symmetric(horizontal: spacing.sm),
           child: SizedBox(
-            width: 244,
+            width: menuWidth,
             child: Divider(color: colors.divider, height: spacing.sm),
           ),
         ),
@@ -343,24 +331,29 @@ class _CompactPlaybackOptions extends ConsumerWidget {
           onPressed: () => unawaited(commands.setMuted(!volume.muted)),
           child: Text(volume.muted ? '取消静音' : '静音'),
         ),
-        MenuItemButton(
-          leadingIcon: const Icon(AppIcons.shuffle),
-          trailingIcon: shuffle ? const Icon(AppIcons.check) : null,
-          onPressed: () => unawaited(commands.setShuffleEnabled(!shuffle)),
-          child: Text(shuffle ? '关闭随机播放' : '开启随机播放'),
-        ),
-        MenuItemButton(
-          leadingIcon: Icon(modeIcon),
-          trailingIcon: const Icon(AppIcons.chevronRight),
-          onPressed: () => unawaited(commands.cycleLoopMode()),
-          child: Text('$modeLabel，点击切换'),
-        ),
       ],
-      builder: (context, controller, _) => EchoIconButton(
-        icon: AppIcons.tune,
-        label: '音量与播放模式',
-        onPressed: controller.isOpen ? controller.close : controller.open,
-      ),
+      builder: (context, controller, _) {
+        final label = volume.muted ? '音量控制，当前静音' : '音量控制';
+        final onPressed = controller.isOpen
+            ? controller.close
+            : controller.open;
+        if (compact) {
+          return PlaybackIconButton(
+            icon: icon,
+            label: label,
+            selected: controller.isOpen,
+            dimension: 40,
+            iconSize: 20,
+            onPressed: onPressed,
+          );
+        }
+        return EchoIconButton(
+          icon: icon,
+          label: label,
+          selected: controller.isOpen,
+          onPressed: onPressed,
+        );
+      },
     );
   }
 }

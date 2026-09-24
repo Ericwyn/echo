@@ -215,7 +215,8 @@ class _ProgressBarState extends ConsumerState<ProgressBar>
           PositionedDirectional(
             start: 0,
             end: 0,
-            top: context.echoInteraction.minimumTouchTarget -
+            top:
+                context.echoInteraction.minimumTouchTarget -
                 context.echoSpacing.xxs,
             child: timeLabels,
           ),
@@ -265,11 +266,13 @@ class PlaybackControls extends ConsumerWidget {
 
     final playDimension = compact ? 56.0 : 64.0;
     final playIconSize = compact ? 30.0 : 32.0;
+    final sideButtonDimension = compact ? 40.0 : 48.0;
     final buttons = <Widget>[
       PlaybackIconButton(
         icon: AppIcons.previous,
         label: '上一首',
         iconSize: 30,
+        dimension: sideButtonDimension,
         onPressed: !state.hasPrevious
             ? null
             : () => unawaited(commands.previous()),
@@ -296,13 +299,14 @@ class PlaybackControls extends ConsumerWidget {
         icon: AppIcons.next,
         label: '下一首',
         iconSize: 30,
+        dimension: sideButtonDimension,
         onPressed: !state.hasNext ? null : () => unawaited(commands.next()),
       ),
     ];
 
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 280),
+        constraints: BoxConstraints(maxWidth: compact ? 144 : 280),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: buttons,

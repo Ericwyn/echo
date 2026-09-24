@@ -10,7 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'test_player_notifier.dart';
 
 void main() {
-  testWidgets('desktop progress and volume tracks share one vertical lane', (
+  testWidgets('volume slider opens from its button without a second bar', (
     tester,
   ) async {
     tester.view.devicePixelRatio = 1;
@@ -47,11 +47,12 @@ void main() {
     await tester.pump();
 
     final scrubbers = find.byType(EchoPlayerScrubber);
+    expect(scrubbers, findsOneWidget);
+    final volumeButton = find.bySemanticsLabel('音量控制');
+    expect(volumeButton, findsOneWidget);
+    await tester.tap(volumeButton);
+    await tester.pumpAndSettle();
     expect(scrubbers, findsNWidgets(2));
-    expect(
-      tester.getCenter(scrubbers.first).dy,
-      tester.getCenter(scrubbers.last).dy,
-    );
     expect(
       tester.getCenter(scrubbers.first).dy,
       closeTo(
