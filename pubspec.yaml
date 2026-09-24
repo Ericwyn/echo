@@ -16,7 +16,7 @@ publish_to: "none" # Remove this line if you wish to publish to pub.dev
 # Read more about iOS versioning at
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
-version: 1.1.0+2065
+version: 1.1.0+2066
 
 environment:
   sdk: ^3.10.8
@@ -114,6 +114,9 @@ dependency_overrides:
   # Linux AppIndicator activation support; other platforms stay upstream.
   tray_manager:
     path: packages/tray_manager
+  # Supply a complete synthetic GTK release event after drag/resize.
+  window_manager:
+    path: packages/window_manager
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
