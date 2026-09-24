@@ -229,7 +229,7 @@ class EchoExpandedNavigationSidebar extends StatelessWidget {
                           child: Semantics(
                             header: true,
                             child: Text(
-                              echoDisplayName(),
+                              echoBrandName,
                               style: context.echoTypography.title,
                             ),
                           ),

@@ -28,7 +28,7 @@ void main() {
       expect(find.bySemanticsLabel('最小化窗口'), findsOneWidget);
       expect(find.bySemanticsLabel('最大化窗口'), findsOneWidget);
       expect(find.bySemanticsLabel('关闭窗口'), findsOneWidget);
-      expect(find.text(echoDisplayName()), findsOneWidget);
+      expect(find.text(echoBrandName), findsOneWidget);
       expect(find.text('Echo'), findsNothing);
       expect(tester.getSize(titleBar).height, 53);
     },
@@ -124,7 +124,7 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text(echoDisplayName()), findsOneWidget);
+    expect(find.text(echoBrandName), findsOneWidget);
     expect(find.text('Echo'), findsNothing);
     expect(
       find.byKey(const ValueKey<String>('echo-desktop-back')),

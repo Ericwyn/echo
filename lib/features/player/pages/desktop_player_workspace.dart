@@ -7,8 +7,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/design/echo_design.dart';
 import '../../../data/models/song.dart';
 import '../../../providers/palette_provider.dart';
+import '../../../providers/navigation_provider.dart';
 import '../../../providers/player_provider.dart';
 import '../../../widgets/echo_artwork.dart';
+import '../../library/pages/album_detail_page.dart';
+import '../../library/pages/artist_detail_page.dart';
 import '../widgets/current_lyrics_panel.dart';
 import '../widgets/player_backdrop.dart';
 import '../widgets/play_queue_sheet.dart';
@@ -218,10 +221,9 @@ class _DesktopArtworkPane extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final subtitle = <String>[
-      if (song.artist?.trim().isNotEmpty == true) song.artist!.trim(),
-      if (song.album?.trim().isNotEmpty == true) song.album!.trim(),
-    ].join(' · ');
+    final hasMetadata =
+        song.artist?.trim().isNotEmpty == true ||
+        song.album?.trim().isNotEmpty == true;
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -249,17 +251,9 @@ class _DesktopArtworkPane extends StatelessWidget {
             color: context.echoColors.ink,
           ),
         ),
-        if (subtitle.isNotEmpty) ...<Widget>[
+        if (hasMetadata) ...<Widget>[
           SizedBox(height: context.echoSpacing.xs),
-          Text(
-            subtitle,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: context.echoTypography.body.copyWith(
-              color: context.echoColors.muted,
-            ),
-          ),
+          _DesktopTrackMetadata(song: song),
         ],
       ],
     );
@@ -305,37 +299,28 @@ class _DesktopWorkspaceHeader extends StatelessWidget {
           ),
           SizedBox(width: spacing.sm),
         ],
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Semantics(
-                header: true,
-                child: Text(
-                  song.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.echoTypography.title.copyWith(
-                    color: context.echoColors.ink,
+        if (compact) ...<Widget>[
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Semantics(
+                  header: true,
+                  child: Text(
+                    song.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.echoTypography.title.copyWith(
+                      color: context.echoColors.ink,
+                    ),
                   ),
                 ),
-              ),
-              SizedBox(height: spacing.xxs),
-              Text(
-                <String>[
-                  if (song.artist?.trim().isNotEmpty == true)
-                    song.artist!.trim(),
-                  if (song.album?.trim().isNotEmpty == true) song.album!.trim(),
-                ].join(' · '),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: context.echoTypography.metadata.copyWith(
-                  color: context.echoColors.muted,
-                ),
-              ),
-            ],
+                SizedBox(height: spacing.xxs),
+                _DesktopTrackMetadata(song: song, centered: false),
+              ],
+            ),
           ),
-        ),
+        ] else ...<Widget>[const Spacer()],
         SizedBox(width: spacing.md),
         _WorkspaceTab(
           icon: AppIcons.lyrics,
@@ -365,6 +350,123 @@ class _DesktopWorkspaceHeader extends StatelessWidget {
           onPressed: onClose,
         ),
       ],
+    );
+  }
+}
+
+class _DesktopTrackMetadata extends ConsumerWidget {
+  const _DesktopTrackMetadata({required this.song, this.centered = true});
+
+  final Song song;
+  final bool centered;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final artist = song.artist?.trim() ?? '';
+    final album = song.album?.trim() ?? '';
+    if (artist.isEmpty && album.isEmpty) return const SizedBox.shrink();
+
+    final branchIndex = ref.watch(currentVisibleBranchIndexProvider);
+    final parts = <Widget>[];
+    if (artist.isNotEmpty) {
+      parts.add(
+        _MetadataLink(
+          label: artist,
+          tooltip: '打开歌手 $artist',
+          onPressed: song.artistId?.trim().isNotEmpty == true
+              ? () => Navigator.of(context).push<void>(
+                  EchoPageRoute<void>(
+                    context: context,
+                    builder: (_) => ArtistDetailPage(
+                      artistId: song.artistId!,
+                      branchIndex: branchIndex,
+                    ),
+                  ),
+                )
+              : null,
+        ),
+      );
+    }
+    if (artist.isNotEmpty && album.isNotEmpty) {
+      parts.add(
+        Text(
+          '·',
+          style: context.echoTypography.metadata.copyWith(
+            color: context.echoColors.muted,
+          ),
+        ),
+      );
+    }
+    if (album.isNotEmpty) {
+      parts.add(
+        _MetadataLink(
+          label: album,
+          tooltip: '打开专辑 $album',
+          onPressed: song.albumId?.trim().isNotEmpty == true
+              ? () => Navigator.of(context).push<void>(
+                  EchoPageRoute<void>(
+                    context: context,
+                    builder: (_) => AlbumDetailPage(
+                      albumId: song.albumId!,
+                      branchIndex: branchIndex,
+                    ),
+                  ),
+                )
+              : null,
+        ),
+      );
+    }
+
+    return Wrap(
+      alignment: centered ? WrapAlignment.center : WrapAlignment.start,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: context.echoSpacing.xxs,
+      children: parts,
+    );
+  }
+}
+
+class _MetadataLink extends StatelessWidget {
+  const _MetadataLink({
+    required this.label,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final String label;
+  final String tooltip;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    if (onPressed == null) {
+      return Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: context.echoTypography.metadata.copyWith(
+          color: context.echoColors.muted,
+        ),
+      );
+    }
+    return Tooltip(
+      message: tooltip,
+      child: TextButton(
+        onPressed: onPressed,
+        style: TextButton.styleFrom(
+          foregroundColor: context.echoColors.accent,
+          minimumSize: Size.zero,
+          padding: EdgeInsets.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          visualDensity: VisualDensity.compact,
+          textStyle: context.echoTypography.metadata.copyWith(
+            color: context.echoColors.accent,
+            decoration: TextDecoration.underline,
+            decorationColor: context.echoColors.accent.withValues(alpha: 0.5),
+          ),
+        ),
+        child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+      ),
     );
   }
 }

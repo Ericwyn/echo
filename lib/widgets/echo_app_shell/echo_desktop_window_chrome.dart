@@ -190,7 +190,7 @@ class _EchoDesktopWindowChromeState extends State<EchoDesktopWindowChrome>
                               Semantics(
                                 header: true,
                                 child: Text(
-                                  echoDisplayName(),
+                                  echoBrandName,
                                   style: context.echoTypography.title,
                                 ),
                               ),
