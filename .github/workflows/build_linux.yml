@@ -3,6 +3,9 @@ name: Build Linux
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 env:
   FLUTTER_VERSION: 3.47.5
 
@@ -39,14 +42,18 @@ jobs:
       - name: Run code generation
         run: dart run build_runner build --delete-conflicting-outputs
 
-      - name: Get version name
+      - name: Get package version
         id: version
         run: |
-          version=$(grep '^version:' pubspec.yaml | head -n1 | awk '{print $2}' | cut -d'+' -f1)
+          version=$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | head -n1)
           echo "name=v${version}" >> $GITHUB_OUTPUT
 
       - name: Build Linux
-        run: flutter build linux --release --no-pub
+        run: |
+          flutter build linux --release --no-pub \
+            --dart-define="ECHO_BUILD_SOURCE=GitHub Actions" \
+            --dart-define="ECHO_BUILD_COMMIT=${GITHUB_SHA::12}" \
+            --dart-define="ECHO_FLUTTER_VERSION=${FLUTTER_VERSION}"
 
       - name: Package Ubuntu deb
         run: bash scripts/package_linux_deb.sh
@@ -54,8 +61,9 @@ jobs:
       - name: Upload Linux Build
         uses: actions/upload-artifact@v6
         with:
-          name: linux-release-${{ steps.version.outputs.name }}
+          name: linux-release-${{ steps.version.outputs.name }}-${{ github.run_number }}-${{ github.run_attempt }}
           path: |
             build/linux/packages/*.deb
             build/linux/packages/*_linux-x64-bundle.zip
-          retention-days: 5
+          if-no-files-found: error
+          retention-days: 14

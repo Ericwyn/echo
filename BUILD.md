@@ -30,7 +30,7 @@ Flutter 3.47.5 的分析器会列出旧代码中的提示和警告；当前 PR �
 
 ## 版本号与 Android 签名
 
-`pubspec.yaml` 中的 `version: 1.1.0+2072` 是当前示例：`1.1.0` 是 Android `versionName`，`2072` 是基础 `versionCode`，Linux 打包脚本使用完整的 `1.1.0+2072` 作为 DEB 版本。发布新版本前递增构建号；安装更新时，新 APK 的**实际** `versionCode` 必须大于设备上已有的包。
+`pubspec.yaml` 中的 `version: 2.0.0+2073` 是当前版本：`2.0.0` 是 Android `versionName`，`2073` 是基础 `versionCode`，Linux 打包脚本使用完整的 `2.0.0+2073` 作为 DEB 版本。发布新版本前递增构建号；安装更新时，新 APK 的**实际** `versionCode` 必须大于设备上已有的包。
 
 发布签名可放在被 Git 忽略的 `android/key.properties` 中：
 
@@ -45,9 +45,11 @@ keyPassword=<key-password>
 
 ### `versionCode` 与 ABI
 
-Flutter 的 `--split-per-abi` 会为不同 ABI 的 APK 添加版本码偏移；当前 Flutter 的 ARM64 拆分包在基础构建号上加 **2000**。例如基础构建号 `2072` 对应的 ARM64 拆分 APK 实际版本码是 `4072`；不拆分的通用 APK 则使用基础构建号。**从拆分包切换到通用包**时，通用包需要选用高于已安装拆分包的构建号，否则 Android 会拒绝降级。可通过 `aapt dump badging <APK 路径>` 检查实际 `versionCode`，必要时在构建命令中使用 `--build-number=<更大的整数>`；之后仍应将 `pubspec.yaml` 的构建号同步提高，避免下一次构建倒退。
+Flutter 默认会给 `--split-per-abi` 产物添加 ABI 版本码偏移。本项目在 `android/gradle.properties` 设置了 `force-version-code-ignoring-abi=true`，因此 ARM64、ARM32、x86-64 拆分 APK 和通用 APK 都使用 `pubspec.yaml` 中的基础构建号：当前均为 **2073**。今后发布升级包时逐次提高这个构建号即可，不会因 ABI 偏移突然跳到 4073。可用 `aapt dump badging <APK 路径>` 核对实际 `versionCode`。
 
-本机若保留了 Git 忽略的 `scripts/local/build_android_release_arm64.sh`，也可以用它生成并校验发布签名的 ARM64 单包。该脚本是这台机器的私有辅助工具，不属于仓库；它在 `build/` 之外记录上次 ARM64 版本码，清理 `build/` 后仍会递增。其他机器按下面的通用命令构建即可。
+如果某台设备已经安装过带旧 ABI 偏移、实际版本码高于 2073 的 APK，切换到此规则时需要先把构建号提高到该设备已安装版本码之上。此设置适用于目前通过 GitHub 直接分发 APK 的方式；将来若要向 Google Play 同时上传多个按 ABI 拆分的 APK，需重新评估该商店的版本码要求。
+
+本机若保留了 Git 忽略的 `scripts/local/build_android_release_arm64.sh`，也可以用它生成并校验发布签名的 ARM64 单包。该脚本是这台机器的私有辅助工具，不属于仓库；它使用 `pubspec.yaml` 的构建号，并在 `build/` 之外记录上次 ARM64 版本码，拒绝生成比已有 APK 更低的版本。重新构建同一版本可以复用构建号；发布下一版时先递增 `pubspec.yaml`。其他机器按下面的通用命令构建即可。
 
 ## Android APK
 
@@ -91,6 +93,18 @@ bash scripts/package_linux_deb.sh
 打包脚本检查 Flutter 引擎、插件、manifest 和资源是否齐全。DEB 声明运行依赖 `libgtk-3-0`、`libayatana-appindicator3-1` 和 `libmpv1`。当前验证基线是 Ubuntu 22.04 x64；Ubuntu 24.04 / Wayland 等环境仍需实际安装和播放验证。
 
 Linux GTK 应用 ID 与安装的 `com.az1n.echoes.desktop` 对齐，窗口和应用菜单按系统语言显示 Echoes 或“回响”；DEB 提供应用菜单项、桌面图标和系统媒体面板身份。便携 bundle 内的 `echoes` 可执行文件也会设置窗口图标和标题。Ubuntu 托盘中键可触发“显示应用名”；双击激活还取决于托盘宿主与系统 Ayatana 库是否提供 `Activate`，Ubuntu 22.04 的 0.5.90 库不提供该方法，菜单中的显示项仍可使用。
+
+## GitHub Actions 手动构建
+
+将含工作流的提交推送到 GitHub 默认分支后，打开仓库的 **Actions**，选 **Build Linux** 或 **Build Android**，点击 **Run workflow** 并选择要构建的分支。手动构建完成后，从该次运行页面的 **Artifacts** 下载产物；不会自动创建 GitHub Release。GitHub 要求手动触发的工作流文件先存在于默认分支。
+
+- **Build Linux**：在 Ubuntu 22.04 上生成完整 bundle 的 ZIP 和 DEB，保留 14 天。
+- **Build Android**：默认只构建 ARM64、使用发布证书签名；也可在运行前选择全部 ABI。推送 `v2.0.0` 之类与 `pubspec.yaml` 的版本名一致的标签时，仍会自动构建全部 ABI 并发布 GitHub Release。
+- **构建信息**：两项工作流会把 Git 提交和 Flutter 版本写入应用内的 **设置 → 关于**；本地直接构建仍会显示从安装包读取的版本、构建号、应用 ID 和平台。
+- **Android 签名配置**：在仓库 **Settings → Secrets and variables → Actions** 添加 `KEYSTORE_BASE64`（发布 keystore 文件的 Base64 内容）、`KEY_ALIAS`、`KEY_PASSWORD`、`STORE_PASSWORD`。工作流会校验密钥完整性、APK 包名与版本，并核对已有发布证书的 SHA-256 指纹。密钥只在 GitHub runner 的临时目录中解码，不提交到仓库。
+- **临时验证**：尚未配置发布密钥时，可以在手动触发 Android 构建时选择 `debug` 签名。该构建产生的 APK 会明确标记为调试签名，不能覆盖安装已有的正式版；标签发布始终要求发布密钥。
+
+更多操作方式见 [GitHub 手动运行工作流文档](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow) 和 [GitHub Actions Secrets 文档](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets)。
 
 若通过 `flutter config --build-dir=<其他目录>` 改过 Flutter 构建目录，可用 `ECHO_LINUX_BUNDLE_DIR=/绝对路径/到/bundle bash scripts/package_linux_deb.sh <输出目录>` 指定 bundle 和包输出目录。
 

@@ -4,8 +4,10 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart'
     show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -36,6 +38,13 @@ import 'cover_providers_page.dart';
 import 'lyrics_providers_page.dart';
 import 'playback_stats_page.dart';
 import 'theme_settings_page.dart';
+
+const _buildSource = String.fromEnvironment(
+  'ECHO_BUILD_SOURCE',
+  defaultValue: '本地构建',
+);
+const _buildCommit = String.fromEnvironment('ECHO_BUILD_COMMIT');
+const _buildFlutterVersion = String.fromEnvironment('ECHO_FLUTTER_VERSION');
 
 /// 全屏设置页
 class AppSettingsPage extends ConsumerStatefulWidget {
@@ -482,8 +491,8 @@ class _AppSettingsPageState extends ConsumerState<AppSettingsPage> {
                   EchoSettingRow(
                     icon: AppIcons.info,
                     title: '关于',
-                    description: '${echoDisplayName()} · 基于 Subsonic API',
-                    onPressed: _showAboutSheet,
+                    description: '版本、构建与应用信息',
+                    onPressed: () => unawaited(_showAboutSheet()),
                   ),
                 ],
               ),
@@ -630,13 +639,65 @@ class _AppSettingsPageState extends ConsumerState<AppSettingsPage> {
     }
   }
 
-  void _showAboutSheet() {
-    showEchoBottomSheet<void>(
+  String get _platformLabel {
+    if (kIsWeb) return 'Web';
+    return switch (defaultTargetPlatform) {
+      TargetPlatform.android => 'Android',
+      TargetPlatform.iOS => 'iOS',
+      TargetPlatform.linux => 'Linux',
+      TargetPlatform.macOS => 'macOS',
+      TargetPlatform.windows => 'Windows',
+      TargetPlatform.fuchsia => 'Fuchsia',
+    };
+  }
+
+  Future<void> _copyAboutInfo(String details) async {
+    try {
+      await Clipboard.setData(ClipboardData(text: details));
+      _showMessage('版本信息已复制', kind: EchoMessageKind.success);
+    } catch (error) {
+      _showMessage('复制版本信息失败: $error', kind: EchoMessageKind.error);
+    }
+  }
+
+  Future<void> _showAboutSheet() async {
+    PackageInfo? packageInfo;
+    try {
+      packageInfo = await PackageInfo.fromPlatform();
+    } catch (error) {
+      Logger.warnWithTag('ABOUT', 'cannot load package information', error);
+    }
+    if (!mounted) return;
+
+    final version = packageInfo?.version.isNotEmpty == true
+        ? packageInfo!.version
+        : '暂不可用';
+    final buildNumber = packageInfo?.buildNumber.isNotEmpty == true
+        ? packageInfo!.buildNumber
+        : '暂不可用';
+    final packageName = packageInfo?.packageName.isNotEmpty == true
+        ? packageInfo!.packageName
+        : echoApplicationId;
+    final platform = _platformLabel;
+    final installer = packageInfo?.installerStore;
+    final details = <String>[
+      '应用: $echoBrandName',
+      '版本: $version',
+      '构建号: $buildNumber',
+      '应用 ID: $packageName',
+      '运行平台: $platform',
+      '构建来源: $_buildSource',
+      if (_buildFlutterVersion.isNotEmpty) 'Flutter: $_buildFlutterVersion',
+      if (_buildCommit.isNotEmpty) 'Git 提交: $_buildCommit',
+      if (installer != null && installer.isNotEmpty) '安装来源: $installer',
+    ].join('\n');
+
+    await showEchoBottomSheet<void>(
       context: context,
       useRootNavigator: true,
       isScrollControlled: true,
       builder: (sheetContext) => EchoBottomSheet(
-        title: '关于 ${echoDisplayName()}',
+        title: '关于 $echoBrandName',
         constrainToAvailableHeight: true,
         child: SingleChildScrollView(
           child: Column(
@@ -667,21 +728,79 @@ class _AppSettingsPageState extends ConsumerState<AppSettingsPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
                           Text(
-                            echoDisplayName(),
+                            echoBrandName,
                             style: sheetContext.echoTypography.headline,
                           ),
                           SizedBox(height: sheetContext.echoSpacing.xxs),
                           Text(
-                            '基于 Subsonic API 的音乐客户端。',
+                            '回响 · 基于 Subsonic API 的音乐客户端',
                             style: sheetContext.echoTypography.body.copyWith(
                               color: sheetContext.echoColors.muted,
                             ),
+                          ),
+                          SizedBox(height: sheetContext.echoSpacing.xxs),
+                          Text(
+                            '版本 $version · 构建 $buildNumber',
+                            style: sheetContext.echoTypography.metadata
+                                .copyWith(color: sheetContext.echoColors.muted),
                           ),
                         ],
                       ),
                     ),
                   ],
                 ),
+              ),
+              SizedBox(height: sheetContext.echoSpacing.md),
+              const EchoSectionHeader(title: '版本与构建'),
+              SizedBox(height: sheetContext.echoSpacing.xs),
+              EchoSurface(
+                level: EchoSurfaceLevel.raised,
+                borderColor: sheetContext.echoColors.controlBoundary,
+                padding: EdgeInsets.all(sheetContext.echoSpacing.md),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    _SettingsInfoLine(label: '版本号', value: version),
+                    _SettingsInfoLine(label: '构建号', value: buildNumber),
+                    _SettingsInfoLine(label: '应用 ID', value: packageName),
+                    _SettingsInfoLine(label: '运行平台', value: platform),
+                    _SettingsInfoLine(label: '构建来源', value: _buildSource),
+                    if (_buildFlutterVersion.isNotEmpty)
+                      _SettingsInfoLine(
+                        label: 'Flutter 版本',
+                        value: _buildFlutterVersion,
+                      ),
+                    if (_buildCommit.isNotEmpty)
+                      _SettingsInfoLine(label: 'Git 提交', value: _buildCommit),
+                    if (installer != null && installer.isNotEmpty)
+                      _SettingsInfoLine(
+                        label: '安装来源',
+                        value: installer,
+                        showBottomSpacing: false,
+                      ),
+                  ],
+                ),
+              ),
+              SizedBox(height: sheetContext.echoSpacing.md),
+              Wrap(
+                alignment: WrapAlignment.end,
+                spacing: sheetContext.echoSpacing.xs,
+                runSpacing: sheetContext.echoSpacing.xs,
+                children: <Widget>[
+                  EchoButton.ghost(
+                    label: '项目主页',
+                    onPressed: () => unawaited(
+                      _openUrl('https://github.com/Ericwyn/echoes'),
+                    ),
+                  ),
+                  EchoButton.secondary(
+                    label: '复制版本信息',
+                    onPressed: () {
+                      Navigator.of(sheetContext).pop();
+                      unawaited(_copyAboutInfo(details));
+                    },
+                  ),
+                ],
               ),
               SizedBox(height: sheetContext.echoSpacing.md),
               Text(

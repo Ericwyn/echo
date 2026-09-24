@@ -2,6 +2,23 @@ name: Build Android
 
 on:
   workflow_dispatch:
+    inputs:
+      abis:
+        description: Android APK architectures
+        type: choice
+        required: true
+        default: arm64
+        options:
+          - arm64
+          - all
+      signing:
+        description: APK signing key (debug cannot update an installed release)
+        type: choice
+        required: true
+        default: release
+        options:
+          - release
+          - debug
   push:
     tags:
       - 'v*'
@@ -17,6 +34,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+
+      - name: Resolve build options
+        id: options
+        env:
+          REQUESTED_ABIS: ${{ inputs.abis }}
+          REQUESTED_SIGNING: ${{ inputs.signing }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            echo "abis=${REQUESTED_ABIS}" >> "$GITHUB_OUTPUT"
+            echo "signing=${REQUESTED_SIGNING}" >> "$GITHUB_OUTPUT"
+          else
+            echo 'abis=all' >> "$GITHUB_OUTPUT"
+            echo 'signing=release' >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
       - uses: subosito/flutter-action@v2
         id: flutter-action
         with:
@@ -43,26 +80,23 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-build-runner-${{ env.FLUTTER_VERSION }}-
 
-      - name: Decode keystore
-        if: env.KEYSTORE_BASE64 != ''
-        env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-        run: echo "$KEYSTORE_BASE64" | base64 -d > android/app/keystore.jks
-
-      - name: Create key.properties
-        if: env.KEYSTORE_BASE64 != ''
+      - name: Prepare release signing
+        if: steps.options.outputs.signing == 'release'
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
         run: |
-          cat > android/key.properties <<EOF
-          storePassword=$STORE_PASSWORD
-          keyPassword=$KEY_PASSWORD
-          keyAlias=$KEY_ALIAS
-          storeFile=keystore.jks
-          EOF
+          for secret_name in KEYSTORE_BASE64 KEY_ALIAS KEY_PASSWORD STORE_PASSWORD; do
+            if [[ -z "${!secret_name}" ]]; then
+              echo "::error::Missing GitHub Actions secret: $secret_name"
+              exit 1
+            fi
+          done
+          umask 077
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/echoes-release.jks"
+          test -s "$RUNNER_TEMP/echoes-release.jks"
 
       - name: Install dependencies
         run: flutter pub get
@@ -84,48 +118,113 @@ jobs:
       - name: Run code generation
         run: dart run build_runner build --delete-conflicting-outputs
 
-      - name: Build APK (split per ABI)
-        run: flutter build apk --release --no-pub --split-per-abi
+      - name: Build release-signed APK
+        if: steps.options.outputs.signing == 'release'
+        env:
+          TARGET_ABIS: ${{ steps.options.outputs.abis }}
+          ECHO_STORE_FILE: ${{ runner.temp }}/echoes-release.jks
+          ECHO_STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          ECHO_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          ECHO_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          build_metadata=(
+            '--dart-define=ECHO_BUILD_SOURCE=GitHub Actions'
+            "--dart-define=ECHO_BUILD_COMMIT=${GITHUB_SHA::12}"
+            "--dart-define=ECHO_FLUTTER_VERSION=${FLUTTER_VERSION}"
+          )
+          if [[ "$TARGET_ABIS" == 'arm64' ]]; then
+            flutter build apk --release --no-pub --split-per-abi --target-platform android-arm64 "${build_metadata[@]}"
+          else
+            flutter build apk --release --no-pub --split-per-abi "${build_metadata[@]}"
+          fi
 
-      - name: Get version name
+      - name: Build debug-signed APK
+        if: steps.options.outputs.signing == 'debug'
+        env:
+          TARGET_ABIS: ${{ steps.options.outputs.abis }}
+        run: |
+          echo '::notice::This APK uses the Android debug key and cannot update an installed release build.'
+          build_metadata=(
+            '--dart-define=ECHO_BUILD_SOURCE=GitHub Actions'
+            "--dart-define=ECHO_BUILD_COMMIT=${GITHUB_SHA::12}"
+            "--dart-define=ECHO_FLUTTER_VERSION=${FLUTTER_VERSION}"
+          )
+          if [[ "$TARGET_ABIS" == 'arm64' ]]; then
+            flutter build apk --release --no-pub --split-per-abi --target-platform android-arm64 "${build_metadata[@]}"
+          else
+            flutter build apk --release --no-pub --split-per-abi "${build_metadata[@]}"
+          fi
+
+      - name: Verify ARM64 APK
+        env:
+          SIGNING_MODE: ${{ steps.options.outputs.signing }}
+        run: |
+          apk='build/app/outputs/flutter-apk/app-arm64-v8a-release.apk'
+          build_tools_dir="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          aapt="$build_tools_dir/aapt"
+          apksigner="$build_tools_dir/apksigner"
+          test -s "$apk"
+          test -x "$aapt"
+          test -x "$apksigner"
+          "$apksigner" verify --verbose "$apk" > /dev/null
+
+          version="$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | head -n 1)"
+          version_name="${version%%+*}"
+          expected_code="${version##*+}"
+          package_info="$("$aapt" dump badging "$apk" | head -n 1)"
+          if [[ "$package_info" != *"name='com.az1n.echoes'"* ||
+                "$package_info" != *"versionCode='$expected_code'"* ||
+                "$package_info" != *"versionName='$version_name'"* ]]; then
+            echo "::error::Unexpected APK package or version: $package_info"
+            exit 1
+          fi
+
+          if [[ "$SIGNING_MODE" == 'release' ]]; then
+            certificate="$("$apksigner" verify --print-certs "$apk" | awk -F': ' '/Signer #1 certificate SHA-256 digest:/ { print $2; exit }')"
+            expected_certificate='8604465c3ee1282b48a1b2759801f784ace32447d1188e0481fab0fe8ac74c94'
+            if [[ "$certificate" != "$expected_certificate" ]]; then
+              echo "::error::APK is not signed with the existing Echoes release certificate."
+              exit 1
+            fi
+          fi
+
+      - name: Get package version
         id: version
         run: |
-          if [[ "${{ github.ref_type }}" == "tag" ]]; then
-            echo "name=${{ github.ref_name }}" >> $GITHUB_OUTPUT
-          else
-            version=$(grep '^version:' pubspec.yaml | head -n1 | awk '{print $2}' | cut -d'+' -f1)
-            echo "name=v${version}" >> $GITHUB_OUTPUT
-          fi
+          version=$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | head -n1)
+          echo "name=v${version}" >> "$GITHUB_OUTPUT"
 
       - name: Upload APK (arm64-v8a)
         uses: actions/upload-artifact@v6
         with:
-          name: echoes-android-arm64-v8a-${{ steps.version.outputs.name }}-${{ github.run_number }}-${{ github.run_attempt }}
+          name: echoes-android-arm64-v8a-${{ steps.version.outputs.name }}-${{ steps.options.outputs.signing }}-${{ github.run_number }}-${{ github.run_attempt }}
           path: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
 
       - name: Upload APK (armeabi-v7a)
+        if: steps.options.outputs.abis == 'all'
         uses: actions/upload-artifact@v6
         with:
-          name: echoes-android-armeabi-v7a-${{ steps.version.outputs.name }}-${{ github.run_number }}-${{ github.run_attempt }}
+          name: echoes-android-armeabi-v7a-${{ steps.version.outputs.name }}-${{ steps.options.outputs.signing }}-${{ github.run_number }}-${{ github.run_attempt }}
           path: build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
 
       - name: Upload APK (x86_64)
+        if: steps.options.outputs.abis == 'all'
         uses: actions/upload-artifact@v6
         with:
-          name: echoes-android-x86_64-${{ steps.version.outputs.name }}-${{ github.run_number }}-${{ github.run_attempt }}
+          name: echoes-android-x86_64-${{ steps.version.outputs.name }}-${{ steps.options.outputs.signing }}-${{ github.run_number }}-${{ github.run_attempt }}
           path: build/app/outputs/flutter-apk/app-x86_64-release.apk
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
 
       - name: Publish GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && steps.options.outputs.signing == 'release'
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_NAME: ${{ github.ref_name }}
