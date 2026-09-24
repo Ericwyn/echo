@@ -675,16 +675,17 @@ class _AppSettingsPageState extends ConsumerState<AppSettingsPage> {
     final buildNumber = packageInfo?.buildNumber.isNotEmpty == true
         ? packageInfo!.buildNumber
         : '暂不可用';
-    final packageName = packageInfo?.packageName.isNotEmpty == true
-        ? packageInfo!.packageName
-        : echoApplicationId;
+    final packageName = packageInfo?.packageName.trim() ?? '';
+    final hasSeparatePackageName =
+        packageName.isNotEmpty && packageName != echoApplicationId;
     final platform = _platformLabel;
     final installer = packageInfo?.installerStore;
     final details = <String>[
       '应用: $echoBrandName',
       '版本: $version',
       '构建号: $buildNumber',
-      '应用 ID: $packageName',
+      '应用 ID: $echoApplicationId',
+      if (hasSeparatePackageName) '包名: $packageName',
       '运行平台: $platform',
       '构建来源: $_buildSource',
       if (_buildFlutterVersion.isNotEmpty) 'Flutter: $_buildFlutterVersion',
@@ -762,7 +763,12 @@ class _AppSettingsPageState extends ConsumerState<AppSettingsPage> {
                   children: <Widget>[
                     _SettingsInfoLine(label: '版本号', value: version),
                     _SettingsInfoLine(label: '构建号', value: buildNumber),
-                    _SettingsInfoLine(label: '应用 ID', value: packageName),
+                    const _SettingsInfoLine(
+                      label: '应用 ID',
+                      value: echoApplicationId,
+                    ),
+                    if (hasSeparatePackageName)
+                      _SettingsInfoLine(label: '包名', value: packageName),
                     _SettingsInfoLine(label: '运行平台', value: platform),
                     _SettingsInfoLine(label: '构建来源', value: _buildSource),
                     if (_buildFlutterVersion.isNotEmpty)
