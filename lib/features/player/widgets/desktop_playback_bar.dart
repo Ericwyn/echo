@@ -279,8 +279,19 @@ class _DesktopVolumeControl extends ConsumerWidget {
                 padding: EdgeInsets.symmetric(horizontal: spacing.sm),
                 child: Row(
                   children: <Widget>[
-                    Text('音量', style: context.echoTypography.body),
-                    SizedBox(width: spacing.sm),
+                    IconButton(
+                      tooltip: volume.muted ? '恢复音量' : '静音',
+                      onPressed: () =>
+                          unawaited(commands.setMuted(!volume.muted)),
+                      icon: Icon(
+                        volume.muted || menuVolume == 0
+                            ? Icons.volume_off_outlined
+                            : menuVolume < 0.5
+                            ? Icons.volume_down_outlined
+                            : Icons.volume_up_outlined,
+                      ),
+                    ),
+                    SizedBox(width: spacing.xs),
                     Expanded(
                       child: EchoPlayerScrubber(
                         value: menuVolume,
@@ -316,20 +327,6 @@ class _DesktopVolumeControl extends ConsumerWidget {
               ),
             );
           },
-        ),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: spacing.sm),
-          child: SizedBox(
-            width: menuWidth,
-            child: Divider(color: colors.divider, height: spacing.sm),
-          ),
-        ),
-        MenuItemButton(
-          leadingIcon: Icon(
-            volume.muted ? Icons.volume_up_outlined : Icons.volume_off_outlined,
-          ),
-          onPressed: () => unawaited(commands.setMuted(!volume.muted)),
-          child: Text(volume.muted ? '取消静音' : '静音'),
         ),
       ],
       builder: (context, controller, _) {

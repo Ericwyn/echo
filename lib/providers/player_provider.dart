@@ -180,6 +180,7 @@ class PlayerNotifier extends StateNotifier<PlayerState>
   Completer<void>? _fadeCompleter;
   Timer? _playbackVolumePersistTimer;
   double _fadeGain = 1;
+  double _lastAudibleVolume = 1;
   static const Duration _playbackSessionPersistInterval = Duration(seconds: 15);
   Timer? _playbackSessionPersistTimer;
   Future<void>? _playbackSessionPersistFuture;
@@ -327,7 +328,10 @@ class PlayerNotifier extends StateNotifier<PlayerState>
         if (_audioHandler == null) await player.dispose();
         return;
       }
-      state = state.copyWith(userVolume: volume);
+      if (volume > 0.0001) {
+        _lastAudibleVolume = volume;
+      }
+      state = state.copyWith(userVolume: volume, isMuted: volume <= 0.0001);
       await player.setVolume(_effectivePlaybackVolume);
     } catch (error) {
       Logger.warnWithTag('PLAYBACK', 'failed to restore volume', error);
@@ -2186,8 +2190,14 @@ class PlayerNotifier extends StateNotifier<PlayerState>
   @override
   Future<void> setUserVolume(double value) async {
     final volume = value.clamp(0.0, 1.0).toDouble();
-    if ((state.userVolume - volume).abs() < 0.0001) return;
-    state = state.copyWith(userVolume: volume);
+    final muted = volume <= 0.0001;
+    if ((state.userVolume - volume).abs() < 0.0001 && state.isMuted == muted) {
+      return;
+    }
+    if (!muted) {
+      _lastAudibleVolume = volume;
+    }
+    state = state.copyWith(userVolume: volume, isMuted: muted);
     _applyEffectivePlaybackVolume();
     _playbackVolumePersistTimer?.cancel();
     _playbackVolumePersistTimer = Timer(const Duration(milliseconds: 250), () {
@@ -2197,6 +2207,10 @@ class PlayerNotifier extends StateNotifier<PlayerState>
 
   @override
   Future<void> setMuted(bool muted) async {
+    if (!muted && state.userVolume <= 0.0001) {
+      await setUserVolume(_lastAudibleVolume);
+      return;
+    }
     if (state.isMuted == muted) return;
     state = state.copyWith(isMuted: muted);
     _applyEffectivePlaybackVolume();

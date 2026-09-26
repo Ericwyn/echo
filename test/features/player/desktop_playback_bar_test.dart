@@ -53,6 +53,9 @@ void main() {
     await tester.tap(volumeButton);
     await tester.pumpAndSettle();
     expect(scrubbers, findsNWidgets(2));
+    expect(find.text('音量'), findsNothing);
+    expect(find.text('静音'), findsNothing);
+    expect(find.byTooltip('静音'), findsOneWidget);
     final playbackBarRect = tester.getRect(
       find.byKey(const ValueKey<String>('echo-desktop-playback-bar')),
     );
@@ -68,4 +71,51 @@ void main() {
     expect(find.text('3:00'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('volume popup icon toggles mute without a separate menu item', (
+    tester,
+  ) async {
+    final song = Song(id: 'song-1', title: 'Song');
+    final notifier = TestPlayerNotifier(
+      PlayerState(
+        currentSong: song,
+        queue: <Song>[song],
+        currentIndex: 0,
+        duration: const Duration(minutes: 3),
+        userVolume: 0.6,
+      ),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: <Override>[playerProvider.overrideWith((ref) => notifier)],
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: const Scaffold(
+            body: Align(
+              alignment: Alignment.bottomRight,
+              child: _VolumeControlTestHost(),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.bySemanticsLabel('音量控制'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('静音'));
+    await tester.pumpAndSettle();
+    expect(notifier.state.isMuted, isTrue);
+    expect(find.byTooltip('恢复音量'), findsOneWidget);
+  });
+}
+
+class _VolumeControlTestHost extends StatelessWidget {
+  const _VolumeControlTestHost();
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 1280,
+    height: DesktopPlaybackBar.height,
+    child: DesktopPlaybackBar(onOpenWorkspace: (_) {}),
+  );
 }

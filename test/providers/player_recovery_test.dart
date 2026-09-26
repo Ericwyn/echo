@@ -1195,4 +1195,29 @@ void main() {
     await notifier.play();
     expect(volumeWrites.last, 0.35);
   });
+
+  playbackTest('zero volume mutes and unmuting restores the last volume', (
+    tester,
+  ) async {
+    createFixture(
+      initialPreferences: const <String, Object>{'playback_volume_v1': 0.4},
+    );
+    await notifier.initialized;
+
+    await notifier.setUserVolume(0);
+    expect(notifier.state.userVolume, 0);
+    expect(notifier.state.isMuted, isTrue);
+    expect(volumeWrites.last, 0);
+
+    await notifier.setMuted(false);
+    expect(notifier.state.userVolume, 0.4);
+    expect(notifier.state.isMuted, isFalse);
+    expect(volumeWrites.last, 0.4);
+
+    await notifier.setMuted(true);
+    await notifier.setUserVolume(0.25);
+    expect(notifier.state.userVolume, 0.25);
+    expect(notifier.state.isMuted, isFalse);
+    expect(volumeWrites.last, 0.25);
+  });
 }
