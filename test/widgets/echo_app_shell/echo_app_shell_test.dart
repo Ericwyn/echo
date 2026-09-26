@@ -123,6 +123,41 @@ void main() {
       expect(selected, 'songs');
     });
 
+    testWidgets('desktop sidebar keeps Chinese labels at deliberate weights', (
+      tester,
+    ) async {
+      await _pumpShell(
+        tester,
+        size: const Size(1440, 900),
+        desktopActions: <EchoDesktopSidebarAction>[
+          EchoDesktopSidebarAction(
+            id: 'songs',
+            section: '资料库',
+            label: '全部歌曲',
+            icon: AppIcons.music,
+            onPressed: () {},
+          ),
+          EchoDesktopSidebarAction(
+            id: 'artists',
+            section: '资料库',
+            label: '歌手',
+            icon: AppIcons.people,
+            selected: true,
+            onPressed: () {},
+          ),
+        ],
+      );
+
+      final sectionStyle = tester.widget<Text>(find.text('资料库')).style!;
+      final regularStyle = tester.widget<Text>(find.text('全部歌曲')).style!;
+      final selectedStyle = tester.widget<Text>(find.text('歌手')).style!;
+
+      expect(sectionStyle.fontSize, 12);
+      expect(sectionStyle.fontWeight, FontWeight.w400);
+      expect(regularStyle.fontWeight, FontWeight.w400);
+      expect(selectedStyle.fontWeight, FontWeight.w600);
+    });
+
     testWidgets('desktop brand and navigation toolbar headers align', (
       tester,
     ) async {

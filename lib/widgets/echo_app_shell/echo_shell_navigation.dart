@@ -309,9 +309,10 @@ class _SidebarSectionLabel extends StatelessWidget {
       child: Text(
         label,
         style: context.echoTypography.label.copyWith(
-          fontSize: 14,
+          fontSize: 12,
           color: context.echoColors.muted,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w400,
+          letterSpacing: 0.3,
         ),
       ),
     );
@@ -362,8 +363,9 @@ class _DesktopSidebarActionRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: context.echoTypography.body.copyWith(
                     fontSize: 15,
+                    height: 1.25,
                     color: foreground,
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                   ),
                 ),
               ),
