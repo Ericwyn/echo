@@ -58,6 +58,7 @@ class WindowsSmtcBridge {
   void UpdateArtwork(const flutter::EncodableMap& values);
   void Dispose();
   void StartArtworkLoad(const std::string& path, uint64_t generation);
+  void QueueControl(PendingControl control);
 
   HWND window_ = nullptr;
   bool initialized_ = false;
