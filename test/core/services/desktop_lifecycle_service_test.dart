@@ -23,6 +23,25 @@ void main() {
     expect(calls, <String>['isMinimized', 'show', 'focus']);
   });
 
+  test('tray secondary activation opens the native context menu', () async {
+    const channel = MethodChannel('tray_manager');
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    final calls = <MethodCall>[];
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      calls.add(call);
+      return null;
+    });
+    addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+
+    DesktopLifecycleService.instance.onTrayIconRightMouseDown();
+    await pumpEventQueue();
+
+    expect(calls, hasLength(1));
+    expect(calls.single.method, 'popUpContextMenu');
+    expect(calls.single.arguments, <String, dynamic>{'bringAppToFront': true});
+  });
+
   group('statusNotifierReconnectDelay', () {
     test('backs off to a capped 30 second retry interval', () {
       expect(statusNotifierReconnectDelay(0), const Duration(seconds: 1));

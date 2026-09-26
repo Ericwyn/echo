@@ -599,6 +599,22 @@ class DesktopLifecycleService with WindowListener, TrayListener {
   }
 
   @override
+  void onTrayIconRightMouseDown() {
+    unawaited(_showTrayContextMenu());
+  }
+
+  Future<void> _showTrayContextMenu() async {
+    try {
+      // Windows requires the owner window to be foregrounded while tracking a
+      // native popup menu, including when the main window itself is hidden.
+      // ignore: deprecated_member_use
+      await trayManager.popUpContextMenu(bringAppToFront: true);
+    } catch (error) {
+      Logger.warnWithTag('DESKTOP', 'failed to show tray context menu', error);
+    }
+  }
+
+  @override
   void onTrayMenuItemClick(MenuItem menuItem) {
     switch (menuItem.key) {
       case 'show_window':

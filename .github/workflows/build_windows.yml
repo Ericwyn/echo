@@ -38,7 +38,12 @@ jobs:
         run: flutter build windows --release
 
       - name: Archive Windows Build
-        run: Compress-Archive -Path build/windows/runner/Release/* -DestinationPath windows-release.zip
+        shell: pwsh
+        run: |
+          Compress-Archive `
+            -Path build/windows/x64/runner/Release/* `
+            -DestinationPath windows-release.zip `
+            -Force
 
       - name: Upload Windows Build
         uses: actions/upload-artifact@v6
