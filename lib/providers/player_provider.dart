@@ -2622,23 +2622,10 @@ class PlayerNotifier extends StateNotifier<PlayerState>
     _playbackSessionPersistTimer?.cancel();
     _playbackSessionPersistTimer = null;
 
-    final libraryId = _currentPlaybackLibraryId;
-    final payload = _buildPlaybackSessionPayload();
+    // `_persistPlaybackSession` has already flushed the latest logical queue
+    // and position. Preserve that snapshot before native stop resets position;
+    // writing it a second time only makes desktop shutdown wait on duplicate IO.
     _preservePlaybackSessionOnShutdown = true;
-    try {
-      if (payload == null) {
-        await LocalStorage.clearPlaybackSession(libraryId: libraryId);
-      } else {
-        await LocalStorage.savePlaybackSession(payload, libraryId: libraryId);
-      }
-    } catch (error) {
-      Logger.warnWithTag(
-        _playerLogTag,
-        'failed to save playback session before desktop exit',
-        error,
-      );
-    }
-
     await stop();
   }
 
@@ -3179,10 +3166,11 @@ class PlayerNotifier extends StateNotifier<PlayerState>
       return;
     }
     _playbackSessionPersistDirty = true;
-    final activePersist = _playbackSessionPersistFuture;
-    if (activePersist != null) {
+    var activePersist = _playbackSessionPersistFuture;
+    while (activePersist != null) {
       await activePersist;
-      return;
+      if (!_playbackSessionPersistDirty || !mounted) return;
+      activePersist = _playbackSessionPersistFuture;
     }
 
     final completion = Completer<void>();

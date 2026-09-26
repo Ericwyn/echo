@@ -400,6 +400,15 @@ class DesktopLifecycleService with WindowListener, TrayListener {
     _watcherStableTimer?.cancel();
     _watcherStableTimer = null;
     ++_watcherGeneration;
+
+    // Remove the tray affordance before the slower persistence/player
+    // shutdown work. This gives immediate feedback for a tray-initiated exit
+    // and prevents the user from clicking a now-inert menu while cleanup runs.
+    await _runExitStep('destroy tray icon', trayManager.destroy);
+    await _runExitStep('remove tray listener', () async {
+      trayManager.removeListener(this);
+    });
+
     await _runExitStep(
       'save window state',
       DesktopWindowStateService.instance.dispose,
@@ -419,10 +428,6 @@ class DesktopLifecycleService with WindowListener, TrayListener {
     if (sessionBusClient != null) {
       await _runExitStep('close session bus', sessionBusClient.close);
     }
-    await _runExitStep('destroy tray icon', trayManager.destroy);
-    await _runExitStep('remove tray listener', () async {
-      trayManager.removeListener(this);
-    });
     await _runExitStep('remove window listener', () async {
       windowManager.removeListener(this);
     });
@@ -514,11 +519,19 @@ class DesktopLifecycleService with WindowListener, TrayListener {
     Future<void> Function() operation, {
     Duration timeout = _exitCleanupTimeout,
   }) async {
+    final watch = Stopwatch()..start();
     try {
       await operation().timeout(timeout);
     } catch (error, stackTrace) {
       Logger.warnWithTag('DESKTOP', 'exit cleanup failed: $label', error);
       Logger.debugWithTag('DESKTOP', 'exit cleanup stack: $label', stackTrace);
+    } finally {
+      if (watch.elapsedMilliseconds > 200) {
+        Logger.infoWithTag(
+          'DESKTOP',
+          'exit_cleanup_slow step=$label elapsedMs=${watch.elapsedMilliseconds}',
+        );
+      }
     }
   }
 

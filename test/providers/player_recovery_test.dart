@@ -284,7 +284,7 @@ void main() {
 
         final savedSession = await LocalStorage.getPlaybackSession();
         expect(savedSession?['positionMs'], 42000);
-        expect(savedSession?['queue'], isNotEmpty);
+        expect(savedSession?['entries'], isNotEmpty);
       } finally {
         if (!disposed) container.dispose();
         await tester.pump();

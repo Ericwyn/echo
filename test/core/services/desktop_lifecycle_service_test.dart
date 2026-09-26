@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:echoes/core/services/desktop_lifecycle_service.dart';
+import 'package:echoes/providers/player/playback_contract.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:just_audio/just_audio.dart' show LoopMode;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -249,5 +253,71 @@ void main() {
         expect(hidden, isTrue);
       },
     );
+  });
+
+  test('exit removes the tray before waiting for playback shutdown', () async {
+    const trayChannel = MethodChannel('tray_manager');
+    const windowChannel = MethodChannel('window_manager');
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    final calls = <String>[];
+    messenger.setMockMethodCallHandler(trayChannel, (call) async {
+      calls.add('tray:${call.method}');
+      return null;
+    });
+    messenger.setMockMethodCallHandler(windowChannel, (call) async {
+      calls.add('window:${call.method}');
+      return null;
+    });
+    addTearDown(() {
+      messenger.setMockMethodCallHandler(trayChannel, null);
+      messenger.setMockMethodCallHandler(windowChannel, null);
+    });
+
+    final playbackStopped = Completer<void>();
+    await DesktopLifecycleService.instance.initialize(
+      onTogglePlayPause: () async {},
+      onPrevious: () async {},
+      onNext: () async {},
+      onQuit: () {
+        calls.add('stop playback');
+        return playbackStopped.future;
+      },
+      onBeforeQuit: () async => true,
+      onBeforeHide: ({required trayAvailable}) async => true,
+      initialPlaybackSnapshot: const PlaybackSnapshot(
+        songId: null,
+        entryId: null,
+        title: '',
+        artist: '',
+        album: '',
+        artworkReference: null,
+        position: Duration.zero,
+        duration: Duration.zero,
+        isPlaying: false,
+        playbackRequested: false,
+        isStopped: true,
+        isLoading: false,
+        hasError: false,
+        canPlay: false,
+        canPause: false,
+        canGoNext: false,
+        canGoPrevious: false,
+        canSeek: false,
+        volume: 1,
+        isMuted: false,
+        loopMode: LoopMode.off,
+        shuffleEnabled: false,
+      ),
+    );
+    calls.clear();
+
+    final exit = DesktopLifecycleService.instance.requestExit();
+    await pumpEventQueue();
+
+    expect(calls.take(2), <String>['tray:destroy', 'stop playback']);
+
+    playbackStopped.complete();
+    await exit;
   });
 }
