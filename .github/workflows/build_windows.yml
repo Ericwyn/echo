@@ -2,6 +2,16 @@ name: Build Windows
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-windows-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 
 env:
   FLUTTER_VERSION: 3.47.5
@@ -35,19 +45,25 @@ jobs:
           "name=v$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
       - name: Build Windows
-        run: flutter build windows --release
-
-      - name: Archive Windows Build
         shell: pwsh
         run: |
-          Compress-Archive `
-            -Path build/windows/x64/runner/Release/* `
-            -DestinationPath windows-release.zip `
-            -Force
+          flutter build windows --release --no-pub `
+            --dart-define="ECHO_BUILD_SOURCE=GitHub Actions" `
+            --dart-define="ECHO_BUILD_COMMIT=${{ github.sha }}" `
+            --dart-define="ECHO_FLUTTER_VERSION=${{ env.FLUTTER_VERSION }}"
+
+      - name: Verify Windows executable
+        shell: pwsh
+        run: |
+          $executable = 'build/windows/x64/runner/Release/echoes.exe'
+          if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) {
+            throw "Windows executable not found: $executable"
+          }
 
       - name: Upload Windows Build
         uses: actions/upload-artifact@v6
         with:
-          name: windows-release-${{ steps.version.outputs.name }}
-          path: windows-release.zip
-          retention-days: 5
+          name: echoes-windows-x64-${{ steps.version.outputs.name }}-${{ github.run_number }}-${{ github.run_attempt }}
+          path: build/windows/x64/runner/Release/
+          if-no-files-found: error
+          retention-days: 14
