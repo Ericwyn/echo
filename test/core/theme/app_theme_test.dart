@@ -9,6 +9,8 @@ import 'package:echoes/core/design/tokens/echo_spacing.dart';
 import 'package:echoes/core/design/tokens/echo_typography.dart';
 import 'package:echoes/core/theme/app_theme.dart';
 import 'package:echoes/core/theme/color_scheme.dart';
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, debugDefaultTargetPlatformOverride;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -82,6 +84,30 @@ void main() {
   });
 
   group('AppTheme compatibility bridge', () {
+    test('uses the native Chinese UI font stack on Windows', () {
+      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+
+      final theme = AppTheme.light();
+      final typography = theme.extension<EchoTypography>()!;
+
+      for (final style in <TextStyle>[
+        typography.display,
+        typography.headline,
+        typography.title,
+        typography.body,
+        typography.label,
+        typography.metadata,
+      ]) {
+        expect(style.fontFamily, 'Microsoft YaHei UI');
+        expect(style.fontFamilyFallback, <String>[
+          'Microsoft YaHei',
+          'Segoe UI',
+        ]);
+      }
+      expect(theme.textTheme.bodyMedium?.fontFamily, 'Microsoft YaHei UI');
+    });
+
     test('registers every Echo token extension in both brightness modes', () {
       for (final theme in [AppTheme.light(), AppTheme.dark()]) {
         final colors = theme.extension<EchoColors>()!;

@@ -21,10 +21,16 @@ class EchoTypography extends ThemeExtension<EchoTypography> {
   final TextStyle label;
   final TextStyle metadata;
 
-  factory EchoTypography.standard(EchoColors colors) {
+  factory EchoTypography.standard(
+    EchoColors colors, {
+    String? fontFamily,
+    List<String>? fontFamilyFallback,
+  }) {
     return EchoTypography(
       display: TextStyle(
         color: colors.ink,
+        fontFamily: fontFamily,
+        fontFamilyFallback: fontFamilyFallback,
         fontSize: 32,
         fontWeight: FontWeight.w700,
         height: 1.12,
@@ -32,6 +38,8 @@ class EchoTypography extends ThemeExtension<EchoTypography> {
       ),
       headline: TextStyle(
         color: colors.ink,
+        fontFamily: fontFamily,
+        fontFamilyFallback: fontFamilyFallback,
         fontSize: 24,
         fontWeight: FontWeight.w700,
         height: 1.18,
@@ -39,18 +47,24 @@ class EchoTypography extends ThemeExtension<EchoTypography> {
       ),
       title: TextStyle(
         color: colors.ink,
+        fontFamily: fontFamily,
+        fontFamilyFallback: fontFamilyFallback,
         fontSize: 17,
         fontWeight: FontWeight.w600,
         height: 1.25,
       ),
       body: TextStyle(
         color: colors.ink,
+        fontFamily: fontFamily,
+        fontFamilyFallback: fontFamilyFallback,
         fontSize: 15,
         fontWeight: FontWeight.w400,
         height: 1.45,
       ),
       label: TextStyle(
         color: colors.ink,
+        fontFamily: fontFamily,
+        fontFamilyFallback: fontFamilyFallback,
         fontSize: 13,
         fontWeight: FontWeight.w600,
         height: 1.25,
@@ -58,6 +72,8 @@ class EchoTypography extends ThemeExtension<EchoTypography> {
       ),
       metadata: TextStyle(
         color: colors.muted,
+        fontFamily: fontFamily,
+        fontFamilyFallback: fontFamilyFallback,
         fontSize: 13,
         fontWeight: FontWeight.w500,
         height: 1.25,

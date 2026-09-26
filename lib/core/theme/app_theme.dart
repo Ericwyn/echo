@@ -5,7 +5,12 @@ import 'package:echoes/core/design/tokens/echo_radii.dart';
 import 'package:echoes/core/design/tokens/echo_spacing.dart';
 import 'package:echoes/core/design/tokens/echo_typography.dart';
 import 'package:echoes/core/theme/color_scheme.dart';
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform;
 import 'package:flutter/material.dart';
+
+const _windowsFontFamily = 'Microsoft YaHei UI';
+const _windowsFontFamilyFallback = <String>['Microsoft YaHei', 'Segoe UI'];
 
 /// Flutter compatibility theme backed entirely by Echo semantic tokens.
 ///
@@ -21,7 +26,12 @@ abstract final class AppTheme {
 
   static ThemeData _build(Brightness brightness, Color? seedColor) {
     final colors = AppColorScheme.colorsFor(brightness, seedColor);
-    final typography = EchoTypography.standard(colors);
+    final windows = defaultTargetPlatform == TargetPlatform.windows;
+    final typography = EchoTypography.standard(
+      colors,
+      fontFamily: windows ? _windowsFontFamily : null,
+      fontFamilyFallback: windows ? _windowsFontFamilyFallback : null,
+    );
     final colorScheme = AppColorScheme.materialBridge(colors, brightness);
     final textTheme = TextTheme(
       displayLarge: typography.display,
@@ -61,6 +71,7 @@ abstract final class AppTheme {
       applyElevationOverlayColor: false,
       materialTapTargetSize: MaterialTapTargetSize.padded,
       visualDensity: VisualDensity.standard,
+      fontFamily: windows ? _windowsFontFamily : null,
       textTheme: textTheme,
       primaryTextTheme: textTheme,
       extensions: <ThemeExtension<dynamic>>[
